@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EndLess — World News & Analysis</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <div class="container flex justify-between items-center">
+            <div id="current-date">Loading date...</div>
+            <div class="flex gap-2" style="font-size: 0.8rem; align-items: center;">
+                <span>Edition: Global</span>
+                <span>|</span>
+                <span id="weather">☀️ 24°C</span>
+                <span>|</span>
+                <div class="lang-selector">
+                    <button class="lang-btn active" data-lang="ta">தமிழ்</button>
+                    <button class="lang-btn" data-lang="en">English</button>
+                    <button class="lang-btn" data-lang="si">සිංහල</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header Ad Banner -->
+    <div class="container" id="header-ad-container" style="padding-top: 1rem;"></div>
+
+    <!-- Main Header -->
+    <header class="main-header">
+        <div class="container flex justify-between items-center">
+            <a href="index.html" class="logo">
+                <span class="logo-icon">E</span>
+                <span class="logo-end">End</span><span class="logo-less">Less</span>
+            </a>
+            <nav>
+                <ul class="nav-links" id="desktop-nav">
+                    <li><a href="#" class="active" data-cat="All" data-key="nav_home">முகப்பு</a></li>
+                    <li><a href="#" data-cat="World" data-key="nav_world">உலகம்</a></li>
+                    <li><a href="#" data-cat="Technology" data-key="nav_tech">தொழில்நுட்பம்</a></li>
+                    <li><a href="#" data-cat="Business" data-key="nav_business">வணிகம்</a></li>
+                    <li><a href="#" data-cat="Science" data-key="nav_science">அறிவியல்</a></li>
+                    <li><a href="#" data-cat="Sports" data-key="nav_sports">விளையாட்டு</a></li>
+                </ul>
+            </nav>
+            <div class="header-actions">
+                <div class="search-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+                    <input type="text" id="search-input" data-key="placeholder_search" placeholder="செய்திகளைத் தேடு...">
+                </div>
+                <button class="icon-btn" id="theme-toggle" aria-label="Toggle theme">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
+                </button>
+                <button class="icon-btn mobile-menu-btn" id="mobile-menu-btn" aria-label="Menu">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Breaking News Ticker -->
+    <div class="ticker">
+        <div class="ticker-inner" id="ticker-content"></div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero container">
+        <div class="hero-grid" id="hero-section"></div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="container main-layout">
+        <div class="main-content">
+            <h2 class="section-title" id="feed-title" data-key="latest_news">சமீபத்திய செய்திகள்</h2>
+<div class="news-grid" id="news-grid"></div>
+            <div class="load-more" id="load-more-wrap">
+                <button class="btn" id="load-more-btn" data-key="load_more">மேலும் கட்டுரைகள் ↓</button>
+            </div>
+        </div>
+
+        <aside class="sidebar">
+            <div class="ad-box" id="sidebar-ad-container" style="margin-bottom: 1.5rem;"></div>
+            <div class="sidebar-box">
+                <h3 data-key="trending">🔥 பிரபலமானவை</h3>
+                <div id="trending-list"></div>
+            </div>
+            <div class="sidebar-box">
+                <h3 data-key="categories">📂 பிரிவுகள்</h3>
+                <ul class="category-list" id="category-list"></ul>
+            </div>
+            <div class="sidebar-box newsletter">
+                <h3 data-key="newsletter">📬 தினசரி சுருக்கம்</h3>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;" data-key="newsletter_desc">முக்கியமான செய்திகளை உங்கள் மின்னஞ்சலுக்கு அனுப்புங்கள்.</p>
+                <input type="email" placeholder="your@email.com" id="newsletter-email">
+                <button onclick="alert('சந்தாவுக்கு நன்றி!')" data-key="subscribe">சந்தா சேர்</button>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Inline Ad -->
+    <div class="container" id="inline-ad-container" style="margin: 2rem auto;"></div>
+
+    <!-- Article Modal -->
+    <div class="modal-overlay" id="article-modal">
+        <div class="modal-content">
+            <button class="modal-close" id="modal-close">&times;</button>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div>
+
+<h4 class="footer-logo"><span class="logo-end">End</span><span class="logo-less">Less</span></h4>
+
+                    
+                    <p style="font-size:0.9rem; color:var(--text-muted); line-height:1.5;" data-key="footer_desc">உலகம் முழுவதும் சுயாதீன பத்திரிகையாளர். தினமும் மில்லியன் கணக்கான வாசகர்களால் நம்பப்படுகிறது.</p>
+                </div>
+                <div>
+                    <h4 data-key="footer_sections">பிரிவுகள்</h4>
+                    <ul>
+                        <li data-key="nav_world">உலகம்</li>
+                        <li data-key="nav_tech">தொழில்நுட்பம்</li>
+                        <li data-key="nav_business">வணிகம்</li>
+                        <li data-key="nav_science">அறிவியல்</li>
+                        <li data-key="nav_health">சுகாதாரம்</li>
+                        <li data-key="nav_sports">விளையாட்டு</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 data-key="footer_company">நிறுவனம்</h4>
+                    <ul>
+                        <li data-key="about_us">எங்களைப் பற்றி</li>
+                        <li data-key="careers">வேலைவாய்ப்பு</li>
+                        <li data-key="ethics">பொருளாதார ஒழுக்கம்</li>
+                        <li data-key="contact">தொடர்பு</li>
+                        <li data-key="advertise">விளம்பரம்</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 data-key="follow_us">எங்களை பின்தொடர்</h4>
+                    <ul>
+                        <li>Twitter / X</li>
+                        <li>Facebook</li>
+                        <li>Instagram</li>
+                        <li>LinkedIn</li>
+                        <li>YouTube</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                © <span id="year"></span> <span class="logo-end">End</span><span class="logo-less">Less</span>. <span data-key="rights">அனைத்து உரிமைகளும் பாதுகாக்கப்பட்டவை</span>. | <span data-key="privacy">தனியுரிமைக் கொள்கை</span> | <span data-key="terms">விதிமுறைகள்</span>
+            </div>
+        </div>
+    </footer>
+<!-- Mobile Overlay -->
+    <div class="mobile-overlay" id="mobile-overlay"></div>
+    <div class="mobile-nav" id="mobile-nav">
+        <button class="close-btn" id="close-mobile">&times;</button>
+        <div style="margin-top: 2rem; margin-bottom: 1.5rem; text-align: center;">
+            <span class="logo-end" style="font-size: 1.5rem; font-weight: 900; font-family: Georgia, serif;">End</span><span class="logo-less" style="font-size: 1.5rem; font-weight: 900; font-family: Georgia, serif; color: #dc2626;">Less</span>
+        </div>
+        <ul>
+            <li><a href="#" data-cat="All" data-key="nav_home">முகப்பு</a></li>
+            <li><a href="#" data-cat="World" data-key="nav_world">உலகம்</a></li>
+            <li><a href="#" data-cat="Technology" data-key="nav_tech">தொழில்நுட்பம்</a></li>
+            <li><a href="#" data-cat="Business" data-key="nav_business">வணிகம்</a></li>
+            <li><a href="#" data-cat="Science" data-key="nav_science">அறிவியல்</a></li>
+            <li><a href="#" data-cat="Sports" data-key="nav_sports">விளையாட்டு</a></li>
+        </ul>
+        <div style="margin-top: 2rem; display: flex; justify-content: center; gap: 0.5rem;">
+            <button class="lang-btn" data-lang="ta" style="padding: 0.4rem 0.8rem;">தமிழ்</button>
+            <button class="lang-btn" data-lang="en" style="padding: 0.4rem 0.8rem;">English</button>
+            <button class="lang-btn" data-lang="si" style="padding: 0.4rem 0.8rem;">සිංහල</button>
+        </div>
+    </div>
+
+    <script src="scripts.js"></script>
+</body>
+</html>
