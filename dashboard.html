@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EndLess — Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<base target="_blank">
+<base target="_blank">
+<base target="_blank">
+</head>
+<body>
+    <div id="admin-dashboard" class="admin-dashboard">
+        <!-- Mobile Hamburger -->
+        <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open menu">
+            <span></span><span></span><span></span>
+        </button>
+
+        <!-- Sidebar Overlay (mobile) -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+        <aside class="admin-sidebar" id="admin-sidebar">
+            <div class="sidebar-header">
+                <h2>
+                    <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                        <span class="admin-logo-icon">E</span>
+                        <span>End<span style="color:#ef4444">Less</span></span>
+                    </span>
+                </h2>
+                <small>News Management</small>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-page="dashboard">
+                    <span>📊</span> Dashboard
+                </button>
+                <button class="nav-item" data-page="news">
+                    <span>📝</span> Manage News
+                </button>
+                <button class="nav-item" data-page="ads">
+                    <span>📢</span> Manage Ads
+                </button>
+                <button class="nav-item" data-page="categories">
+                    <span>🏷️</span> Categories
+                </button>
+                <button class="nav-item" data-page="settings">
+                    <span>⚙️</span> Settings
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="index.html" target="_blank">🌐 View Main Website</a>
+            </div>
+        </aside>
+
+        <main class="admin-main">
+            <header class="admin-header">
+                <div class="header-left">
+                    <button class="header-menu-btn" id="header-menu-btn" aria-label="Menu">
+                        <span></span><span></span><span></span>
+                    </button>
+                    <h1 id="page-title">Dashboard</h1>
+                </div>
+                <div class="admin-user">
+                    <span>👤 Administrator</span>
+                </div>
+            </header>
+
+            <div id="page-dashboard" class="page-content">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📝</div>
+                        <div class="stat-info">
+                            <h3 id="stat-total-news">0</h3>
+                            <p>Total Articles</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">👁️</div>
+                        <div class="stat-info">
+                            <h3 id="stat-published">0</h3>
+                            <p>Published</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📢</div>
+                        <div class="stat-info">
+                            <h3 id="stat-active-ads">0</h3>
+                            <p>Active Ads</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🏷️</div>
+                        <div class="stat-info">
+                            <h3 id="stat-categories">0</h3>
+                            <p>Categories</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="panel">
+                        <h3>📈 Recent Articles</h3>
+                        <div class="table-scroll">
+                            <table class="data-table compact">
+                                <thead>
+                                    <tr><th>Title</th><th>Category</th><th>Date</th><th>Status</th></tr>
+                                </thead>
+                                <tbody id="recent-news-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <h3>📢 Active Advertisements</h3>
+                        <div class="table-scroll">
+                            <table class="data-table compact">
+                                <thead>
+                                    <tr><th>Ad</th><th>Position</th><th>Status</th></tr>
+                                </thead>
+                                <tbody id="recent-ads-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-news" class="page-content hidden">
+                <div class="page-toolbar">
+                    <button class="btn-primary" id="btn-add-news">+ Add New Article</button>
+                    <input type="text" id="news-search" placeholder="Search articles..." class="search-input">
+                </div>
+                <div class="table-wrapper">
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Image</th>
+                                    <th>Headline</th>
+                                    <th>Category</th>
+                                    <th>Author</th>
+                                    <th>Date</th>
+                                    <th>Lang</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="news-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-ads" class="page-content hidden">
+                <div class="page-toolbar">
+                    <button class="btn-primary" id="btn-add-ad">+ Add New Ad</button>
+                </div>
+                <div class="table-wrapper">
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Preview</th>
+                                    <th>Title</th>
+                                    <th>Position</th>
+                                    <th>Link</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ads-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-categories" class="page-content hidden">
+                <div class="page-toolbar">
+                    <button class="btn-primary" id="btn-add-cat">+ Add Category</button>
+                </div>
+                <div class="table-wrapper">
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr><th>Name</th><th>Articles</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody id="categories-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-settings" class="page-content hidden">
+                <div class="settings-grid">
+                    <div class="panel">
+                        <h3>🔐 Change Password</h3>
+                        <input type="password" id="old-pass" placeholder="Current Password">
+                        <input type="password" id="new-pass" placeholder="New Password">
+                        <input type="password" id="confirm-pass" placeholder="Confirm New Password">
+                        <button class="btn-primary" id="btn-change-pass" style="margin-top: 1rem;">Update Password</button>
+                    </div>
+                    <div class="panel">
+                        <h3>🗑️ Reset Data</h3>
+                        <p style="color: #6b7280; margin-bottom: 1rem;">This will restore default demo data. All your changes will be lost.</p>
+                        <button class="btn-danger" id="btn-reset-data">Reset to Default Data</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- NEWS MODAL -->
+    <div class="modal-overlay" id="news-modal">
+        <div class="modal-box" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2 id="news-modal-title">Add Article</h2>
+                <button class="modal-close-btn" id="close-news-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="news-id">
+
+                <!-- Language Tabs -->
+                <div class="lang-tabs">
+                    <button type="button" class="lang-tab active" data-lang="ta">தமிழ்</button>
+                    <button type="button" class="lang-tab" data-lang="en">English</button>
+                    <button type="button" class="lang-tab" data-lang="si">සිංහල</button>
+                </div>
+
+                <div class="form-group">
+                    <label>Headline (Title) *</label>
+                    <input type="text" id="news-title-ta" class="lang-input active" placeholder="தலைப்பை உள்ளிடவும்...">
+                    <input type="text" id="news-title-en" class="lang-input" placeholder="Enter headline..." style="display:none;">
+                    <input type="text" id="news-title-si" class="lang-input" placeholder="මාතෘකාව ඇතුළත් කරන්න..." style="display:none;">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Category *</label>
+                        <select id="news-category"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Author *</label>
+                        <input type="text" id="news-author-ta" class="lang-input active" placeholder="எழுத்தாளர் பெயர்">
+                        <input type="text" id="news-author-en" class="lang-input" placeholder="Author name" style="display:none;">
+                        <input type="text" id="news-author-si" class="lang-input" placeholder="ලේඛකයාගේ නම" style="display:none;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Short Description (Excerpt) *</label>
+                    <textarea id="news-excerpt-ta" class="lang-textarea active" rows="3" placeholder="முகப்புக்கான சுருக்கம்..."></textarea>
+                    <textarea id="news-excerpt-en" class="lang-textarea" rows="3" placeholder="Short summary for homepage..." style="display:none;"></textarea>
+                    <textarea id="news-excerpt-si" class="lang-textarea" rows="3" placeholder="මුල් පිටුව සඳහා කෙටි සාරාංශය..." style="display:none;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Full News Content *</label>
+                    <textarea id="news-content-ta" class="lang-textarea active" rows="8" placeholder="முழு செய்தி கட்டுரையை இங்கே எழுதவும்..."></textarea>
+                    <textarea id="news-content-en" class="lang-textarea" rows="8" placeholder="Write full news article here..." style="display:none;"></textarea>
+                    <textarea id="news-content-si" class="lang-textarea" rows="8" placeholder="සම්පූර්ණ පුවත් ලිපිය මෙහි ලියන්න..." style="display:none;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>News Photo</label>
+                    <div class="upload-area" id="photo-upload-area">
+                        <input type="file" id="news-photo-file" accept="image/*" style="display: none;">
+                        <div class="upload-placeholder" onclick="document.getElementById('news-photo-file').click()">
+                            <span style="font-size: 2rem;">📷</span>
+                            <p>Click to upload photo</p>
+                            <small>or drag and drop image here</small>
+                        </div>
+                        <img id="news-photo-preview" src="" alt="Photo Preview" style="max-height: 200px; display: none; border-radius: 6px; margin-top: 0.5rem;">
+                    </div>
+                    <input type="hidden" id="news-photo-data">
+                </div>
+                <div class="form-group">
+                    <label>News Video (Optional)</label>
+                    <div class="upload-area" id="video-upload-area">
+                        <input type="file" id="news-video-file" accept="video/*" style="display: none;">
+                        <div class="upload-placeholder" onclick="document.getElementById('news-video-file').click()">
+                            <span style="font-size: 2rem;">🎬</span>
+                            <p>Click to upload video</p>
+                            <small>MP4, WebM supported</small>
+                        </div>
+                        <video id="news-video-preview" controls style="max-height: 200px; display: none; border-radius: 6px; margin-top: 0.5rem; width: 100%;"></video>
+                    </div>
+                    <input type="hidden" id="news-video-data">
+                </div>
+                <div class="form-group">
+                    <label>Or Paste Image URL</label>
+                    <input type="text" id="news-image-url" placeholder="https://example.com/image.jpg">
+                </div>
+                <div class="form-row" style="margin-top: 1rem;">
+                    <div class="form-group">
+                        <label><input type="checkbox" id="news-featured"> ⭐ Featured (Show in Hero)</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="news-trending"> 🔥 Trending</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="news-status" checked> ✅ Published</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancel-news">Cancel</button>
+                <button class="btn-primary" id="save-news">💾 Publish News</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AD MODAL -->
+    <div class="modal-overlay" id="ad-modal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2 id="ad-modal-title">Add Advertisement</h2>
+                <button class="modal-close-btn" id="close-ad-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="ad-id">
+                <div class="form-group">
+                    <label>Ad Title (Tamil)</label>
+                    <input type="text" id="ad-title-ta" placeholder="விளம்பர தலைப்பு">
+                </div>
+                <div class="form-group">
+                    <label>Ad Title (English)</label>
+                    <input type="text" id="ad-title-en" placeholder="Ad title">
+                </div>
+                <div class="form-group">
+                    <label>Ad Title (Sinhala)</label>
+                    <input type="text" id="ad-title-si" placeholder="දැන්වීම් මාතෘකාව">
+                </div>
+                <div class="form-group">
+                    <label>Link URL</label>
+                    <input type="text" id="ad-link" placeholder="https://example.com">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Position</label>
+                        <select id="ad-position">
+                            <option value="header">Header Banner</option>
+                            <option value="sidebar">Sidebar</option>
+                            <option value="inline">Inline (Between Articles)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Image URL</label>
+                        <input type="text" id="ad-image" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Or Upload Ad Image</label>
+                    <input type="file" id="ad-image-file" accept="image/*">
+                </div>
+                <div class="form-group">
+                    <img id="ad-image-preview" src="" alt="Preview" style="max-height: 120px; display: none; border-radius: 6px;">
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="ad-active" checked> Active</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancel-ad">Cancel</button>
+                <button class="btn-primary" id="save-ad">💾 Save Ad</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CATEGORY MODAL -->
+    <div class="modal-overlay" id="cat-modal">
+        <div class="modal-box" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Add Category</h2>
+                <button class="modal-close-btn" id="close-cat-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Category Name (Tamil)</label>
+                    <input type="text" id="cat-name-ta" placeholder="e.g. உலகம்">
+                </div>
+                <div class="form-group">
+                    <label>Category Name (English)</label>
+                    <input type="text" id="cat-name-en" placeholder="e.g. World">
+                </div>
+                <div class="form-group">
+                    <label>Category Name (Sinhala)</label>
+                    <input type="text" id="cat-name-si" placeholder="e.g. ලෝකය">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancel-cat">Cancel</button>
+                <button class="btn-primary" id="save-cat">💾 Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="guard.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>
