@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════
    ENDLESS — MAIN WEBSITE LOGIC
    WITH 3 LANGUAGE SUPPORT (Tamil/English/Sinhala)
+   + Real-time Weather + Localized Dates + Fixed Categories
    ═══════════════════════════════════════ */
 
 const TRANSLATIONS = {
@@ -66,6 +67,26 @@ const TRANSLATIONS = {
     }
 };
 
+// Tamil month names
+const TAMIL_MONTHS = [
+    "ஜனவரி", "பிப்ரவரி", "மார்ச்", "ஏப்ரல்", "மே", "ஜூன்",
+    "ஜூலை", "ஆகஸ்ட்", "செப்டம்பர்", "அக்டோபர்", "நவம்பர்", "டிசம்பர்"
+];
+const TAMIL_DAYS = [
+    "ஞாயிற்றுக்கிழமை", "திங்கட்கிழமை", "செவ்வாய்க்கிழமை", "புதன்கிழமை",
+    "வியாழக்கிழமை", "வெள்ளிக்கிழமை", "சனிக்கிழமை"
+];
+
+// Sinhala month names
+const SINHALA_MONTHS = [
+    "ජනවාරි", "පෙබරවාරි", "මාර්තු", "අප්‍රේල්", "මැයි", "ජූනි",
+    "ජූලි", "අගෝස්තු", "සැප්තැම්බර්", "ඔක්තෝබර්", "නොවැම්බර්", "දෙසැම්බර්"
+];
+const SINHALA_DAYS = [
+    "ඉරිදා", "සඳුදා", "අඟහරුවාදා", "බදාදා",
+    "බ්‍රහස්පතින්දා", "සිකුරාදා", "සෙනසුරාදා"
+];
+
 let currentLang = localStorage.getItem('gd_language') || 'ta';
 
 function setLanguage(lang) {
@@ -92,6 +113,68 @@ function setLanguage(lang) {
     renderCategories();
     renderTrending();
     renderAds();
+    updateDateDisplay();
+}
+
+// ═══════════════════════════════════════
+// REAL-TIME WEATHER (Open-Meteo - Free, No API Key)
+// ═══════════════════════════════════════
+async function fetchWeather() {
+    const weatherEl = document.getElementById('weather');
+    try {
+        // Colombo, Sri Lanka coordinates
+        const lat = 6.9271;
+        const lon = 79.8612;
+        const response = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`
+        );
+        if (!response.ok) throw new Error('Weather fetch failed');
+        const data = await response.json();
+        const temp = Math.round(data.current_weather.temperature);
+        const weatherCode = data.current_weather.weathercode;
+
+        // Weather icon mapping
+        const weatherIcons = {
+            0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
+            45: '🌫️', 48: '🌫️',
+            51: '🌦️', 53: '🌦️', 55: '🌧️',
+            61: '🌧️', 63: '🌧️', 65: '🌧️',
+            71: '🌨️', 73: '🌨️', 75: '🌨️',
+            80: '🌦️', 81: '🌧️', 82: '🌧️',
+            95: '⛈️', 96: '⛈️', 99: '⛈️'
+        };
+        const icon = weatherIcons[weatherCode] || '🌡️';
+
+        if (weatherEl) {
+            weatherEl.textContent = `${icon} ${temp}°C`;
+        }
+    } catch (err) {
+        console.warn('Weather fetch failed:', err);
+        if (weatherEl) weatherEl.textContent = '🌡️ --°C';
+    }
+}
+
+// ═══════════════════════════════════════
+// LOCALIZED DATE DISPLAY
+// ═══════════════════════════════════════
+function updateDateDisplay() {
+    const dateEl = document.getElementById('current-date');
+    if (!dateEl) return;
+
+    const now = new Date();
+    const day = now.getDay();
+    const date = now.getDate();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+
+    if (currentLang === 'ta') {
+        dateEl.textContent = `${TAMIL_DAYS[day]}, ${date} ${TAMIL_MONTHS[month]} ${year}`;
+    } else if (currentLang === 'si') {
+        dateEl.textContent = `${SINHALA_DAYS[day]}, ${date} ${SINHALA_MONTHS[month]} ${year}`;
+    } else {
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        dateEl.textContent = now.toLocaleDateString('en-US', options);
+    }
 }
 
 const DEFAULT_NEWS = [
@@ -122,7 +205,7 @@ const DEFAULT_NEWS = [
         excerpt_si: "Falcon Heavy චන්ද්‍රිකා 24ක් කක්ෂයට රැගෙන ගියේය.",
         content: "<p>Falcon Heavy 24 முன்னணி தகவல்தொடர்பு செயற்கைக்கோள்களை சுற்றுப்பாதையில் ஏவியது. இந்த செயற்கைக்கோள்கள் லேசர் இணைப்புகளைக் கொண்டுள்ளன.</p>",
         content_en: "<p>The Falcon Heavy carried 24 advanced communications satellites into orbit. Each satellite is equipped with laser interlinks that allow data to travel at the speed of light.</p>",
-        content_si: "<p>Falcon Heavy චන්ද්‍රිකා 24ක් කක්ෂයට රැගෙන ගියේය. එකි එකි චන්ද්‍රිකාව ලේසර් අන්තර්සම්බන්ධතා සහිතව සම්පූර්ණ කර ඇත.</p>",
+        content_si: "<p>Falcon Heavy චන්ද්‍රිකා 24ක් කක්ෂයට රැගෙන ගියේය. එක් එක් චන්ද්‍රිකාව ලේසර් අන්තර්සම්බන්ධතා සහිතව සම්පූර්ණ කර ඇත.</p>",
         category: "அறிவியல்", category_en: "Science", category_si: "විද්‍යාව",
         author: "ஜேம்ஸ் சென்", author_en: "James Chen", author_si: "ජේම්ස් චෙන්",
         date: new Date(Date.now() - 3600000 * 5).toISOString(),
@@ -170,10 +253,10 @@ const DEFAULT_NEWS = [
         title_si: "විප්ලවීය බැටරි තාක්ෂණය EV පරාසය තෙගුණු කරයි",
         excerpt: "MIT ஆராய்ச்சியாளர்கள் EV பயமின்மையை நீக்கும் திண்மநிலை பேட்டரி முன்மாதிரியை அறிமுகப்படுத்தினர்.",
         excerpt_en: "Researchers at MIT unveil a solid-state battery prototype that could eliminate range anxiety for electric vehicles.",
-        excerpt_si: "MIT පරියේෂකයන් විද්‍යුත් වාහනවලට පරාස ආතතිය ඉවත් කළ හැකි ඝන තත්ත්ව බැටරි මුල් ආදර්ශයක් හෙළිදරව් කළහ.",
+        excerpt_si: "MIT පර්යේෂකයන් විද්‍යුත් වාහනවලට පරාස ආතතිය ඉවත් කළ හැකි ඝන තත්ත්ව බැටරි මුල් ආදර්ශයක් හෙළිදරව් කළහ.",
         content: "<p>MIT ஆராய்ச்சியாளர்கள் EV பயமின்மையை நீக்கும் திண்மநிலை பேட்டரி முன்மாதிரியை அறிமுகப்படுத்தினர். இது 1,200 Wh/L ஆற்றல் அடர்த்தியை அடைகிறது.</p>",
         content_en: "<p>Researchers at MIT unveil a solid-state battery prototype. The lithium-metal design achieves 1,200 Wh/L energy density, roughly three times that of current Tesla batteries.</p>",
-        content_si: "<p>MIT පරියේෂකයන් ඝන තත්ත්ව බැටරි මුල් ආදර්ශයක් හෙළිදරව් කළහ. ලිතියම්-ලෝහ නිර්මාණය 1,200 Wh/L බලශක්ති ඝනත්වයට ළඟා වේ.</p>",
+        content_si: "<p>MIT පර්යේෂකයන් ඝන තත්ත්ව බැටරි මුල් ආදර්ශයක් හෙළිදරව් කළහ. ලිතියම්-ලෝහ නිර්මාණය 1,200 Wh/L බලශක්ති ඝනත්වයට ළඟා වේ.</p>",
         category: "தொழில்நுட்பம்", category_en: "Technology", category_si: "තාක්ෂණය",
         author: "பிரியா படேல்", author_en: "Priya Patel", author_si: "ප්‍රියා පටෙල්",
         date: new Date(Date.now() - 3600000 * 14).toISOString(),
@@ -187,10 +270,10 @@ const DEFAULT_NEWS = [
         title_si: "ඔලිම්පික් 2026: තිරසාර ක්‍රීඩාංගණ හෙළිදරව් විය",
         excerpt: "மிலான்-கோர்டினா குழு முழுக்க முழுக்க புதுப்பிக்கத்தக்க ஆற்றல் மூலங்களால் இயக்கப்படும் பூஜ்ஜிய உமிழ்வு மைதானங்களை வெளியிட்டது.",
         excerpt_en: "The Milan-Cortina committee reveals zero-emission venues powered entirely by renewable energy sources.",
-        excerpt_si: "මිලානෝ-කෝර්ටිනා කමිටුව සම්පූර්ණයෙන්ම පුනර්ජන්‍ය බලශක්ති මූලාශ්‍ර මගින් බලගැන්වූ බුද්ධිමත් විමෝචන ශාලා හෙළිදරව් කරයි.",
+        excerpt_si: "මිලානෝ-කෝර්ටිනා කමිටුව සම්පූර්ණයෙන්ම පුනර්ජනනීය බලශක්ති මූලාශ්‍ර මගින් බලගැන්වූ බුද්ධිමත් විමෝචන ශාලා හෙළිදරව් කරයි.",
         content: "<p>மிலான்-கோர்டினா குழு முழுக்க முழுக்க புதுப்பிக்கத்தக்க ஆற்றல் மூலங்களால் இயக்கப்படும் பூஜ்ஜிய உமிழ்வு மைதானங்களை வெளியிட்டது. ஒலிம்பிக் கிராமம் விளையாட்டுக்குப் பிறகு மலிவு வீடுகளாக மாற்றப்படும்.</p>",
         content_en: "<p>The Milan-Cortina committee reveals zero-emission venues powered entirely by renewable energy sources. The Olympic Village will be converted into affordable housing after the Games.</p>",
-        content_si: "<p>මිලානෝ-කෝර්ටිනා කමිටුව පුනර්ජන්‍ය බලශක්ති මූලාශ්‍ර මගින් බලගැන්වූ බුද්ධිමත් විමෝචන ශාලා හෙළිදරව් කරයි. ඔලිම්පික් ගම්මිරිස් ක්‍රීඩාවෙන් පසු මිලට ගත හැකි නවාතැන් බවට පරිවර්තනය කරනු ලැබේ.</p>",
+        content_si: "<p>මිලානෝ-කෝර්ටිනා කමිටුව පුනර්ජනනීය බලශක්ති මූලාශ්‍ර මගින් බලගැන්වූ බුද්ධිමත් විමෝචන ශාලා හෙළිදරව් කරයි. ඔලිම්පික් ගම්මිරිස් ක්‍රීඩාවෙන් පසු මිලට ගත හැකි නවාතැන් බවට පරිවර්තනය කරනු ලැබේ.</p>",
         category: "விளையாட்டு", category_en: "Sports", category_si: "ක්‍රීඩා",
         author: "மார்க்கோ ரோஸி", author_en: "Marco Rossi", author_si: "මාර්කෝ රොසි",
         date: new Date(Date.now() - 3600000 * 18).toISOString(),
@@ -309,16 +392,35 @@ function formatDate(dateStr) {
     const now = new Date();
     const diff = Math.floor((now - date) / 1000);
 
-    if (diff < 60) return 'Just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return date.toLocaleDateString(currentLang === 'ta' ? 'ta-IN' : currentLang === 'si' ? 'si-LK' : 'en-US', { month: 'short', day: 'numeric' });
+    if (diff < 60) return currentLang === 'ta' ? 'இப்போதுதான்' : currentLang === 'si' ? 'දැන්' : 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}${currentLang === 'ta' ? ' நிமி' : currentLang === 'si' ? ' මි' : 'm'} ${currentLang === 'ta' ? 'முன்பு' : currentLang === 'si' ? 'පෙර' : 'ago'}`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}${currentLang === 'ta' ? ' மணி' : currentLang === 'si' ? ' පැය' : 'h'} ${currentLang === 'ta' ? 'முன்பு' : currentLang === 'si' ? 'පෙර' : 'ago'}`;
+
+    // Localized date format
+    if (currentLang === 'ta') {
+        return `${date.getDate()} ${TAMIL_MONTHS[date.getMonth()]}`;
+    } else if (currentLang === 'si') {
+        return `${date.getDate()} ${SINHALA_MONTHS[date.getMonth()]}`;
+    }
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function getCategoryName(catId) {
     const cat = categoriesData.find(c => c.id === catId || c.name === catId || c.name_en === catId);
     if (!cat) return catId;
     return currentLang === 'ta' ? cat.name : currentLang === 'en' ? cat.name_en : cat.name_si;
+}
+
+/* ─── UPDATE CATEGORY COUNTS FROM ACTUAL NEWS DATA ─── */
+function updateCategoryCounts() {
+    categoriesData.forEach(cat => {
+        const count = newsData.filter(n => 
+            n.status === 'published' && 
+            (n.category === cat.name || n.category_en === cat.name_en || n.category_si === cat.name_si)
+        ).length;
+        cat.count = count;
+    });
+    localStorage.setItem('endless_categories', JSON.stringify(categoriesData));
 }
 
 /* ─── RENDER FUNCTIONS ─── */
@@ -371,9 +473,9 @@ function renderFeed() {
             (n.title && n.title.toLowerCase().includes(q)) ||
             (n.title_en && n.title_en.toLowerCase().includes(q)) ||
             (n.title_si && n.title_si.toLowerCase().includes(q)) ||
-            (n.excerpt && n.excerpt.toLowerCase().includes(q)) ||
-            (n.excerpt_en && n.excerpt_en.toLowerCase().includes(q)) ||
-            (n.excerpt_si && n.excerpt_si.toLowerCase().includes(q))
+            (n.content && n.content.toLowerCase().includes(q)) ||
+            (n.content_en && n.content_en.toLowerCase().includes(q)) ||
+            (n.content_si && n.content_si.toLowerCase().includes(q))
         );
     }
 
@@ -419,6 +521,9 @@ function renderTrending() {
 }
 
 function renderCategories() {
+    // Update counts before rendering
+    updateCategoryCounts();
+
     const list = document.getElementById('category-list');
     list.innerHTML = categoriesData.map(cat => `
         <li onclick="filterCategory('${cat.name_en}')">
@@ -540,8 +645,10 @@ function filterCategory(cat) {
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('year').textContent = new Date().getFullYear();
 
-    const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', dateOptions);
+    // Fetch real-time weather
+    fetchWeather();
+    // Refresh weather every 10 minutes
+    setInterval(fetchWeather, 600000);
 
     document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
@@ -625,6 +732,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     setLanguage(currentLang);
+    updateDateDisplay();
     renderHero();
     renderFeed();
     renderTrending();

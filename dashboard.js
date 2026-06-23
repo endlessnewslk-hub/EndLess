@@ -2,7 +2,7 @@
    ENDLESS — ADMIN PANEL LOGIC (Cleaned & Fixed)
    ═══════════════════════════════════════ */
 
-// ── Firebase Configuration (REPLACE WITH YOUR REAL VALUES) ──
+// ── Firebase Configuration ──
 const firebaseConfig = {
     apiKey: "AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA",
     authDomain: "endless-news.firebaseapp.com",
@@ -12,7 +12,7 @@ const firebaseConfig = {
     appId: "1:363216005373:web:143fb950fb04dfc1cb7694"
 };
 
-// Initialize Firebase safely (only if SDK loaded)
+// Initialize Firebase safely
 let db = null;
 try {
     if (typeof firebase !== 'undefined') {
@@ -37,6 +37,9 @@ let editingNewsId = null;
 let editingAdId = null;
 let currentNewsLang = 'ta';
 
+// ── Admin Password (for reset protection) ──
+const ADMIN_PASSWORD = "6402@Faizan";
+
 // ── Default Data ──
 const DEFAULT_NEWS = [
     {
@@ -44,9 +47,6 @@ const DEFAULT_NEWS = [
         title: "உலக சந்தைகள் புதிய உச்சத்தை எட்டின",
         title_en: "Global Markets Rally as Inflation Data Shows Unexpected Cooling",
         title_si: "ලෝක වෙළඳපොළවල් උත්සාහයෙන් ඉහළට",
-        excerpt: "பணவீக்க தரவுகள் எதிர்பாராத குளிர்ச்சியைக் காட்டுவதால் முக்கிய குறியீடுகள் புதிய உச்சங்களை எட்டின.",
-        excerpt_en: "Major indices hit record highs Thursday as consumer price reports suggest the worst of the economic squeeze may be over.",
-        excerpt_si: "පාරිභෝගික මිල වාර්තා පෙන්වා දෙන විට ප්‍රධාන දර්ශකයන් වාර්තාගත ඉහළ මට්ටම්වලට ළඟා විය.",
         content: "<p>பணவீக்க தரவுகள் எதிர்பாராத குளிர்ச்சியைக் காட்டுவதால் முக்கிய குறியீடுகள் புதிய உச்சங்களை எட்டின. Goldman Sachs ஆன்லிஸ்டுகள் Q3 க்கு தங்கள் கணிப்பை மேம்படுத்தினர்.</p>",
         content_en: "<p>Major indices hit record highs Thursday as consumer price reports suggest the worst of the economic squeeze may be over. Analysts at Goldman Sachs upgraded their outlook for Q3.</p>",
         content_si: "<p>පාරිභෝගික මිල වාර්තා පෙන්වා දෙන විට ප්‍රධාන දර්ශකයන් වාර්තාගත ඉහළ මට්ටම්වලට ළඟා විය. Goldman Sachs විශ්ලේෂකයන් Q3 සඳහා ඔවුන්ගේ දෘෂ්ටිවාදය උත්ශ්‍රේණි කළහ.</p>",
@@ -61,9 +61,6 @@ const DEFAULT_NEWS = [
         title: "SpaceX அடுத்த தலைமுறை செயற்கைக்கோள்களை வெற்றிகரமாக ஏவியது",
         title_en: "SpaceX Launches Next-Gen Satellite Constellation",
         title_si: "SpaceX ඊළඟ පරම්පරා චන්ද්‍රිකා යැවීම",
-        excerpt: "Falcon Heavy 24 முன்னணி தகவல்தொடர்பு செயற்கைக்கோள்களை சுற்றுப்பாதையில் ஏவியது.",
-        excerpt_en: "The Falcon Heavy carried 24 advanced communications satellites into orbit, promising global high-speed internet coverage.",
-        excerpt_si: "Falcon Heavy චන්ද්‍රිකා 24ක් කක්ෂයට රැගෙන ගියේය.",
         content: "<p>Falcon Heavy 24 முன்னணி தகவல்தொடர்பு செயற்கைக்கோள்களை சுற்றுப்பாதையில் ஏவியது. இந்த செயற்கைக்கோள்கள் லேசர் இணைப்புகளைக் கொண்டுள்ளன.</p>",
         content_en: "<p>The Falcon Heavy carried 24 advanced communications satellites into orbit. Each satellite is equipped with laser interlinks that allow data to travel at the speed of light.</p>",
         content_si: "<p>Falcon Heavy චන්ද්‍රිකා 24ක් කක්ෂයට රැගෙන ගියේය. එක් එක් චන්ද්‍රිකාව ලේසර් අන්තර්සම්බන්ධතා සහිතව සම්පූර්ණ කර ඇත.</p>",
@@ -78,9 +75,6 @@ const DEFAULT_NEWS = [
         title: "AI பாதுகாப்பு ஒப்பந்தம் கையெழுத்தானது",
         title_en: "AI Safety Pact Signed by Leading Tech Giants",
         title_si: "AI ආරක්ෂක ගිවිසුම අත්සන් කර ඇත",
-        excerpt: "Microsoft, Google, OpenAI புதிய வெளிப்படைத்தன்மை தரநிலைகளுக்கு ஒப்புக்கொண்டன.",
-        excerpt_en: "Microsoft, Google, and OpenAI agree to new transparency standards and third-party auditing for large language models.",
-        excerpt_si: "Microsoft, Google, OpenAI නව පාරදෘශ්‍යතා සම්මතවලට එකඟ විය.",
         content: "<p>Microsoft, Google, OpenAI புதிய வெளிப்படைத்தன்மை தரநிலைகளுக்கு ஒப்புக்கொண்டன. இந்த தன்னார்வ ஒப்பந்தம் AI உருவாக்கப்பட்ட உள்ளடக்கத்திற்கு வாட்டர்மார்க்கிங்கை அமைக்கிறது.</p>",
         content_en: "<p>Microsoft, Google, and OpenAI agree to new transparency standards. The voluntary pact sets benchmarks for watermarking AI-generated content.</p>",
         content_si: "<p>Microsoft, Google, OpenAI නව පාරදෘශ්‍යතා සම්මතවලට එකඟ විය. මෙම ස්වෙච්ඡා ගිවිසුම AI-ජනිත අන්තර්ගතයට වාටර්මාර්ක කිරීම සඳහා මානදණ්ඩ සකසයි.</p>",
@@ -95,12 +89,9 @@ const DEFAULT_NEWS = [
         title: "UN உச்சிமாநாட்டில் வரலாற்று சுற்றுச்சூழல் ஒப்பந்தம்",
         title_en: "Historic Climate Agreement Reached at UN Summit",
         title_si: "UN සමුළුවේදී ඓතිහාසික දේශගුණ ගිවිසුමක්",
-        excerpt: "நாடுகள் 2030க்கான கட்டாய கார்பன் குறைப்பு இலக்குகளை ஏற்றுக்கொண்டன.",
-        excerpt_en: "Nations commit to binding carbon reduction targets for 2030, with a new fund for developing nations.",
-        excerpt_si: "රටවල් 2030 සඳහා බැඳීම් කාබන අඩුකිරීමේ ඉලක්කවලට කැපවී ඇත.",
         content: "<p>நாடுகள் 2030க்கான கட்டாய கார்பன் குறைப்பு இலக்குகளை ஏற்றுக்கொண்டன. $100 பில்லியன் ஆண்டு காலநிலை நிதி தொகுப்பு வளரும் நாடுகளுக்கு ஆதரவளிக்கும்.</p>",
         content_en: "<p>Nations commit to binding carbon reduction targets for 2030. The $100 billion annual climate finance package will support renewable energy transitions in developing nations.</p>",
-        content_si: "<p>රටවල් 2030 සඳහා බැඳීම් කාබන අඩුකිරීමේ ඉලක්කවලට කැපවී ඇත. බිලියන 100ක වාර්ෂික දේශගුණ මූල්‍ය පැකේජය සංවර්ධනය වෙමින් පවතින රටවලට සහාය වේ.</p>",
+        content_si: "<p>රටවල් 2030 සඳහා බැඳීම් කාබන් අඩුකිරීමේ ඉලක්කවලට කැපවී ඇත. බිලියන 100ක වාර්ෂික දේශගුණ මූල්‍ය පැකේජය සංවර්ධනය වෙමින් පවතින රටවලට සහාය වේ.</p>",
         category: "உலகம்", category_en: "World", category_si: "ලෝකය",
         author: "டேவிட் ஓகோன்க்வோ", author_en: "David Okonkwo", author_si: "ඩේවිඩ් ඔකොන්ක්වෝ",
         date: new Date(Date.now() - 3600000 * 12).toISOString(),
@@ -112,9 +103,6 @@ const DEFAULT_NEWS = [
         title: "புரட்சிகரமான பேட்டரி தொழில்நுட்பம் EV வரம்பை மடங்காக்குகிறது",
         title_en: "Revolutionary Battery Tech Triples EV Range",
         title_si: "විප්ලවීය බැටරි තාක්ෂණය EV පරාසය තෙගුණු කරයි",
-        excerpt: "MIT ஆராய்ச்சியாளர்கள் EV பயமின்மையை நீக்கும் திண்மநிலை பேட்டரி முன்மாதிரியை அறிமுகப்படுத்தினர்.",
-        excerpt_en: "Researchers at MIT unveil a solid-state battery prototype that could eliminate range anxiety for electric vehicles.",
-        excerpt_si: "MIT පර්යේෂකයන් විද්‍යුත් වාහනවලට පරාස ආතතිය ඉවත් කළ හැකි ඝන තත්ත්ව බැටරි මුල් ආදර්ශයක් හෙළිදරව් කළහ.",
         content: "<p>MIT ஆராய்ச்சியாளர்கள் EV பயமின்மையை நீக்கும் திண்மநிலை பேட்டரி முன்மாதிரியை அறிமுகப்படுத்தினர். இது 1,200 Wh/L ஆற்றல் அடர்த்தியை அடைகிறது.</p>",
         content_en: "<p>Researchers at MIT unveil a solid-state battery prototype. The lithium-metal design achieves 1,200 Wh/L energy density, roughly three times that of current Tesla batteries.</p>",
         content_si: "<p>MIT පර්යේෂකයන් ඝන තත්ත්ව බැටරි මුල් ආදර්ශයක් හෙළිදරව් කළහ. ලිතියම්-ලෝහ නිර්මාණය 1,200 Wh/L බලශක්ති ඝනත්වයට ළඟා වේ.</p>",
@@ -128,10 +116,7 @@ const DEFAULT_NEWS = [
         id: 1718764800006,
         title: "ஒலிம்பிக் 2026: நிலையான மைதானங்கள் அறிமுகம்",
         title_en: "Olympics 2026: Sustainable Stadiums Unveiled",
-        title_si: "ඔලිම්පික 2026: තිරසාර ක්‍රීඩාංගණ හෙළිදරව් විය",
-        excerpt: "மிலான்-கோர்டினா குழு முழுக்க முழுக்க புதுப்பிக்கத்தக்க ஆற்றல் மூலங்களால் இயக்கப்படும் பூஜ்ஜிய உமிழ்வு மைதானங்களை வெளியிட்டது.",
-        excerpt_en: "The Milan-Cortina committee reveals zero-emission venues powered entirely by renewable energy sources.",
-        excerpt_si: "මිලානෝ-කෝර්ටිනා කමිටුව සම්පූර්ණයෙන්ම පුනර්ජනනීය බලශක්ති මූලාශ්‍ර මගින් බලගැන්වූ බුද්ධිමත් විමෝචන ශාලා හෙළිදරව් කරයි.",
+        title_si: "ඔලිම්පික් 2026: තිරසාර ක්‍රීඩාංගණ හෙළිදරව් විය",
         content: "<p>மிலான்-கோர்டினா குழு முழுக்க முழுக்க புதுப்பிக்கத்தக்க ஆற்றல் மூலங்களால் இயக்கப்படும் பூஜ்ஜிய உமிழ்வு மைதானங்களை வெளியிட்டது. ஒலிம்பிக் கிராமம் விளையாட்டுக்குப் பிறகு மலிவு வீடுகளாக மாற்றப்படும்.</p>",
         content_en: "<p>The Milan-Cortina committee reveals zero-emission venues powered entirely by renewable energy sources. The Olympic Village will be converted into affordable housing after the Games.</p>",
         content_si: "<p>මිලානෝ-කෝර්ටිනා කමිටුව පුනර්ජනනීය බලශක්ති මූලාශ්‍ර මගින් බලගැන්වූ බුද්ධිමත් විමෝචන ශාලා හෙළිදරව් කරයි. ඔලිම්පික් ගම්මිරිස් ක්‍රීඩාවෙන් පසු මිලට ගත හැකි නවාතැන් බවට පරිවර්තනය කරනු ලැබේ.</p>",
@@ -146,11 +131,8 @@ const DEFAULT_NEWS = [
         title: "புதிய மலேரியா தடுப்பூசி 90% பயன்திறனைக் காட்டுகிறது",
         title_en: "New Malaria Vaccine Shows 90% Efficacy in Trials",
         title_si: "නව මැලේරියා එන්නත් සාම්පලවලදී 90% ක්‍රියාකාරිත්වය පෙන්වයි",
-        excerpt: "WHO கட்டம் III சோதனை முடிவுகளை ஒட்டுண்ணி நோய்க்கு எதிரான போராட்டத்தில் திருப்புமுனையாக பாராட்டியது.",
-        excerpt_en: "The WHO hails the Phase III trial results as a potential turning point in the fight against mosquito-borne disease.",
-        excerpt_si: "WHO මදුරුවන් මගින් spreading රෝගයට එරෙහි සටනේ හැරවුම් ලක්ෂ්‍යයක් ලෙස අදියර III සාම්පල ප්‍රතිඵල ප්‍රශංසා කළේය.",
         content: "<p>WHO கட்டம் III சோதனை முடிவுகளை ஒட்டுண்ணி நோய்க்கு எதிரான போராட்டத்தில் திருப்புமுனையாக பாராட்டியது. R21/Matrix-M தடுப்பூசி 90% பாதுகாப்பை வழங்கியது.</p>",
-        content_en: "<p>The WHO hails the Phase III trial results. The R21/Matrix-M vaccine demonstrated 90% protection in children aged 5-36 months across four African countries.</p>",
+        content_en: "<p>The WHO hails the Phase III trial results. The R21/Matrix-M vaccine demonstrated 90% protection in children aged 5–36 months across four African countries.</p>",
         content_si: "<p>WHO අදියර III සාම්පල ප්‍රතිඵල ප්‍රශංසා කළේය. R21/Matrix-M එන්නත් අප්‍රිකානු රටවල් හතරක 5-36 මාස වයසේ දරුවන්ට 90% ආරක්ෂාව සපයන ලදී.</p>",
         category: "அறிவியல்", category_en: "Science", category_si: "විද්‍යාව",
         author: "அமரா ஓகாஃபோர்", author_en: "Amara Okafor", author_si: "අමාරා ඔකාෆෝර්",
@@ -163,12 +145,9 @@ const DEFAULT_NEWS = [
         title: "மத்திய வங்கிகள் டிஜிட்டல் நாணய கட்டமைப்பை ஒருங்கிணைக்கின்றன",
         title_en: "Central Banks Coordinate on Digital Currency Framework",
         title_si: "මධ්‍යම බැංකු ඩිජිටල් මුදල් රාමුව එකට සකසති",
-        excerpt: "BIS குறுக்கு-எல்லை CBDC பரிவர்த்தனைகளுக்கு ஒருங்கிணைந்த நெறிமுறையை அறிவித்தது.",
-        excerpt_en: "The BIS announces a unified protocol for cross-border CBDC transactions to reduce remittance costs.",
-        excerpt_si: "BIS මායිම් තරණ CBDC ගනුදෙනු සඳහා ඒකීය ප්‍රොටෝකෝලයක් නිවේදනය කළේය.",
-        content: "<p>BIS குறுக்கு-எல்லை CBDC பரிவர்த்தனைகளுக்கு ஒருங்கிணைந்த நெறிமுறையை அறிவித்தது. Project Unified Ledger வைப்பில்லா பணம் அனுப்புவதற்கான கட்டணங்களை 80% வரை குறைக்கும்.</p>",
+        content: "<p>BIS குறுக்கு-எல்லை CBDC பரிவர்த்தனைகளுக்கு ஒருங்கிணைந்த நெறிமுறையை அறிவித்தது. Project Unified Ledger வைப்-இல்லா பணம் அனுப்புவதற்கான கட்டணங்களை 80% வரை குறைக்கும்.</p>",
         content_en: "<p>The BIS announces a unified protocol for cross-border CBDC transactions. Project Unified Ledger will allow instant settlement between central bank digital currencies, cutting transfer fees by up to 80%.</p>",
-        content_si: "<p>BIS මායිම් තරණ CBDC ගනුදෙනු සඳහා ඒකීය ප්‍රොටෝකෝලයක් නිවේදනය කළේය. Project Unified Ledger මධ්‍යම බැංකු ඩිජිටල් මුදල් අතර ක්ෂණික settlement පහසු කරයි.</p>",
+        content_si: "<p>BIS මායිම් තරණ CBDC ගනුදෙනු සඳහා ඒකීය ප්‍රොටෝකෝලයක් නිවේදනය කළේය. Project Unified Ledger මධ්‍යම බැංකු ඩිජිටල් මුදල් අතර ක්ෂණික සෙට්ල්මන්ට් පහසු කරයි.</p>",
         category: "வணிகம்", category_en: "Business", category_si: "ව්‍යාපාර",
         author: "தாமஸ் வெபர்", author_en: "Thomas Weber", author_si: "තෝමස් වෙබර්",
         date: new Date(Date.now() - 3600000 * 26).toISOString(),
@@ -180,12 +159,9 @@ const DEFAULT_NEWS = [
         title: "கடலடி தொல்லியலாளர்கள் பழங்கால கப்பலைக் கண்டுபிடித்தனர்",
         title_en: "Underwater Archaeologists Discover Ancient Shipwreck",
         title_si: "දිය යට පුරාවිද්‍යාඥයන් පුරාණ නැව් අනතුරක් සොයාගෙන ඇත",
-        excerpt: "கிரீஸ் கடலோரத்தில் கண்டுபிடிக்கப்பட்ட 2,000 வயது ரோமானிய வணிக கப்பல் சிறப்பாக பாதுகாக்கப்பட்ட பானைகளைக் கொண்டுள்ளது.",
-        excerpt_en: "A 2,000-year-old Roman trading vessel found off the coast of Greece contains perfectly preserved amphorae.",
-        excerpt_si: "ග්‍රීසියේ වෙරළබඩින් සොයාගත් වසර 2000ක් පැරණි රෝමානු වෙළඳ නැව සම්පූර්ණයෙන්ම සුරැකුණු ඇම්ෆෝරා ඇතුළත් වේ.",
-        content: "<p>கிரீஸ் கடலோரத்தில் கண்டுபிடிக்கப்பட்ட 2,000 வயது ரோமானிய வணிக கப்பல் சிறப்பாக பாதுகாக்கப்பட்ட பானைகளைக் கொண்டுள்ளது. இந்த கப்பல் கிரேத்தாவின் மது, ஸ்பெயினின் ஒலிவ எண்ணெய், சிரியாவின் கண்ணாடி பொருட்களை ஏற்றிச் சென்றது.</p>",
+        content: "<p>கிரீஸ் கடலோரத்தில் கண்டுபிடிக்கப்பட்ட 2,000 வயது ரோமானிய வணிக கப்பல் சிறப்பாக பாதுகாக்கப்பட்ட பானைகளைக் கொண்டுள்ளது. இந்த கப்பல் கிரேதாவின் மது, ஸ்பெயினின் ஒலிவ எண்ணெய், சிரியாவின் கண்ணாடி பொருட்களை ஏற்றிச் சென்றது.</p>",
         content_en: "<p>A 2,000-year-old Roman trading vessel found off the coast of Greece contains perfectly preserved amphorae. The cargo included wine from Crete, olive oil from Spain, and glassware from Syria.</p>",
-        content_si: "<p>ග්‍රීසියේ වෙරළබඩින් සොයාගත් වසර 2000ක් පැරණි රෝමානු වෙළඳ නැව සම්පූර්ණයෙන්ම සුරැකුණු ඇම්ෆෝරා ඇතුළත් වේ. බඩු තොගයට ක්‍රීට් වල මුද්‍රිත පානය, ස්පාඤ්ඤයේ ඔලිව් තෙල් සහ සිරියාවේ වීදුරු භාණ්ඩ ඇතුළත් විය.</p>",
+        content_si: "<p>ග්‍රීසියේ වෙරළබඩින් සොයාගත් වසර 2000ක් පැරණි රෝමානු වෙළඳ නැව සම්පූර්ණයෙන්ම සුරකුණු ඇම්ෆෝරා ඇතුළත් වේ. බඩු තොගයට ක්‍රීට් වල මුද්‍රිත පානය, ස්පාඤ්ඤයේ ඔලිව් තෙල් සහ සිරියාවේ වීදුරු භාණ්ඩ ඇතුළත් විය.</p>",
         category: "உலகம்", category_en: "World", category_si: "ලෝකය",
         author: "சோஃபியா அந்தோனெல்லி", author_en: "Sophia Antonelli", author_si: "සොෆියා ඇන්ටොනෙල්ලි",
         date: new Date(Date.now() - 3600000 * 30).toISOString(),
@@ -197,12 +173,9 @@ const DEFAULT_NEWS = [
         title: "F1 2026 இயந்திர விதிமுறைகளை அறிவித்தது",
         title_en: "Formula 1 Announces 2026 Engine Regulations",
         title_si: "ෆෝමියුලා 1 2026 එන්ජින් නියමයන් නිවේදනය කරයි",
-        excerpt: "FIA 100% நிலையான எரிபொருட்களுக்கு மாறுவதையும்",
-        excerpt_en: "The FIA confirms a move to 100% sustainable fuels and smaller, more efficient power units for the 2026 season.",
-        excerpt_si: "FIA 2026 සමය සඳහා 100% තිරසාර ඉන්ධන වෙත මාරුව තහවුරු කරයි.",
         content: "<p>FIA 100% நிலையான எரிபொருட்களுக்கு மாறுவதையும் 2026 சீசனுக்கான சிறிய, திறமையான பவர் யூனிட்களையும் உறுதி செய்தது. இயந்திரங்கள் 50% குறைந்த சக்தியை உற்பத்தி செய்யும்.</p>",
         content_en: "<p>The FIA confirms a move to 100% sustainable fuels and smaller, more efficient power units for the 2026 season. The new engines will produce 50% less power but feature active aerodynamics and manual override systems.</p>",
-        content_si: "<p>FIA 2026 සමය සඳහා 100% තිරසාර ඉන්ධන වෙත මාරුව තහවුරු කරයි. නව එන්ජින් 50% අඩු බලයක් නිපදවන නමුත් ක්‍රියාකාරී වායුගතික සහ අත්පන්ති නැවත ලිවීමේ පද්ධති ඇතුළත් වේ.</p>",
+        content_si: "<p>FIA 2026 සමය සඳහා 100% තිරසාර ඉන්ධන වෙත මාරුව තහවුරු කරයි. නව එන්ජින් 50% අඩු බලයක් නිපදවන නමුත් ක්‍රියාකාරී වායුගතික සහ අත්පොත නැවත ලිවීමේ පද්ධති ඇතුළත් වේ.</p>",
         category: "விளையாட்டு", category_en: "Sports", category_si: "ක්‍රීඩා",
         author: "லூயிஸ் ஹாமில்டன்", author_en: "Lewis Hamilton", author_si: "ලුවිස් හැමිල්ටන්",
         date: new Date(Date.now() - 3600000 * 34).toISOString(),
@@ -235,14 +208,12 @@ const DEFAULT_CATEGORIES = [
     { id: "health", name: "சுகாதாரம்", name_en: "Health", name_si: "සෞඛ්‍යය", count: 0 }
 ];
 
-// ── Data Initialization (LocalStorage + Firebase) ──
+// ── Data Initialization ──
 async function initData() {
-    // First try to load from localStorage for offline support
     adminNews = JSON.parse(localStorage.getItem('endless_news')) || [];
     adminAds = JSON.parse(localStorage.getItem('endless_ads')) || [];
     adminCats = JSON.parse(localStorage.getItem('endless_categories')) || [];
 
-    // If empty, set defaults
     if (adminNews.length === 0) {
         adminNews = [...DEFAULT_NEWS];
         saveNews();
@@ -256,7 +227,9 @@ async function initData() {
         saveCats();
     }
 
-    // Try to sync with Firebase if available
+    // Update category counts from actual news data
+    updateCategoryCounts();
+
     if (db) {
         try {
             await syncFromFirebase();
@@ -266,10 +239,22 @@ async function initData() {
     }
 }
 
-// ── Firebase Sync Functions ──
+// ── Update Category Counts from News Data ──
+function updateCategoryCounts() {
+    adminCats.forEach(cat => {
+        const count = adminNews.filter(n => 
+            n.status === 'published' && 
+            (n.category === cat.name || n.category_en === cat.name_en || n.category_si === cat.name_si)
+        ).length;
+        cat.count = count;
+    });
+    saveCats();
+}
+
+// ── Firebase Sync ──
 async function syncFromFirebase() {
     if (!db) return;
-    
+
     try {
         const newsSnapshot = await db.collection('news').get();
         if (!newsSnapshot.empty) {
@@ -288,13 +273,15 @@ async function syncFromFirebase() {
             adminCats = catsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             localStorage.setItem('endless_categories', JSON.stringify(adminCats));
         }
+
+        updateCategoryCounts();
     } catch (error) {
         console.error('Firebase read error:', error);
         throw error;
     }
 }
 
-// ── Local Storage Save Functions ──
+// ── Local Storage Save ──
 function saveNews() { 
     localStorage.setItem('endless_news', JSON.stringify(adminNews)); 
 }
@@ -305,7 +292,7 @@ function saveCats() {
     localStorage.setItem('endless_categories', JSON.stringify(adminCats)); 
 }
 
-// ── Toast Notification ──
+// ── Toast ──
 function showToast(msg, type = 'success') {
     const toast = document.getElementById('toast');
     if (!toast) return;
@@ -314,15 +301,14 @@ function showToast(msg, type = 'success') {
     setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-// ── Mobile Sidebar Toggle ──
+// ── Mobile Sidebar ──
 function toggleSidebar() {
     const sidebar = document.getElementById('admin-sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     const mobileBtn = document.getElementById('mobile-menu-btn');
-    const headerBtn = document.getElementById('header-menu-btn');
-    
+
     const isOpen = sidebar.classList.contains('open');
-    
+
     if (isOpen) {
         sidebar.classList.remove('open');
         overlay.classList.remove('open');
@@ -338,7 +324,7 @@ function closeSidebar() {
     const sidebar = document.getElementById('admin-sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     const mobileBtn = document.getElementById('mobile-menu-btn');
-    
+
     sidebar.classList.remove('open');
     overlay.classList.remove('open');
     if (mobileBtn) mobileBtn.classList.remove('open');
@@ -350,24 +336,23 @@ function showPage(page) {
     document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
     const targetPage = document.getElementById(`page-${page}`);
     if (targetPage) targetPage.classList.remove('hidden');
-    
+
     document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === page));
-    
+
     const pageTitle = document.getElementById('page-title');
     if (pageTitle) pageTitle.textContent = page.charAt(0).toUpperCase() + page.slice(1);
-    
+
     if (page === 'dashboard') renderDashboard();
     if (page === 'news') renderNewsTable();
     if (page === 'ads') renderAdsTable();
     if (page === 'categories') renderCategoriesTable();
-    
-    // Auto-close sidebar on mobile after navigation
+
     if (window.innerWidth <= 768) {
         closeSidebar();
     }
 }
 
-// ── Language Tab Switching (News Modal) ──
+// ── Language Tab Switching ──
 function switchNewsLang(lang) {
     currentNewsLang = lang;
     document.querySelectorAll('.lang-tab').forEach(tab => {
@@ -381,7 +366,7 @@ function switchNewsLang(lang) {
     });
 }
 
-// ── HTML Escape Helper (XSS Protection) ──
+// ── HTML Escape ──
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -392,7 +377,7 @@ function escapeHtml(text) {
 // ── Dashboard Renderer ──
 function renderDashboard() {
     const published = adminNews.filter(n => n.status === 'published');
-    
+
     const statTotalNews = document.getElementById('stat-total-news');
     const statPublished = document.getElementById('stat-published');
     const statActiveAds = document.getElementById('stat-active-ads');
@@ -431,10 +416,10 @@ function renderDashboard() {
 function renderNewsTable() {
     const tbody = document.getElementById('news-table-body');
     if (!tbody) return;
-    
+
     const searchInput = document.getElementById('news-search');
     const search = searchInput ? searchInput.value.toLowerCase() : '';
-    
+
     let filtered = adminNews;
     if (search) {
         filtered = adminNews.filter(n =>
@@ -443,19 +428,20 @@ function renderNewsTable() {
             (n.title_si && n.title_si.toLowerCase().includes(search))
         );
     }
-    
+
     tbody.innerHTML = filtered.map(n => {
         const langs = [];
         if (n.title) langs.push('<span class="badge badge-lang">TA</span>');
         if (n.title_en) langs.push('<span class="badge badge-lang">EN</span>');
         if (n.title_si) langs.push('<span class="badge badge-lang">SI</span>');
+        const dateStr = n.date ? new Date(n.date).toLocaleDateString() : 'N/A';
         return `
         <tr>
             <td><img src="${escapeHtml(n.image || '')}" alt="" onerror="this.src='https://via.placeholder.com/60x40?text=No+Image'"></td>
             <td><strong>${escapeHtml(n.title_en || n.title || '')}</strong><br><small style="color:#6b7280;">${escapeHtml(n.title || '')}</small></td>
             <td>${escapeHtml(n.category_en || n.category || '')}</td>
             <td>${escapeHtml(n.author_en || n.author || '')}</td>
-            <td>${new Date(n.date).toLocaleDateString()}</td>
+            <td>${dateStr}</td>
             <td>${langs.join('')}</td>
             <td><span class="badge ${n.status === 'published' ? 'badge-green' : 'badge-gray'}">${n.status || 'draft'}</span></td>
             <td>
@@ -470,7 +456,7 @@ function renderNewsTable() {
 function renderAdsTable() {
     const tbody = document.getElementById('ads-table-body');
     if (!tbody) return;
-    
+
     tbody.innerHTML = adminAds.map(a => `
         <tr>
             <td><img src="${escapeHtml(a.image || '')}" alt="" style="width:80px; height:50px; object-fit:cover; border-radius:4px;" onerror="this.style.display='none'"></td>
@@ -488,20 +474,21 @@ function renderAdsTable() {
 
 // ── Categories Table Renderer ──
 function renderCategoriesTable() {
+    // Update counts before rendering
+    updateCategoryCounts();
+
     const tbody = document.getElementById('categories-table-body');
     if (!tbody) return;
-    
-    tbody.innerHTML = adminCats.map(c => {
-        const count = adminNews.filter(n => n.category === c.name || n.category_en === c.name_en).length;
-        return `
+
+    tbody.innerHTML = adminCats.map(c => `
         <tr>
             <td><strong>${escapeHtml(c.name_en || '')}</strong><br><small style="color:#6b7280;">${escapeHtml(c.name || '')} / ${escapeHtml(c.name_si || '')}</small></td>
-            <td>${count}</td>
+            <td>${c.count}</td>
             <td>
                 <button class="btn-icon btn-delete" onclick="deleteCategory('${escapeHtml(c.id || '')}')">&#128465;&#65039;</button>
             </td>
         </tr>
-    `}).join('');
+    `).join('');
 }
 
 // ═══════════════════════════════════════
@@ -511,32 +498,29 @@ function openNewsModal(isEdit = false) {
     const modal = document.getElementById('news-modal');
     const modalTitle = document.getElementById('news-modal-title');
     const catSelect = document.getElementById('news-category');
-    
+
     if (modal) modal.classList.add('open');
     if (modalTitle) modalTitle.textContent = isEdit ? 'Edit Article' : 'Add Article';
-    
+
     if (catSelect) {
         catSelect.innerHTML = adminCats.map(c => `<option value="${escapeHtml(c.name_en || '')}">${escapeHtml(c.name_en || '')}</option>`).join('');
     }
-    
+
     if (!isEdit) {
         editingNewsId = null;
         const newsIdInput = document.getElementById('news-id');
         if (newsIdInput) newsIdInput.value = '';
-        
-        // Reset all language fields
+
         ['ta','en','si'].forEach(lang => {
             const titleInp = document.getElementById(`news-title-${lang}`);
             const authorInp = document.getElementById(`news-author-${lang}`);
-            const excerptTa = document.getElementById(`news-excerpt-${lang}`);
             const contentTa = document.getElementById(`news-content-${lang}`);
-            
+
             if (titleInp) titleInp.value = '';
             if (authorInp) authorInp.value = '';
-            if (excerptTa) excerptTa.value = '';
             if (contentTa) contentTa.value = '';
         });
-        
+
         const imageUrl = document.getElementById('news-image-url');
         const photoData = document.getElementById('news-photo-data');
         const videoData = document.getElementById('news-video-data');
@@ -545,7 +529,7 @@ function openNewsModal(isEdit = false) {
         const featured = document.getElementById('news-featured');
         const trending = document.getElementById('news-trending');
         const status = document.getElementById('news-status');
-        
+
         if (imageUrl) imageUrl.value = '';
         if (photoData) photoData.value = '';
         if (videoData) videoData.value = '';
@@ -554,7 +538,7 @@ function openNewsModal(isEdit = false) {
         if (featured) featured.checked = false;
         if (trending) trending.checked = false;
         if (status) status.checked = true;
-        
+
         switchNewsLang('ta');
     }
 }
@@ -567,24 +551,22 @@ function closeNewsModal() {
 function editNews(id) {
     const news = adminNews.find(n => n.id === id);
     if (!news) return;
-    
+
     editingNewsId = id;
     openNewsModal(true);
-    
+
     const newsIdInput = document.getElementById('news-id');
     const catSelect = document.getElementById('news-category');
-    
+
     if (newsIdInput) newsIdInput.value = news.id;
     if (catSelect) catSelect.value = news.category_en || news.category || '';
 
-    // Populate all language fields
     const fields = {
         'news-title': ['title', 'title_en', 'title_si'],
         'news-author': ['author', 'author_en', 'author_si'],
-        'news-excerpt': ['excerpt', 'excerpt_en', 'excerpt_si'],
         'news-content': ['content', 'content_en', 'content_si']
     };
-    
+
     ['ta', 'en', 'si'].forEach((lang, idx) => {
         Object.entries(fields).forEach(([prefix, keys]) => {
             const el = document.getElementById(`${prefix}-${lang}`);
@@ -598,7 +580,7 @@ function editNews(id) {
     const status = document.getElementById('news-status');
     const photoPreview = document.getElementById('news-photo-preview');
     const videoPreview = document.getElementById('news-video-preview');
-    
+
     if (imageUrl) imageUrl.value = news.image || '';
     if (featured) featured.checked = !!news.featured;
     if (trending) trending.checked = !!news.trending;
@@ -620,7 +602,6 @@ async function saveNewsItem() {
     const category = catSelect ? catSelect.value : '';
     const catObj = adminCats.find(c => c.name_en === category);
 
-    // Read all language inputs
     const title_ta = document.getElementById('news-title-ta')?.value.trim() || '';
     const title_en = document.getElementById('news-title-en')?.value.trim() || '';
     const title_si = document.getElementById('news-title-si')?.value.trim() || '';
@@ -628,10 +609,6 @@ async function saveNewsItem() {
     const author_ta = document.getElementById('news-author-ta')?.value.trim() || '';
     const author_en = document.getElementById('news-author-en')?.value.trim() || '';
     const author_si = document.getElementById('news-author-si')?.value.trim() || '';
-
-    const excerpt_ta = document.getElementById('news-excerpt-ta')?.value.trim() || '';
-    const excerpt_en = document.getElementById('news-excerpt-en')?.value.trim() || '';
-    const excerpt_si = document.getElementById('news-excerpt-si')?.value.trim() || '';
 
     const content_ta = document.getElementById('news-content-ta')?.value.trim() || '';
     const content_en = document.getElementById('news-content-en')?.value.trim() || '';
@@ -644,22 +621,17 @@ async function saveNewsItem() {
     const trending = document.getElementById('news-trending')?.checked || false;
     const status = document.getElementById('news-status')?.checked ? 'published' : 'draft';
 
-    // Validation: at least Tamil required
-    if (!title_ta || !category || !author_ta || !excerpt_ta || !content_ta) {
+    if (!title_ta || !category || !author_ta || !content_ta) {
         showToast('Please fill all required Tamil fields', 'error');
         switchNewsLang('ta');
         return;
     }
 
-    // Fallback logic: if translation missing, use Tamil
     const newsItem = {
         id: editingNewsId || Date.now(),
         title: title_ta,
         title_en: title_en || title_ta,
         title_si: title_si || title_ta,
-        excerpt: excerpt_ta,
-        excerpt_en: excerpt_en || excerpt_ta,
-        excerpt_si: excerpt_si || excerpt_ta,
         content: content_ta,
         content_en: content_en || content_ta,
         content_si: content_si || content_ta,
@@ -683,10 +655,10 @@ async function saveNewsItem() {
     } else {
         adminNews.unshift(newsItem);
     }
-    
+
     saveNews();
-    
-    // Sync to Firebase if available
+    updateCategoryCounts();
+
     if (db) {
         try {
             await db.collection('news').doc(String(newsItem.id)).set(newsItem);
@@ -694,7 +666,7 @@ async function saveNewsItem() {
             console.warn('Firebase sync failed:', err);
         }
     }
-    
+
     closeNewsModal();
     renderNewsTable();
     renderDashboard();
@@ -713,7 +685,8 @@ async function deleteNews(id) {
     if (!confirm('Delete this article?')) return;
     adminNews = adminNews.filter(n => n.id !== id);
     saveNews();
-    
+    updateCategoryCounts();
+
     if (db) {
         try {
             await db.collection('news').doc(String(id)).delete();
@@ -721,9 +694,10 @@ async function deleteNews(id) {
             console.warn('Firebase delete failed:', err);
         }
     }
-    
+
     renderNewsTable();
     renderDashboard();
+    renderCategoriesTable();
     showToast('Article deleted');
 }
 
@@ -733,10 +707,10 @@ async function deleteNews(id) {
 function openAdModal(isEdit = false) {
     const modal = document.getElementById('ad-modal');
     const modalTitle = document.getElementById('ad-modal-title');
-    
+
     if (modal) modal.classList.add('open');
     if (modalTitle) modalTitle.textContent = isEdit ? 'Edit Advertisement' : 'Add Advertisement';
-    
+
     if (!isEdit) {
         editingAdId = null;
         const adId = document.getElementById('ad-id');
@@ -748,7 +722,7 @@ function openAdModal(isEdit = false) {
         const image = document.getElementById('ad-image');
         const imagePreview = document.getElementById('ad-image-preview');
         const active = document.getElementById('ad-active');
-        
+
         if (adId) adId.value = '';
         if (titleTa) titleTa.value = '';
         if (titleEn) titleEn.value = '';
@@ -769,10 +743,10 @@ function closeAdModal() {
 function editAd(id) {
     const ad = adminAds.find(a => a.id === id);
     if (!ad) return;
-    
+
     editingAdId = id;
     openAdModal(true);
-    
+
     const adId = document.getElementById('ad-id');
     const titleTa = document.getElementById('ad-title-ta');
     const titleEn = document.getElementById('ad-title-en');
@@ -782,7 +756,7 @@ function editAd(id) {
     const image = document.getElementById('ad-image');
     const active = document.getElementById('ad-active');
     const imagePreview = document.getElementById('ad-image-preview');
-    
+
     if (adId) adId.value = ad.id;
     if (titleTa) titleTa.value = ad.title || '';
     if (titleEn) titleEn.value = ad.title_en || '';
@@ -791,7 +765,7 @@ function editAd(id) {
     if (position) position.value = ad.position || 'header';
     if (image) image.value = ad.image || '';
     if (active) active.checked = !!ad.active;
-    
+
     if (ad.image && imagePreview) {
         imagePreview.src = ad.image;
         imagePreview.style.display = 'block';
@@ -829,9 +803,9 @@ async function saveAdItem() {
     } else {
         adminAds.push(adItem);
     }
-    
+
     saveAds();
-    
+
     if (db) {
         try {
             await db.collection('ads').doc(String(adItem.id)).set(adItem);
@@ -839,7 +813,7 @@ async function saveAdItem() {
             console.warn('Firebase ad sync failed:', err);
         }
     }
-    
+
     closeAdModal();
     renderAdsTable();
     renderDashboard();
@@ -850,7 +824,7 @@ async function deleteAd(id) {
     if (!confirm('Delete this ad?')) return;
     adminAds = adminAds.filter(a => a.id !== id);
     saveAds();
-    
+
     if (db) {
         try {
             await db.collection('ads').doc(String(id)).delete();
@@ -858,7 +832,7 @@ async function deleteAd(id) {
             console.warn('Firebase ad delete failed:', err);
         }
     }
-    
+
     renderAdsTable();
     renderDashboard();
     showToast('Ad deleted');
@@ -870,11 +844,11 @@ async function deleteAd(id) {
 function openCatModal() {
     const modal = document.getElementById('cat-modal');
     if (modal) modal.classList.add('open');
-    
+
     const nameTa = document.getElementById('cat-name-ta');
     const nameEn = document.getElementById('cat-name-en');
     const nameSi = document.getElementById('cat-name-si');
-    
+
     if (nameTa) nameTa.value = '';
     if (nameEn) nameEn.value = '';
     if (nameSi) nameSi.value = '';
@@ -903,10 +877,10 @@ async function saveCategory() {
         name_si: name_si || name_en,
         count: 0
     };
-    
+
     adminCats.push(catItem);
     saveCats();
-    
+
     if (db) {
         try {
             await db.collection('categories').doc(String(id)).set(catItem);
@@ -914,7 +888,7 @@ async function saveCategory() {
             console.warn('Firebase category sync failed:', err);
         }
     }
-    
+
     closeCatModal();
     renderCategoriesTable();
     renderDashboard();
@@ -925,7 +899,7 @@ async function deleteCategory(id) {
     if (!confirm('Delete this category?')) return;
     adminCats = adminCats.filter(c => c.id !== id);
     saveCats();
-    
+
     if (db) {
         try {
             await db.collection('categories').doc(String(id)).delete();
@@ -933,7 +907,7 @@ async function deleteCategory(id) {
             console.warn('Firebase category delete failed:', err);
         }
     }
-    
+
     renderCategoriesTable();
     renderDashboard();
     showToast('Category deleted');
@@ -986,22 +960,35 @@ function handleFileUpload(inputId, previewId, dataId, type = 'image') {
 }
 
 // ═══════════════════════════════════════
-// RESET DATA
+// RESET DATA (Password Protected)
 // ═══════════════════════════════════════
 async function resetData() {
+    const passwordInput = document.getElementById('reset-password');
+    const enteredPassword = passwordInput ? passwordInput.value.trim() : '';
+
+    if (!enteredPassword) {
+        showToast('Please enter admin password to reset data', 'error');
+        return;
+    }
+
+    if (enteredPassword !== ADMIN_PASSWORD) {
+        showToast('Incorrect admin password. Reset cancelled.', 'error');
+        if (passwordInput) passwordInput.value = '';
+        return;
+    }
+
     if (!confirm('WARNING: This will erase all data and restore defaults. Continue?')) return;
-    
+
     localStorage.removeItem('endless_news');
     localStorage.removeItem('endless_ads');
     localStorage.removeItem('endless_categories');
-    
+
     adminNews = [...DEFAULT_NEWS];
     adminAds = [...DEFAULT_ADS];
     adminCats = [...DEFAULT_CATEGORIES];
-    
+
     saveNews(); saveAds(); saveCats();
-    
-    // Sync defaults to Firebase
+
     if (db) {
         try {
             const batch = db.batch();
@@ -1013,13 +1000,15 @@ async function resetData() {
             console.warn('Firebase batch write failed:', err);
         }
     }
-    
+
+    if (passwordInput) passwordInput.value = '';
+
     renderDashboard(); renderNewsTable(); renderAdsTable(); renderCategoriesTable();
     showToast('Data reset to defaults');
 }
 
 // ═══════════════════════════════════════
-// EVENT LISTENERS (CLEAN - NO DUPLICATES)
+// EVENT LISTENERS
 // ═══════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
     initData();
@@ -1028,7 +1017,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const mobileMenuBtn = document.getElementById('mobile-menu-btn');
     const headerMenuBtn = document.getElementById('header-menu-btn');
     const sidebarOverlay = document.getElementById('sidebar-overlay');
-    
+
     if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', toggleSidebar);
     if (headerMenuBtn) headerMenuBtn.addEventListener('click', toggleSidebar);
     if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
@@ -1043,13 +1032,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeNewsModalBtn = document.getElementById('close-news-modal');
     const cancelNews = document.getElementById('cancel-news');
     const saveNewsBtn = document.getElementById('save-news');
-    
+
     if (btnAddNews) btnAddNews.addEventListener('click', () => openNewsModal());
     if (closeNewsModalBtn) closeNewsModalBtn.addEventListener('click', closeNewsModal);
     if (cancelNews) cancelNews.addEventListener('click', closeNewsModal);
     if (saveNewsBtn) saveNewsBtn.addEventListener('click', saveNewsItem);
 
-    // Language tabs in news modal
+    // Language tabs
     document.querySelectorAll('.lang-tab').forEach(tab => {
         tab.addEventListener('click', () => switchNewsLang(tab.dataset.lang));
     });
@@ -1059,7 +1048,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeAdModalBtn = document.getElementById('close-ad-modal');
     const cancelAd = document.getElementById('cancel-ad');
     const saveAdBtn = document.getElementById('save-ad');
-    
+
     if (btnAddAd) btnAddAd.addEventListener('click', () => openAdModal());
     if (closeAdModalBtn) closeAdModalBtn.addEventListener('click', closeAdModal);
     if (cancelAd) cancelAd.addEventListener('click', closeAdModal);
@@ -1070,7 +1059,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeCatModalBtn = document.getElementById('close-cat-modal');
     const cancelCat = document.getElementById('cancel-cat');
     const saveCatBtn = document.getElementById('save-cat');
-    
+
     if (btnAddCat) btnAddCat.addEventListener('click', openCatModal);
     if (closeCatModalBtn) closeCatModalBtn.addEventListener('click', closeCatModal);
     if (cancelCat) cancelCat.addEventListener('click', closeCatModal);
@@ -1105,106 +1094,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const newsSearch = document.getElementById('news-search');
     if (newsSearch) newsSearch.addEventListener('input', renderNewsTable);
 
-    // Settings
+    // Settings - Reset Data (Password Protected)
     const btnResetData = document.getElementById('btn-reset-data');
-    const btnChangePass = document.getElementById('btn-change-pass');
-    
     if (btnResetData) btnResetData.addEventListener('click', resetData);
-    // ═══════════════════════════════════════════════════════
-    // ADMIN PASSWORD CHANGE (Firebase Auth)
-    // Only admin can change their own password
-    // ═══════════════════════════════════════════════════════
-    if (btnChangePass) {
-        btnChangePass.addEventListener('click', async () => {
-            const oldPass = document.getElementById('old-pass');
-            const newPass = document.getElementById('new-pass');
-            const confirmPass = document.getElementById('confirm-pass');
-
-            const oldPassword = oldPass?.value || '';
-            const newPassword = newPass?.value || '';
-            const confirmPassword = confirmPass?.value || '';
-
-            // Validation
-            if (!oldPassword || !newPassword || !confirmPassword) {
-                showToast('Please fill all password fields', 'error');
-                return;
-            }
-
-            if (newPassword !== confirmPassword) {
-                showToast('New passwords do not match', 'error');
-                return;
-            }
-
-            if (newPassword.length < 6) {
-                showToast('New password must be at least 6 characters', 'error');
-                return;
-            }
-
-            // Get current user from Firebase Auth
-            const currentUser = firebase.auth().currentUser;
-            if (!currentUser) {
-                showToast('Not authenticated. Please login again.', 'error');
-                return;
-            }
-
-            // Verify old password by re-authenticating
-            const credential = firebase.auth.EmailAuthProvider.credential(
-                currentUser.email,
-                oldPassword
-            );
-
-            try {
-                btnChangePass.disabled = true;
-                btnChangePass.textContent = 'Updating...';
-
-                // Re-authenticate with old password
-                await currentUser.reauthenticateWithCredential(credential);
-
-                // Update password
-                await currentUser.updatePassword(newPassword);
-
-                // Clear fields
-                oldPass.value = '';
-                newPass.value = '';
-                confirmPass.value = '';
-
-                showToast('Password updated successfully! 🔐');
-
-                // Note: User will need to login again with new password
-                setTimeout(() => {
-                    showToast('Please sign out and login again with new password');
-                }, 2000);
-
-            } catch (error) {
-                console.error('Password change error:', error);
-                let msg = 'Failed to update password';
-                switch (error.code) {
-                    case 'auth/wrong-password':
-                        msg = 'Current password is incorrect';
-                        break;
-                    case 'auth/weak-password':
-                        msg = 'New password is too weak';
-                        break;
-                    case 'auth/requires-recent-login':
-                        msg = 'Please sign out and login again to change password';
-                        break;
-                    default:
-                        msg = error.message || 'Password update failed';
-                }
-                showToast(msg, 'error');
-            } finally {
-                btnChangePass.disabled = false;
-                btnChangePass.textContent = 'Update Password';
-            }
-        });
-    }
 
     // Close modal on overlay click
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
     });
 
-    // Handle window resize to reset sidebar state on desktop
+    // Handle window resize
     window.addEventListener('resize', () => {
         if (window.innerWidth > 768) {
             closeSidebar();

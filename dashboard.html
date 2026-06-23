@@ -15,7 +15,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <base target="_blank">
 <base target="_blank">
-<base target="_blank">
 </head>
 <body>
     <div id="admin-dashboard" class="admin-dashboard">
@@ -198,15 +197,12 @@
             <div id="page-settings" class="page-content hidden">
                 <div class="settings-grid">
                     <div class="panel">
-                        <h3>🔐 Change Password</h3>
-                        <input type="password" id="old-pass" placeholder="Current Password">
-                        <input type="password" id="new-pass" placeholder="New Password">
-                        <input type="password" id="confirm-pass" placeholder="Confirm New Password">
-                        <button class="btn-primary" id="btn-change-pass" style="margin-top: 1rem;">Update Password</button>
-                    </div>
-                    <div class="panel">
                         <h3>🗑️ Reset Data</h3>
                         <p style="color: #6b7280; margin-bottom: 1rem;">This will restore default demo data. All your changes will be lost.</p>
+                        <div class="form-group" style="margin-bottom: 1rem;">
+                            <label>Admin Password *</label>
+                            <input type="password" id="reset-password" placeholder="Enter admin password to confirm">
+                        </div>
                         <button class="btn-danger" id="btn-reset-data">Reset to Default Data</button>
                     </div>
                 </div>
@@ -250,16 +246,10 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Short Description (Excerpt) *</label>
-                    <textarea id="news-excerpt-ta" class="lang-textarea active" rows="3" placeholder="முகப்புக்கான சுருக்கம்..."></textarea>
-                    <textarea id="news-excerpt-en" class="lang-textarea" rows="3" placeholder="Short summary for homepage..." style="display:none;"></textarea>
-                    <textarea id="news-excerpt-si" class="lang-textarea" rows="3" placeholder="මුල් පිටුව සඳහා කෙටි සාරාංශය..." style="display:none;"></textarea>
-                </div>
-                <div class="form-group">
                     <label>Full News Content *</label>
-                    <textarea id="news-content-ta" class="lang-textarea active" rows="8" placeholder="முழு செய்தி கட்டுரையை இங்கே எழுதவும்..."></textarea>
-                    <textarea id="news-content-en" class="lang-textarea" rows="8" placeholder="Write full news article here..." style="display:none;"></textarea>
-                    <textarea id="news-content-si" class="lang-textarea" rows="8" placeholder="සම්පූර්ණ පුවත් ලිපිය මෙහි ලියන්න..." style="display:none;"></textarea>
+                    <textarea id="news-content-ta" class="lang-textarea active" rows="10" placeholder="முழு செய்தி கட்டுரையை இங்கே எழுதவும்..."></textarea>
+                    <textarea id="news-content-en" class="lang-textarea" rows="10" placeholder="Write full news article here..." style="display:none;"></textarea>
+                    <textarea id="news-content-si" class="lang-textarea" rows="10" placeholder="සම්පූර්ණ පුවත් ලිපිය මෙහි ලියන්න..." style="display:none;"></textarea>
                 </div>
                 <div class="form-group">
                     <label>News Photo</label>
@@ -351,6 +341,12 @@
                 </div>
                 <div class="form-group">
                     <label>Or Upload Ad Image</label>
+                    <div class="ad-size-info" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.75rem; font-size: 0.85rem; color: #991b1b;">
+                        <strong>📐 Recommended Sizes:</strong><br>
+                        • <strong>Header:</strong> 1200×300 pixels (wide banner)<br>
+                        • <strong>Sidebar:</strong> 400×600 pixels (vertical)<br>
+                        • <strong>Inline:</strong> 800×400 pixels (medium rectangle)
+                    </div>
                     <input type="file" id="ad-image-file" accept="image/*">
                 </div>
                 <div class="form-group">
