@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&display=swap');
+
 /* ═══════════════════════════════════════
    ENDLESS — ENHANCED PREMIUM STYLES
    MOBILE-FIRST OPTIMIZED
@@ -65,9 +67,6 @@
     --shadow-xl: 0 25px 50px -12px rgb(0 0 0 / 0.6);
 }
 
-/* ─── IMPORTS ─── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&display=swap');
-
 /* ─── BASE RESET ─── */
 *, *::before, *::after { 
     box-sizing: border-box; 
@@ -82,7 +81,6 @@ html {
     -moz-osx-font-smoothing: grayscale;
     -webkit-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
-    text-size-adjust: 100%;
     overflow-x: hidden;
 }
 
@@ -136,7 +134,7 @@ button {
 
 input, textarea, select {
     font-family: inherit;
-    font-size: 16px; /* Prevents iOS zoom on focus */
+    font-size: 16px;
     -webkit-appearance: none;
     appearance: none;
 }
@@ -170,7 +168,6 @@ input, textarea, select {
     flex-shrink: 0;
 }
 
-/* Fix: Remove gap between End and Less text */
 .logo-text-group {
     display: flex;
     align-items: center;
@@ -228,7 +225,6 @@ input, textarea, select {
     letter-spacing: -0.02em;
 }
 
-/* Force no gap between End and Less */
 .logo-end + .logo-less {
     margin-left: -0.02em;
 }
@@ -353,7 +349,6 @@ input, textarea, select {
     background: rgba(255, 255, 255, 0.85);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -383,7 +378,7 @@ input, textarea, select {
 }
 
 .nav-links {
-    display: none; /* Hidden on mobile by default */
+    display: none;
     gap: 1.5rem;
     list-style: none;
     font-weight: 500;
@@ -438,7 +433,7 @@ input, textarea, select {
 /* ─── SEARCH BOX ─── */
 .search-box { 
     position: relative;
-    display: none; /* Hidden on mobile */
+    display: none;
 }
 
 .search-box input {
@@ -718,6 +713,7 @@ input, textarea, select {
     text-shadow: 0 1px 10px rgba(0,0,0,0.2);
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -800,6 +796,7 @@ input, textarea, select {
     transition: color var(--transition-fast);
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -945,6 +942,7 @@ input, textarea, select {
     transition: color var(--transition-fast);
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -959,6 +957,7 @@ input, textarea, select {
     line-height: 1.5; 
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -1062,6 +1061,7 @@ input, textarea, select {
     transition: color var(--transition-fast);
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -1185,7 +1185,6 @@ input, textarea, select {
     background: rgba(0, 0, 0, 0.7);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
     z-index: 500;
     display: none;
     align-items: flex-end;
@@ -1798,6 +1797,7 @@ footer li:hover::before {
     .article-card p {
         font-size: 0.9rem;
         -webkit-line-clamp: 3;
+        line-clamp: 3;
     }
 
     .sidebar > .sidebar-box {
