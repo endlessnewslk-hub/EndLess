@@ -511,6 +511,24 @@ function openArticle(id) {
     const body = document.getElementById('modal-body');
     if (!modal || !body) return;
 
+    // Process content to ensure proper paragraph spacing
+    let processedContent = getLocalized(article, 'content') || '';
+
+    // If content has <br> tags but no <p> tags, convert <br><br> or multiple <br> to paragraphs
+    if (!processedContent.includes('<p>') && processedContent.includes('<br')) {
+        const parts = processedContent.split(/<br\s*\/?>\s*<br\s*\/?>/);
+        processedContent = parts.map(part => {
+            const cleanPart = part.replace(/<br\s*\/?>/g, ' ').trim();
+            return cleanPart ? `<p>${cleanPart}</p>` : '';
+        }).join('');
+    }
+
+    // If content has no HTML tags at all, split by newlines and wrap in <p> tags
+    if (!processedContent.includes('<') || !processedContent.includes('>')) {
+        const paragraphs = processedContent.split(/\n\n|\n/).filter(p => p.trim());
+        processedContent = paragraphs.map(p => `<p>${p.trim()}</p>`).join('');
+    }
+
     body.innerHTML = `
         <div class="modal-article">
             <img src="${escapeHtml(article.image)}" alt="${escapeHtml(getLocalized(article, 'title'))}" loading="eager">
@@ -523,7 +541,7 @@ function openArticle(id) {
                     <span>🏷️ ${escapeHtml(getLocalized(article, 'category'))}</span>
                 </div>
                 <div class="article-text">
-                    ${getLocalized(article, 'content')}
+                    ${processedContent}
                 </div>
                 ${article.video ? `<video controls style="width:100%; margin-top:1rem; border-radius:8px;" preload="none"><source src="${escapeHtml(article.video)}"></video>` : ''}
             </div>

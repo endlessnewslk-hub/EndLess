@@ -1306,15 +1306,46 @@ input, textarea, select {
 
 .modal-article .article-text { 
     font-size: 1rem; 
-    line-height: 1.8; 
+    line-height: 1.9; 
     color: var(--text); 
 }
 
 .modal-article .article-text p { 
-    margin-bottom: 1rem; 
+    margin-bottom: 1.25rem; 
+    text-align: justify;
 }
 
-.modal-article .article-text p:first-child::first-letter {
+/* Ensure proper spacing between consecutive paragraphs */
+.modal-article .article-text p + p {
+    margin-top: 1.25rem;
+}
+
+/* Handle <br> tags properly */
+.modal-article .article-text br {
+    display: block;
+    content: "";
+    margin-bottom: 0.75rem;
+}
+
+/* Handle div or span elements that might be used as paragraphs */
+.modal-article .article-text div,
+.modal-article .article-text span {
+    margin-bottom: 1rem;
+    display: block;
+}
+
+/* Ensure lists also have proper spacing */
+.modal-article .article-text ul,
+.modal-article .article-text ol {
+    margin-bottom: 1.25rem;
+    padding-left: 1.5rem;
+}
+
+.modal-article .article-text li {
+    margin-bottom: 0.5rem;
+}
+
+.modal-article .article-text p:first-of-type::first-letter {
     font-family: var(--font-heading);
     font-size: 2.5rem;
     float: left;
@@ -1869,7 +1900,7 @@ footer li:hover::before {
         font-size: 1.1rem;
     }
 
-    .modal-article .article-text p:first-child::first-letter {
+    .modal-article .article-text p:first-of-type::first-letter {
         font-size: 3.5rem;
         padding-right: 0.75rem;
     }
