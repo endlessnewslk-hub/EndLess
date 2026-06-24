@@ -2,20 +2,28 @@
 <html lang="ta">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#e11d48">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="description" content="EndLess - World News & Analysis in Tamil, English, and Sinhala">
     <title>EndLess — World News & Analysis</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://images.unsplash.com">
 <base target="_blank">
 </head>
 <body>
     <!-- Top Bar -->
     <div class="top-bar">
         <div class="container flex justify-between items-center">
-            <div id="current-date">Loading date...</div>
-            <div class="flex gap-2" style="font-size: 0.8rem; align-items: center;">
+            <div id="current-date">Loading...</div>
+            <div class="flex gap-2" style="font-size: 0.75rem; align-items: center; flex-wrap: wrap;">
                 <span>Edition: Global</span>
                 <span>|</span>
-                <span id="weather">☀️ Loading...</span>
+                <span id="weather">☀️ 24°C</span>
                 <span>|</span>
                 <div class="lang-selector">
                     <button class="lang-btn active" data-lang="ta">தமிழ்</button>
@@ -27,7 +35,7 @@
     </div>
 
     <!-- Header Ad Banner -->
-    <div class="container" id="header-ad-container" style="padding-top: 1rem;"></div>
+    <div class="container" id="header-ad-container" style="padding-top: 0.75rem;"></div>
 
     <!-- Main Header -->
     <header class="main-header">
@@ -82,7 +90,7 @@
         </div>
 
         <aside class="sidebar">
-            <div class="ad-box" id="sidebar-ad-container" style="margin-bottom: 1.5rem;"></div>
+            <div class="ad-box" id="sidebar-ad-container" style="margin-bottom: 1rem;"></div>
             <div class="sidebar-box">
                 <h3 data-key="trending">🔥 பிரபலமானவை</h3>
                 <div id="trending-list"></div>
@@ -93,7 +101,7 @@
             </div>
             <div class="sidebar-box newsletter">
                 <h3 data-key="newsletter">📬 தினசரி சுருக்கம்</h3>
-                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;" data-key="newsletter_desc">முக்கியமான செய்திகளை உங்கள் மின்னஞ்சலுக்கு அனுப்புங்கள்.</p>
+                <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.75rem;" data-key="newsletter_desc">முக்கியமான செய்திகளை உங்கள் மின்னஞ்சலுக்கு அனுப்புங்கள்.</p>
                 <input type="email" placeholder="your@email.com" id="newsletter-email">
                 <button onclick="alert('சந்தாவுக்கு நன்றி!')" data-key="subscribe">சந்தா சேர்</button>
             </div>
@@ -101,7 +109,7 @@
     </main>
 
     <!-- Inline Ad -->
-    <div class="container" id="inline-ad-container" style="margin: 2rem auto;"></div>
+    <div class="container" id="inline-ad-container" style="margin: 1.5rem auto;"></div>
 
     <!-- Article Modal -->
     <div class="modal-overlay" id="article-modal">
@@ -117,7 +125,7 @@
             <div class="footer-grid">
                 <div>
                     <h4 class="footer-logo"><span class="logo-end">End</span><span class="logo-less">Less</span></h4>
-                    <p style="font-size:0.9rem; color:var(--text-muted); line-height:1.5;" data-key="footer_desc">உலகம் முழுவதும் சுயாதீன பத்திரிகையாளர். தினமும் மில்லியன் கணக்கான வாசகர்களால் நம்பப்படுகிறது.</p>
+                    <p style="font-size:0.85rem; color:var(--text-muted); line-height:1.5;" data-key="footer_desc">உலகம் முழுவதும் சுயாதீன பத்திரிகையாளர். தினமும் மில்லியன் கணக்கான வாசகர்களால் நம்பப்படுகிறது.</p>
                 </div>
                 <div>
                     <h4 data-key="footer_sections">பிரிவுகள்</h4>
@@ -161,7 +169,7 @@
     <div class="mobile-overlay" id="mobile-overlay"></div>
     <div class="mobile-nav" id="mobile-nav">
         <button class="close-btn" id="close-mobile">&times;</button>
-        <div style="margin-top: 2rem; margin-bottom: 1.5rem; text-align: center;">
+        <div style="margin-top: 2rem; margin-bottom: 1rem; text-align: center;">
             <span class="logo-end" style="font-size: 1.5rem; font-weight: 900; font-family: Georgia, serif;">End</span><span class="logo-less" style="font-size: 1.5rem; font-weight: 900; font-family: Georgia, serif; color: #dc2626;">Less</span>
         </div>
         <ul>
@@ -172,7 +180,7 @@
             <li><a href="#" data-cat="Science" data-key="nav_science">அறிவியல்</a></li>
             <li><a href="#" data-cat="Sports" data-key="nav_sports">விளையாட்டு</a></li>
         </ul>
-        <div style="margin-top: 2rem; display: flex; justify-content: center; gap: 0.5rem;">
+        <div style="margin-top: 1.5rem; display: flex; justify-content: center; gap: 0.5rem;">
             <button class="lang-btn" data-lang="ta" style="padding: 0.4rem 0.8rem;">தமிழ்</button>
             <button class="lang-btn" data-lang="en" style="padding: 0.4rem 0.8rem;">English</button>
             <button class="lang-btn" data-lang="si" style="padding: 0.4rem 0.8rem;">සිංහල</button>

@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════
    ENDLESS — MAIN WEBSITE LOGIC
-   WITH 3 LANGUAGE SUPPORT (Tamil/English/Sinhala)
-   + Real-time Weather + Localized Dates + Fixed Categories
+   MOBILE-FIRST OPTIMIZED
+   3 LANGUAGE SUPPORT (Tamil/English/Sinhala)
    ═══════════════════════════════════════ */
 
 const TRANSLATIONS = {
@@ -67,27 +67,12 @@ const TRANSLATIONS = {
     }
 };
 
-// Tamil month names
-const TAMIL_MONTHS = [
-    "ஜனவரி", "பிப்ரவரி", "மார்ச்", "ஏப்ரல்", "மே", "ஜூன்",
-    "ஜூலை", "ஆகஸ்ட்", "செப்டம்பர்", "அக்டோபர்", "நவம்பர்", "டிசம்பர்"
-];
-const TAMIL_DAYS = [
-    "ஞாயிற்றுக்கிழமை", "திங்கட்கிழமை", "செவ்வாய்க்கிழமை", "புதன்கிழமை",
-    "வியாழக்கிழமை", "வெள்ளிக்கிழமை", "சனிக்கிழமை"
-];
-
-// Sinhala month names
-const SINHALA_MONTHS = [
-    "ජනවාරි", "පෙබරවාරි", "මාර්තු", "අප්‍රේල්", "මැයි", "ජූනි",
-    "ජූලි", "අගෝස්තු", "සැප්තැම්බර්", "ඔක්තෝබර්", "නොවැම්බර්", "දෙසැම්බර්"
-];
-const SINHALA_DAYS = [
-    "ඉරිදා", "සඳුදා", "අඟහරුවාදා", "බදාදා",
-    "බ්‍රහස්පතින්දා", "සිකුරාදා", "සෙනසුරාදා"
-];
-
 let currentLang = localStorage.getItem('gd_language') || 'ta';
+let isMobile = window.innerWidth < 640;
+let touchStartY = 0;
+
+// Check if device is touch-capable
+const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
 function setLanguage(lang) {
     currentLang = lang;
@@ -113,68 +98,7 @@ function setLanguage(lang) {
     renderCategories();
     renderTrending();
     renderAds();
-    updateDateDisplay();
-}
-
-// ═══════════════════════════════════════
-// REAL-TIME WEATHER (Open-Meteo - Free, No API Key)
-// ═══════════════════════════════════════
-async function fetchWeather() {
-    const weatherEl = document.getElementById('weather');
-    try {
-        // Colombo, Sri Lanka coordinates
-        const lat = 6.9271;
-        const lon = 79.8612;
-        const response = await fetch(
-            `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`
-        );
-        if (!response.ok) throw new Error('Weather fetch failed');
-        const data = await response.json();
-        const temp = Math.round(data.current_weather.temperature);
-        const weatherCode = data.current_weather.weathercode;
-
-        // Weather icon mapping
-        const weatherIcons = {
-            0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
-            45: '🌫️', 48: '🌫️',
-            51: '🌦️', 53: '🌦️', 55: '🌧️',
-            61: '🌧️', 63: '🌧️', 65: '🌧️',
-            71: '🌨️', 73: '🌨️', 75: '🌨️',
-            80: '🌦️', 81: '🌧️', 82: '🌧️',
-            95: '⛈️', 96: '⛈️', 99: '⛈️'
-        };
-        const icon = weatherIcons[weatherCode] || '🌡️';
-
-        if (weatherEl) {
-            weatherEl.textContent = `${icon} ${temp}°C`;
-        }
-    } catch (err) {
-        console.warn('Weather fetch failed:', err);
-        if (weatherEl) weatherEl.textContent = '🌡️ --°C';
-    }
-}
-
-// ═══════════════════════════════════════
-// LOCALIZED DATE DISPLAY
-// ═══════════════════════════════════════
-function updateDateDisplay() {
-    const dateEl = document.getElementById('current-date');
-    if (!dateEl) return;
-
-    const now = new Date();
-    const day = now.getDay();
-    const date = now.getDate();
-    const month = now.getMonth();
-    const year = now.getFullYear();
-
-    if (currentLang === 'ta') {
-        dateEl.textContent = `${TAMIL_DAYS[day]}, ${date} ${TAMIL_MONTHS[month]} ${year}`;
-    } else if (currentLang === 'si') {
-        dateEl.textContent = `${SINHALA_DAYS[day]}, ${date} ${SINHALA_MONTHS[month]} ${year}`;
-    } else {
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        dateEl.textContent = now.toLocaleDateString('en-US', options);
-    }
+    renderTicker();
 }
 
 const DEFAULT_NEWS = [
@@ -205,7 +129,7 @@ const DEFAULT_NEWS = [
         excerpt_si: "Falcon Heavy චන්ද්‍රිකා 24ක් කක්ෂයට රැගෙන ගියේය.",
         content: "<p>Falcon Heavy 24 முன்னணி தகவல்தொடர்பு செயற்கைக்கோள்களை சுற்றுப்பாதையில் ஏவியது. இந்த செயற்கைக்கோள்கள் லேசர் இணைப்புகளைக் கொண்டுள்ளன.</p>",
         content_en: "<p>The Falcon Heavy carried 24 advanced communications satellites into orbit. Each satellite is equipped with laser interlinks that allow data to travel at the speed of light.</p>",
-        content_si: "<p>Falcon Heavy චන්ද්‍රිකා 24ක් කක්ෂයට රැගෙන ගියේය. එක් එක් චන්ද්‍රිකාව ලේසර් අන්තර්සම්බන්ධතා සහිතව සම්පූර්ණ කර ඇත.</p>",
+        content_si: "<p>Falcon Heavy චන්ද්‍රිකා 24ක් කක්ෂයට රැගෙන ගියේය. එකි එකි චන්ද්‍රිකාව ලේසර් අන්තර්සම්බන්ධතා සහිතව සම්පූර්ණ කර ඇත.</p>",
         category: "அறிவியல்", category_en: "Science", category_si: "විද්‍යාව",
         author: "ஜேம்ஸ் சென்", author_en: "James Chen", author_si: "ජේම්ස් චෙන්",
         date: new Date(Date.now() - 3600000 * 5).toISOString(),
@@ -253,10 +177,10 @@ const DEFAULT_NEWS = [
         title_si: "විප්ලවීය බැටරි තාක්ෂණය EV පරාසය තෙගුණු කරයි",
         excerpt: "MIT ஆராய்ச்சியாளர்கள் EV பயமின்மையை நீக்கும் திண்மநிலை பேட்டரி முன்மாதிரியை அறிமுகப்படுத்தினர்.",
         excerpt_en: "Researchers at MIT unveil a solid-state battery prototype that could eliminate range anxiety for electric vehicles.",
-        excerpt_si: "MIT පර්යේෂකයන් විද්‍යුත් වාහනවලට පරාස ආතතිය ඉවත් කළ හැකි ඝන තත්ත්ව බැටරි මුල් ආදර්ශයක් හෙළිදරව් කළහ.",
+        excerpt_si: "MIT පරියේෂකයන් විද්‍යුත් වාහනවලට පරාස ආතතිය ඉවත් කළ හැකි ඝන තත්ත්ව බැටරි මුල් ආදර්ශයක් හෙළිදරව් කළහ.",
         content: "<p>MIT ஆராய்ச்சியாளர்கள் EV பயமின்மையை நீக்கும் திண்மநிலை பேட்டரி முன்மாதிரியை அறிமுகப்படுத்தினர். இது 1,200 Wh/L ஆற்றல் அடர்த்தியை அடைகிறது.</p>",
         content_en: "<p>Researchers at MIT unveil a solid-state battery prototype. The lithium-metal design achieves 1,200 Wh/L energy density, roughly three times that of current Tesla batteries.</p>",
-        content_si: "<p>MIT පර්යේෂකයන් ඝන තත්ත්ව බැටරි මුල් ආදර්ශයක් හෙළිදරව් කළහ. ලිතියම්-ලෝහ නිර්මාණය 1,200 Wh/L බලශක්ති ඝනත්වයට ළඟා වේ.</p>",
+        content_si: "<p>MIT පරියේෂකයන් ඝන තත්ත්ව බැටරි මුල් ආදර්ශයක් හෙළිදරව් කළහ. ලිතියම්-ලෝහ නිර්මාණය 1,200 Wh/L බලශක්ති ඝනත්වයට ළඟා වේ.</p>",
         category: "தொழில்நுட்பம்", category_en: "Technology", category_si: "තාක්ෂණය",
         author: "பிரியா படேல்", author_en: "Priya Patel", author_si: "ප්‍රියා පටෙල්",
         date: new Date(Date.now() - 3600000 * 14).toISOString(),
@@ -270,10 +194,10 @@ const DEFAULT_NEWS = [
         title_si: "ඔලිම්පික් 2026: තිරසාර ක්‍රීඩාංගණ හෙළිදරව් විය",
         excerpt: "மிலான்-கோர்டினா குழு முழுக்க முழுக்க புதுப்பிக்கத்தக்க ஆற்றல் மூலங்களால் இயக்கப்படும் பூஜ்ஜிய உமிழ்வு மைதானங்களை வெளியிட்டது.",
         excerpt_en: "The Milan-Cortina committee reveals zero-emission venues powered entirely by renewable energy sources.",
-        excerpt_si: "මිලානෝ-කෝර්ටිනා කමිටුව සම්පූර්ණයෙන්ම පුනර්ජනනීය බලශක්ති මූලාශ්‍ර මගින් බලගැන්වූ බුද්ධිමත් විමෝචන ශාලා හෙළිදරව් කරයි.",
+        excerpt_si: "මිලානෝ-කෝර්ටිනා කමිටුව සම්පූර්ණයෙන්ම පුනර්ජන්‍ය බලශක්ති මූලාශ්‍ර මගින් බලගැන්වූ බුද්ධිමත් විමෝචන ශාලා හෙළිදරව් කරයි.",
         content: "<p>மிலான்-கோர்டினா குழு முழுக்க முழுக்க புதுப்பிக்கத்தக்க ஆற்றல் மூலங்களால் இயக்கப்படும் பூஜ்ஜிய உமிழ்வு மைதானங்களை வெளியிட்டது. ஒலிம்பிக் கிராமம் விளையாட்டுக்குப் பிறகு மலிவு வீடுகளாக மாற்றப்படும்.</p>",
         content_en: "<p>The Milan-Cortina committee reveals zero-emission venues powered entirely by renewable energy sources. The Olympic Village will be converted into affordable housing after the Games.</p>",
-        content_si: "<p>මිලානෝ-කෝර්ටිනා කමිටුව පුනර්ජනනීය බලශක්ති මූලාශ්‍ර මගින් බලගැන්වූ බුද්ධිමත් විමෝචන ශාලා හෙළිදරව් කරයි. ඔලිම්පික් ගම්මිරිස් ක්‍රීඩාවෙන් පසු මිලට ගත හැකි නවාතැන් බවට පරිවර්තනය කරනු ලැබේ.</p>",
+        content_si: "<p>මිලානෝ-කෝර්ටිනා කමිටුව පුනර්ජන්‍ය බලශක්ති මූලාශ්‍ර මගින් බලගැන්වූ බුද්ධිමත් විමෝචන ශාලා හෙළිදරව් කරයි. ඔලිම්පික් ගම්මිරිස් ක්‍රීඩාවෙන් පසු මිලට ගත හැකි නවාතැන් බවට පරිවර්තනය කරනු ලැබේ.</p>",
         category: "விளையாட்டு", category_en: "Sports", category_si: "ක්‍රීඩා",
         author: "மார்க்கோ ரோஸி", author_en: "Marco Rossi", author_si: "මාර්කෝ රොසි",
         date: new Date(Date.now() - 3600000 * 18).toISOString(),
@@ -325,7 +249,7 @@ const DEFAULT_NEWS = [
         content: "<p>கிரீஸ் கடலோரத்தில் கண்டுபிடிக்கப்பட்ட 2,000 வயது ரோமானிய வணிக கப்பல் சிறப்பாக பாதுகாக்கப்பட்ட பானைகளைக் கொண்டுள்ளது. இந்த கப்பல் கிரேதாவின் மது, ஸ்பெயினின் ஒலிவ எண்ணெய், சிரியாவின் கண்ணாடி பொருட்களை ஏற்றிச் சென்றது.</p>",
         content_en: "<p>A 2,000-year-old Roman trading vessel found off the coast of Greece contains perfectly preserved amphorae. The cargo included wine from Crete, olive oil from Spain, and glassware from Syria.</p>",
         content_si: "<p>ග්‍රීසියේ වෙරළබඩින් සොයාගත් වසර 2000ක් පැරණි රෝමානු වෙළඳ නැව සම්පූර්ණයෙන්ම සුරකුණු ඇම්ෆෝරා ඇතුළත් වේ. බඩු තොගයට ක්‍රීට් වල මුද්‍රිත පානය, ස්පාඤ්ඤයේ ඔලිව් තෙල් සහ සිරියාවේ වීදුරු භාණ්ඩ ඇතුළත් විය.</p>",
-        category: "உலகம்", category_en: "World", category_si: "ලෝකය",
+        category: "உலகம்", category_en: "World", name_si: "ලෝකය",
         author: "சோஃபியா அந்தோனெல்லி", author_en: "Sophia Antonelli", author_si: "සොෆියා ඇන්ටොනෙල්ලි",
         date: new Date(Date.now() - 3600000 * 30).toISOString(),
         image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop",
@@ -379,7 +303,7 @@ let adsData = JSON.parse(localStorage.getItem('endless_ads')) || DEFAULT_ADS;
 let categoriesData = JSON.parse(localStorage.getItem('endless_categories')) || DEFAULT_CATEGORIES;
 let currentFilter = 'All';
 let searchQuery = '';
-let displayedCount = 6;
+let displayedCount = isMobile ? 4 : 6;
 
 /* ─── HELPERS ─── */
 function getLocalized(item, field) {
@@ -392,17 +316,10 @@ function formatDate(dateStr) {
     const now = new Date();
     const diff = Math.floor((now - date) / 1000);
 
-    if (diff < 60) return currentLang === 'ta' ? 'இப்போதுதான்' : currentLang === 'si' ? 'දැන්' : 'Just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)}${currentLang === 'ta' ? ' நிமி' : currentLang === 'si' ? ' මි' : 'm'} ${currentLang === 'ta' ? 'முன்பு' : currentLang === 'si' ? 'පෙර' : 'ago'}`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}${currentLang === 'ta' ? ' மணி' : currentLang === 'si' ? ' පැය' : 'h'} ${currentLang === 'ta' ? 'முன்பு' : currentLang === 'si' ? 'පෙර' : 'ago'}`;
-
-    // Localized date format
-    if (currentLang === 'ta') {
-        return `${date.getDate()} ${TAMIL_MONTHS[date.getMonth()]}`;
-    } else if (currentLang === 'si') {
-        return `${date.getDate()} ${SINHALA_MONTHS[date.getMonth()]}`;
-    }
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return date.toLocaleDateString(currentLang === 'ta' ? 'ta-IN' : currentLang === 'si' ? 'si-LK' : 'en-US', { month: 'short', day: 'numeric' });
 }
 
 function getCategoryName(catId) {
@@ -411,16 +328,11 @@ function getCategoryName(catId) {
     return currentLang === 'ta' ? cat.name : currentLang === 'en' ? cat.name_en : cat.name_si;
 }
 
-/* ─── UPDATE CATEGORY COUNTS FROM ACTUAL NEWS DATA ─── */
-function updateCategoryCounts() {
-    categoriesData.forEach(cat => {
-        const count = newsData.filter(n => 
-            n.status === 'published' && 
-            (n.category === cat.name || n.category_en === cat.name_en || n.category_si === cat.name_si)
-        ).length;
-        cat.count = count;
-    });
-    localStorage.setItem('endless_categories', JSON.stringify(categoriesData));
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 /* ─── RENDER FUNCTIONS ─── */
@@ -432,24 +344,25 @@ function renderHero() {
     const side = featured.slice(1, 3);
 
     const heroSection = document.getElementById('hero-section');
+    if (!heroSection) return;
 
     heroSection.innerHTML = `
         <div class="hero-main" onclick="openArticle(${main.id})">
-            <img src="${main.image}" alt="${getLocalized(main, 'title')}">
+            <img src="${escapeHtml(main.image)}" alt="${escapeHtml(getLocalized(main, 'title'))}" loading="eager">
             <div class="overlay"></div>
             <div class="hero-content">
-                <span class="category">${getLocalized(main, 'category')}</span>
-                <h2>${getLocalized(main, 'title')}</h2>
-                <p>${getLocalized(main, 'excerpt')}</p>
+                <span class="category">${escapeHtml(getLocalized(main, 'category'))}</span>
+                <h2>${escapeHtml(getLocalized(main, 'title'))}</h2>
+                <p>${escapeHtml(getLocalized(main, 'excerpt'))}</p>
             </div>
         </div>
         <div class="hero-side">
             ${side.map(item => `
                 <div class="hero-card" onclick="openArticle(${item.id})">
-                    <img src="${item.image}" alt="${getLocalized(item, 'title')}">
+                    <img src="${escapeHtml(item.image)}" alt="${escapeHtml(getLocalized(item, 'title'))}" loading="lazy">
                     <div class="card-body">
-                        <div class="category">${getLocalized(item, 'category')}</div>
-                        <h3>${getLocalized(item, 'title')}</h3>
+                        <div class="category">${escapeHtml(getLocalized(item, 'category'))}</div>
+                        <h3>${escapeHtml(getLocalized(item, 'title'))}</h3>
                     </div>
                 </div>
             `).join('')}
@@ -473,31 +386,32 @@ function renderFeed() {
             (n.title && n.title.toLowerCase().includes(q)) ||
             (n.title_en && n.title_en.toLowerCase().includes(q)) ||
             (n.title_si && n.title_si.toLowerCase().includes(q)) ||
-            (n.content && n.content.toLowerCase().includes(q)) ||
-            (n.content_en && n.content_en.toLowerCase().includes(q)) ||
-            (n.content_si && n.content_si.toLowerCase().includes(q))
+            (n.excerpt && n.excerpt.toLowerCase().includes(q)) ||
+            (n.excerpt_en && n.excerpt_en.toLowerCase().includes(q)) ||
+            (n.excerpt_si && n.excerpt_si.toLowerCase().includes(q))
         );
     }
 
     const toShow = filtered.slice(0, displayedCount);
     const grid = document.getElementById('news-grid');
+    if (!grid) return;
 
     if (toShow.length === 0) {
-        grid.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:3rem;">${TRANSLATIONS[currentLang].no_results}</p>`;
+        grid.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:2rem; grid-column:1/-1;">${TRANSLATIONS[currentLang].no_results}</p>`;
         document.getElementById('load-more-wrap').style.display = 'none';
         return;
     }
 
     grid.innerHTML = toShow.map(item => `
         <article class="article-card" onclick="openArticle(${item.id})">
-            <img src="${item.image}" alt="${getLocalized(item, 'title')}" loading="lazy">
+            <img src="${escapeHtml(item.image)}" alt="${escapeHtml(getLocalized(item, 'title'))}" loading="lazy">
             <div class="card-body">
                 <div class="meta">
-                    <span class="cat">${getLocalized(item, 'category')}</span>
+                    <span class="cat">${escapeHtml(getLocalized(item, 'category'))}</span>
                     <span>${formatDate(item.date)}</span>
                 </div>
-                <h3>${getLocalized(item, 'title')}</h3>
-                <p>${getLocalized(item, 'excerpt')}</p>
+                <h3>${escapeHtml(getLocalized(item, 'title'))}</h3>
+                <p>${escapeHtml(getLocalized(item, 'excerpt'))}</p>
             </div>
         </article>
     `).join('');
@@ -508,26 +422,26 @@ function renderFeed() {
 function renderTrending() {
     const trending = newsData.filter(n => n.trending && n.status === 'published').slice(0, 5);
     const list = document.getElementById('trending-list');
+    if (!list) return;
 
     list.innerHTML = trending.map((item, i) => `
         <div class="trending-item" onclick="openArticle(${item.id})">
             <span class="trending-num">${i + 1}</span>
             <div class="trending-info">
-                <h4>${getLocalized(item, 'title')}</h4>
-                <span>${getLocalized(item, 'category')} · ${formatDate(item.date)}</span>
+                <h4>${escapeHtml(getLocalized(item, 'title'))}</h4>
+                <span>${escapeHtml(getLocalized(item, 'category'))} · ${formatDate(item.date)}</span>
             </div>
         </div>
     `).join('');
 }
 
 function renderCategories() {
-    // Update counts before rendering
-    updateCategoryCounts();
-
     const list = document.getElementById('category-list');
+    if (!list) return;
+
     list.innerHTML = categoriesData.map(cat => `
-        <li onclick="filterCategory('${cat.name_en}')">
-            <span>${currentLang === 'ta' ? cat.name : currentLang === 'en' ? cat.name_en : cat.name_si}</span>
+        <li onclick="filterCategory('${escapeHtml(cat.name_en)}')">
+            <span>${currentLang === 'ta' ? escapeHtml(cat.name) : currentLang === 'en' ? escapeHtml(cat.name_en) : escapeHtml(cat.name_si)}</span>
             <span class="count">${cat.count}</span>
         </li>
     `).join('');
@@ -538,12 +452,12 @@ function renderAds() {
 
     const headerAd = activeAds.find(a => a.position === 'header');
     const headerContainer = document.getElementById('header-ad-container');
-    if (headerAd) {
+    if (headerContainer && headerAd) {
         headerContainer.innerHTML = `
             <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
             <div class="ad-box">
-                <a href="${headerAd.link}" target="_blank">
-                    <img src="${headerAd.image}" alt="${getLocalized(headerAd, 'title')}" style="width:100%; max-height:120px; object-fit:cover;">
+                <a href="${escapeHtml(headerAd.link)}" target="_blank" rel="noopener noreferrer">
+                    <img src="${escapeHtml(headerAd.image)}" alt="${escapeHtml(getLocalized(headerAd, 'title'))}" loading="lazy" style="width:100%; max-height:100px; object-fit:cover;">
                 </a>
             </div>
         `;
@@ -551,25 +465,27 @@ function renderAds() {
 
     const sidebarAd = activeAds.find(a => a.position === 'sidebar');
     const sidebarContainer = document.getElementById('sidebar-ad-container');
-    if (sidebarAd) {
-        sidebarContainer.innerHTML = `
-            <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
-            <a href="${sidebarAd.link}" target="_blank">
-                <img src="${sidebarAd.image}" alt="${getLocalized(sidebarAd, 'title')}" style="width:100%; max-height:250px; object-fit:cover;">
-            </a>
-        `;
-    } else {
-        sidebarContainer.innerHTML = '';
+    if (sidebarContainer) {
+        if (sidebarAd) {
+            sidebarContainer.innerHTML = `
+                <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
+                <a href="${escapeHtml(sidebarAd.link)}" target="_blank" rel="noopener noreferrer">
+                    <img src="${escapeHtml(sidebarAd.image)}" alt="${escapeHtml(getLocalized(sidebarAd, 'title'))}" loading="lazy" style="width:100%; max-height:200px; object-fit:cover;">
+                </a>
+            `;
+        } else {
+            sidebarContainer.innerHTML = '';
+        }
     }
 
     const inlineAd = activeAds.find(a => a.position === 'inline');
     const inlineContainer = document.getElementById('inline-ad-container');
-    if (inlineAd) {
+    if (inlineContainer && inlineAd) {
         inlineContainer.innerHTML = `
             <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
             <div class="ad-box">
-                <a href="${inlineAd.link}" target="_blank">
-                    <img src="${inlineAd.image}" alt="${getLocalized(inlineAd, 'title')}" style="width:100%; max-height:200px; object-fit:cover;">
+                <a href="${escapeHtml(inlineAd.link)}" target="_blank" rel="noopener noreferrer">
+                    <img src="${escapeHtml(inlineAd.image)}" alt="${escapeHtml(getLocalized(inlineAd, 'title'))}" loading="lazy" style="width:100%; max-height:160px; object-fit:cover;">
                 </a>
             </div>
         `;
@@ -579,8 +495,10 @@ function renderAds() {
 function renderTicker() {
     const breaking = newsData.filter(n => n.status === 'published').slice(0, 8);
     const ticker = document.getElementById('ticker-content');
+    if (!ticker) return;
+
     ticker.innerHTML = breaking.map(n => `
-        <span class="ticker-item">${getLocalized(n, 'title')}</span>
+        <span class="ticker-item">${escapeHtml(getLocalized(n, 'title'))}</span>
     `).join('');
 }
 
@@ -591,39 +509,70 @@ function openArticle(id) {
 
     const modal = document.getElementById('article-modal');
     const body = document.getElementById('modal-body');
+    if (!modal || !body) return;
 
     body.innerHTML = `
         <div class="modal-article">
-            <img src="${article.image}" alt="${getLocalized(article, 'title')}">
+            <img src="${escapeHtml(article.image)}" alt="${escapeHtml(getLocalized(article, 'title'))}" loading="eager">
             <div class="modal-body">
-                <span class="category">${getLocalized(article, 'category')}</span>
-                <h1>${getLocalized(article, 'title')}</h1>
+                <span class="category">${escapeHtml(getLocalized(article, 'category'))}</span>
+                <h1>${escapeHtml(getLocalized(article, 'title'))}</h1>
                 <div class="meta-bar">
-                    <span>👤 ${getLocalized(article, 'author')}</span>
+                    <span>👤 ${escapeHtml(getLocalized(article, 'author'))}</span>
                     <span>📅 ${new Date(article.date).toLocaleDateString()}</span>
-                    <span>🏷️ ${getLocalized(article, 'category')}</span>
+                    <span>🏷️ ${escapeHtml(getLocalized(article, 'category'))}</span>
                 </div>
                 <div class="article-text">
                     ${getLocalized(article, 'content')}
                 </div>
-                ${article.video ? `<video controls style="width:100%; margin-top:1.5rem; border-radius:8px;"><source src="${article.video}"></video>` : ''}
+                ${article.video ? `<video controls style="width:100%; margin-top:1rem; border-radius:8px;" preload="none"><source src="${escapeHtml(article.video)}"></video>` : ''}
             </div>
         </div>
     `;
 
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
+
+    // Add swipe to close on mobile
+    if (isTouchDevice) {
+        modal.addEventListener('touchstart', handleTouchStart, { passive: true });
+        modal.addEventListener('touchend', handleTouchEnd, { passive: true });
+    }
 }
 
 function closeModal() {
-    document.getElementById('article-modal').classList.remove('open');
+    const modal = document.getElementById('article-modal');
+    if (!modal) return;
+
+    modal.classList.remove('open');
     document.body.style.overflow = '';
+
+    // Remove touch listeners
+    modal.removeEventListener('touchstart', handleTouchStart);
+    modal.removeEventListener('touchend', handleTouchEnd);
+}
+
+function handleTouchStart(e) {
+    touchStartY = e.changedTouches[0].screenY;
+}
+
+function handleTouchEnd(e) {
+    const touchEndY = e.changedTouches[0].screenY;
+    const diff = touchStartY - touchEndY;
+
+    // Swipe down to close (only if at top of scroll)
+    if (diff < -80) {
+        const modalBody = document.querySelector('.modal-content');
+        if (modalBody && modalBody.scrollTop <= 10) {
+            closeModal();
+        }
+    }
 }
 
 /* ─── FILTER & SEARCH ─── */
 function filterCategory(cat) {
     currentFilter = cat;
-    displayedCount = 6;
+    displayedCount = isMobile ? 4 : 6;
 
     document.querySelectorAll('.nav-links a, .mobile-nav a').forEach(a => {
         a.classList.toggle('active', a.dataset.cat === cat);
@@ -638,68 +587,130 @@ function filterCategory(cat) {
     }
 
     renderFeed();
-    window.scrollTo({ top: document.querySelector('.main-layout').offsetTop - 80, behavior: 'smooth' });
+
+    // Smooth scroll to feed
+    const feedSection = document.querySelector('.main-layout');
+    if (feedSection) {
+        const offset = feedSection.offsetTop - 80;
+        window.scrollTo({ top: offset, behavior: 'smooth' });
+    }
 }
 
-/* ─── INIT ─── */
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('year').textContent = new Date().getFullYear();
-
-    // Fetch real-time weather
-    fetchWeather();
-    // Refresh weather every 10 minutes
-    setInterval(fetchWeather, 600000);
-
-    document.querySelectorAll('.lang-btn').forEach(btn => {
-        btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
-    });
-
-    document.querySelectorAll('.nav-links a, .mobile-nav a').forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            filterCategory(link.dataset.cat);
-        });
-    });
-
-    const searchInput = document.getElementById('search-input');
-    searchInput.addEventListener('input', (e) => {
-        searchQuery = e.target.value;
-        displayedCount = 6;
-        renderFeed();
-    });
-
-    document.getElementById('load-more-btn').addEventListener('click', () => {
-        displayedCount += 6;
-        renderFeed();
-    });
-
-    document.getElementById('modal-close').addEventListener('click', closeModal);
-    document.getElementById('article-modal').addEventListener('click', (e) => {
-        if (e.target === e.currentTarget) closeModal();
-    });
-
-    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+/* ─── MOBILE MENU ─── */
+function openMobileMenu() {
     const mobileNav = document.getElementById('mobile-nav');
     const mobileOverlay = document.getElementById('mobile-overlay');
-    const closeMobile = document.getElementById('close-mobile');
-
-    function openMobile() {
+    if (mobileNav && mobileOverlay) {
         mobileNav.classList.add('open');
         mobileOverlay.classList.add('open');
         document.body.style.overflow = 'hidden';
     }
+}
 
-    function closeMobileMenu() {
+function closeMobileMenu() {
+    const mobileNav = document.getElementById('mobile-nav');
+    const mobileOverlay = document.getElementById('mobile-overlay');
+    if (mobileNav && mobileOverlay) {
         mobileNav.classList.remove('open');
         mobileOverlay.classList.remove('open');
         document.body.style.overflow = '';
     }
+}
 
-    mobileMenuBtn.addEventListener('click', openMobile);
-    closeMobile.addEventListener('click', closeMobileMenu);
-    mobileOverlay.addEventListener('click', closeMobileMenu);
+/* ─── THEME MANAGEMENT ─── */
+function initTheme() {
+    const savedTheme = localStorage.getItem('endless_theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-    mobileNav.querySelectorAll('a').forEach(link => {
+    if (savedTheme) {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    } else if (prefersDark) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+}
+
+function toggleTheme() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if (isDark) {
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('endless_theme', 'light');
+    } else {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('endless_theme', 'dark');
+    }
+}
+
+/* ─── HEADER SCROLL EFFECT ─── */
+function handleHeaderScroll() {
+    const header = document.querySelector('.main-header');
+    if (header) {
+        if (window.scrollY > 10) {
+            header.classList.add('scrolled');
+        } else {
+            header.classList.remove('scrolled');
+        }
+    }
+}
+
+/* ─── RESIZE HANDLER ─── */
+function handleResize() {
+    const newIsMobile = window.innerWidth < 640;
+    if (newIsMobile !== isMobile) {
+        isMobile = newIsMobile;
+        displayedCount = isMobile ? 4 : 6;
+        renderFeed();
+        renderHero();
+    }
+}
+
+/* ─── LAZY LOADING OBSERVER ─── */
+function initLazyLoading() {
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    if (img.dataset.src) {
+                        img.src = img.dataset.src;
+                        img.removeAttribute('data-src');
+                    }
+                    imageObserver.unobserve(img);
+                }
+            });
+        }, {
+            rootMargin: '50px 0px',
+            threshold: 0.01
+        });
+
+        document.querySelectorAll('img[data-src]').forEach(img => {
+            imageObserver.observe(img);
+        });
+    }
+}
+
+/* ─── INIT ─── */
+document.addEventListener('DOMContentLoaded', () => {
+    // Set current year
+    const yearEl = document.getElementById('year');
+    if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+    // Set current date
+    const dateEl = document.getElementById('current-date');
+    if (dateEl) {
+        const dateOptions = { weekday: 'short', month: 'short', day: 'numeric' };
+        dateEl.textContent = new Date().toLocaleDateString('en-US', dateOptions);
+    }
+
+    // Initialize theme
+    initTheme();
+
+    // Language buttons
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
+    });
+
+    // Navigation links
+    document.querySelectorAll('.nav-links a, .mobile-nav a').forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
             filterCategory(link.dataset.cat);
@@ -707,40 +718,110 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Search
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce((e) => {
+            searchQuery = e.target.value;
+            displayedCount = isMobile ? 4 : 6;
+            renderFeed();
+        }, 300));
+    }
+
+    // Load more
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', () => {
+            displayedCount += isMobile ? 4 : 6;
+            renderFeed();
+        });
+    }
+
+    // Modal close
+    const modalClose = document.getElementById('modal-close');
+    if (modalClose) {
+        modalClose.addEventListener('click', closeModal);
+    }
+
+    const articleModal = document.getElementById('article-modal');
+    if (articleModal) {
+        articleModal.addEventListener('click', (e) => {
+            if (e.target === articleModal) closeModal();
+        });
+    }
+
+    // Mobile menu
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const closeMobile = document.getElementById('close-mobile');
+    const mobileOverlay = document.getElementById('mobile-overlay');
+
+    if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', openMobileMenu);
+    if (closeMobile) closeMobile.addEventListener('click', closeMobileMenu);
+    if (mobileOverlay) mobileOverlay.addEventListener('click', closeMobileMenu);
+
+    // Theme toggle
     const themeToggle = document.getElementById('theme-toggle');
-    const savedTheme = localStorage.getItem('endless_theme');
-    if (savedTheme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
 
-    themeToggle.addEventListener('click', () => {
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        if (isDark) {
-            document.documentElement.removeAttribute('data-theme');
-            localStorage.setItem('endless_theme', 'light');
-        } else {
-            document.documentElement.setAttribute('data-theme', 'dark');
-            localStorage.setItem('endless_theme', 'dark');
-        }
-    });
-
-    const header = document.querySelector('.main-header');
+    // Scroll events
+    let scrollTicking = false;
     window.addEventListener('scroll', () => {
-        if (window.scrollY > 10) {
-            header.classList.add('scrolled');
-        } else {
-            header.classList.remove('scrolled');
+        if (!scrollTicking) {
+            requestAnimationFrame(() => {
+                handleHeaderScroll();
+                scrollTicking = false;
+            });
+            scrollTicking = true;
         }
+    }, { passive: true });
+
+    // Resize
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(handleResize, 250);
     });
 
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+    });
+
+    // Initial render
     setLanguage(currentLang);
-    updateDateDisplay();
     renderHero();
     renderFeed();
     renderTrending();
     renderCategories();
     renderAds();
     renderTicker();
+
+    // Initialize lazy loading
+    setTimeout(initLazyLoading, 100);
 });
 
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
-});
+/* ─── DEBOUNCE UTILITY ─── */
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+/* ─── PERFORMANCE: Preload critical resources ─── */
+if ('requestIdleCallback' in window) {
+    requestIdleCallback(() => {
+        // Preload next batch of images
+        const images = document.querySelectorAll('img[loading="lazy"]');
+        images.forEach((img, index) => {
+            if (index < 6) {
+                img.loading = 'eager';
+            }
+        });
+    });
+}
