@@ -95,29 +95,6 @@ body {
 .sidebar-header h2 { font-family: Georgia, serif; font-size: 1.4rem; color: #fff; }
 .sidebar-header small { font-size: 0.75rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.1em; }
 
-/* Sidebar close button (X) */
-.sidebar-close-btn {
-    display: none;
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    width: 36px;
-    height: 36px;
-    background: rgba(255,255,255,0.1);
-    border: none;
-    border-radius: 8px;
-    color: #fff;
-    font-size: 1.5rem;
-    cursor: pointer;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-    padding: 0;
-    z-index: 101;
-    transition: background 0.2s;
-}
-.sidebar-close-btn:hover { background: rgba(255,255,255,0.2); }
-
 .admin-logo-icon {
     display: inline-flex;
     align-items: center;
@@ -616,6 +593,10 @@ body {
 }
 
 @media (max-width: 768px) {
+    .admin-dashboard {
+        flex-direction: column;
+    }
+
     /* Only header-menu-btn in mobile */
     .mobile-menu-btn { display: none !important; }
     .header-menu-btn { 
@@ -629,9 +610,11 @@ body {
         z-index: 100;
     }
     .admin-sidebar.open { transform: translateX(0); }
-    .sidebar-close-btn { display: flex; }
 
-    .admin-main { margin-left: 0; }
+    .admin-main { 
+        margin-left: 0; 
+        min-height: auto;
+    }
 
     .admin-header {
         padding: 0.75rem 1rem;
@@ -663,7 +646,10 @@ body {
         text-overflow: ellipsis;
     }
 
-    .page-content { padding: 1rem; }
+    .page-content { 
+        padding: 1rem; 
+        padding-bottom: 1rem;
+    }
 
     .stats-grid {
         grid-template-columns: 1fr 1fr;
@@ -769,7 +755,10 @@ body {
 }
 
 @media (max-width: 768px) {
-    .mobile-bottom-nav { display: block; }
-    .page-content { padding-bottom: 70px; }
+    .mobile-bottom-nav { 
+        display: block; 
+        position: relative;
+    }
+    .page-content { padding-bottom: 1rem; }
     .admin-sidebar .sidebar-nav { padding-bottom: 1rem; }
 }

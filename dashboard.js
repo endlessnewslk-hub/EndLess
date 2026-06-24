@@ -116,6 +116,19 @@ async function initData() {
     adminAds = JSON.parse(localStorage.getItem('endless_ads')) || [];
     adminCats = JSON.parse(localStorage.getItem('endless_categories')) || [];
 
+    // Permanently remove "Untitled" and empty-title posts
+    var beforeNewsCount = adminNews.length;
+    adminNews = adminNews.filter(function(n) {
+        var t = String(n.title || '').trim();
+        var t_en = String(n.title_en || '').trim();
+        var t_si = String(n.title_si || '').trim();
+        return t !== 'Untitled' && t_en !== 'Untitled' && t_si !== 'Untitled' &&
+               t !== '' && t_en !== '' && t_si !== '';
+    });
+    if (adminNews.length < beforeNewsCount) {
+        saveNews();
+    }
+
     cleanBrokenPosts();
 
     if (adminNews.length === 0) {
@@ -146,12 +159,15 @@ async function initData() {
 function cleanBrokenPosts() {
     var beforeCount = adminNews.length;
     adminNews = adminNews.filter(function(n) {
+        var titleStr = String(n.title || n.title_en || n.title_si || '').trim();
         var hasValidTitle = n && (n.title || n.title_en || n.title_si) &&
-            String(n.title || n.title_en || n.title_si).trim() !== '' &&
-            String(n.title || n.title_en || n.title_si).toLowerCase() !== 'undefined';
+            titleStr !== '' &&
+            titleStr.toLowerCase() !== 'undefined' &&
+            titleStr.toLowerCase() !== 'untitled';
+        var contentStr = String(n.content || n.content_en || n.content_si || '').trim();
         var hasValidContent = n && (n.content || n.content_en || n.content_si) &&
-            String(n.content || n.content_en || n.content_si).trim() !== '' &&
-            String(n.content || n.content_en || n.content_si).toLowerCase() !== 'undefined';
+            contentStr !== '' &&
+            contentStr.toLowerCase() !== 'undefined';
         return hasValidTitle && hasValidContent;
     });
     var removedCount = beforeCount - adminNews.length;
@@ -1059,11 +1075,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Sidebar toggles
     var headerMenuBtn = document.getElementById('header-menu-btn');
     var sidebarOverlay = document.getElementById('sidebar-overlay');
-    var sidebarCloseBtn = document.getElementById('sidebar-close-btn');
 
     if (headerMenuBtn) headerMenuBtn.addEventListener('click', toggleSidebar);
     if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
-    if (sidebarCloseBtn) sidebarCloseBtn.addEventListener('click', closeSidebar);
 
     // Navigation (sidebar)
     document.querySelectorAll('.nav-item').forEach(function(btn) {
