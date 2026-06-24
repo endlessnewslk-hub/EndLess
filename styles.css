@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 /* ═══════════════════════════════════════
    ENDLESS — ENHANCED PREMIUM STYLES
@@ -22,7 +22,8 @@
     --success: #10b981;
     --warning: #f59e0b;
 
-    --font-heading: 'Playfair Display', 'Georgia', 'Times New Roman', serif;
+    /* OLD FONT: Georgia/Times (as per screenshot) */
+    --font-heading: Georgia, 'Times New Roman', serif;
     --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
@@ -168,11 +169,13 @@ input, textarea, select {
     flex-shrink: 0;
 }
 
-.logo-text-group {
+/* FIX: Wrapper for "End" + "Less" — NO GAP between them */
+.logo-text-wrap {
     display: flex;
     align-items: center;
     gap: 0;
-    margin-left: 0.25rem;
+    margin: 0;
+    padding: 0;
 }
 
 .logo-icon {
@@ -213,20 +216,21 @@ input, textarea, select {
     transform: translateX(100%);
 }
 
+/* FIX: "End" and "Less" — ZERO gap, tight together */
 .logo-end {
     color: var(--text);
     font-weight: 900;
     letter-spacing: -0.02em;
+    margin: 0;
+    padding: 0;
 }
 
 .logo-less {
     color: var(--primary); 
     font-weight: 900;
     letter-spacing: -0.02em;
-}
-
-.logo-end + .logo-less {
-    margin-left: -0.02em;
+    margin: 0;
+    padding: 0;
 }
 
 .footer-logo {
