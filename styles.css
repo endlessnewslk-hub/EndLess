@@ -1304,54 +1304,56 @@ input, textarea, select {
     font-weight: 500;
 }
 
+/* ─── ARTICLE TEXT — MOBILE OPTIMIZED ─── */
 .modal-article .article-text { 
     font-size: 1rem; 
-    line-height: 1.9; 
+    line-height: 1.75; 
     color: var(--text); 
 }
 
 .modal-article .article-text p { 
-    margin-bottom: 1.25rem; 
-    text-align: justify;
+    margin-bottom: 0.85rem; 
+    text-align: left;
 }
 
-/* Ensure proper spacing between consecutive paragraphs */
+/* Tight gap between consecutive paragraphs on mobile */
 .modal-article .article-text p + p {
-    margin-top: 1.25rem;
+    margin-top: 0.85rem;
 }
 
-/* Handle <br> tags properly */
+/* Handle <br> tags — minimal gap on mobile */
 .modal-article .article-text br {
     display: block;
     content: "";
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.4rem;
 }
 
-/* Handle div or span elements that might be used as paragraphs */
+/* Handle div or span elements */
 .modal-article .article-text div,
 .modal-article .article-text span {
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
     display: block;
 }
 
-/* Ensure lists also have proper spacing */
+/* Lists — compact on mobile */
 .modal-article .article-text ul,
 .modal-article .article-text ol {
-    margin-bottom: 1.25rem;
-    padding-left: 1.5rem;
+    margin-bottom: 0.85rem;
+    padding-left: 1.25rem;
 }
 
 .modal-article .article-text li {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.35rem;
 }
 
+/* Drop cap — smaller on mobile */
 .modal-article .article-text p:first-of-type::first-letter {
     font-family: var(--font-heading);
-    font-size: 2.5rem;
+    font-size: 2rem;
     float: left;
     line-height: 1;
-    padding-right: 0.5rem;
-    padding-top: 0.2rem;
+    padding-right: 0.4rem;
+    padding-top: 0.15rem;
     color: var(--primary);
     font-weight: 700;
 }
@@ -1898,11 +1900,42 @@ footer li:hover::before {
 
     .modal-article .article-text {
         font-size: 1.1rem;
+        line-height: 1.85;
+    }
+
+    /* Larger gaps on desktop */
+    .modal-article .article-text p {
+        margin-bottom: 1.25rem;
+        text-align: justify;
+    }
+
+    .modal-article .article-text p + p {
+        margin-top: 1.25rem;
+    }
+
+    .modal-article .article-text br {
+        margin-bottom: 0.75rem;
+    }
+
+    .modal-article .article-text div,
+    .modal-article .article-text span {
+        margin-bottom: 1rem;
+    }
+
+    .modal-article .article-text ul,
+    .modal-article .article-text ol {
+        margin-bottom: 1.25rem;
+        padding-left: 1.5rem;
+    }
+
+    .modal-article .article-text li {
+        margin-bottom: 0.5rem;
     }
 
     .modal-article .article-text p:first-of-type::first-letter {
         font-size: 3.5rem;
         padding-right: 0.75rem;
+        padding-top: 0.25rem;
     }
 
     .modal-close {
