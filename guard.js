@@ -133,7 +133,7 @@ function checkAuthentication() {
 
     // Verify with Firebase if available
     if (guardAuth) {
-        guardAuth.onAuthStateChanged((user) => {
+        guardAuth.onAuthStateChanged(function(user) {
             if (!user) {
                 console.warn('🔒 Auth Guard: Firebase user not found');
                 clearAllSessions();
@@ -202,8 +202,8 @@ function redirectToLogin(reason) {
         </div>
     `;
 
-    setTimeout(() => {
-        window.location.href = `${SESSION_CONFIG.loginPage}?${params.toString()}`;
+    setTimeout(function() {
+        window.location.href = SESSION_CONFIG.loginPage + '?' + params.toString();
     }, 2000);
 }
 
@@ -240,7 +240,7 @@ function clearAllSessions() {
 
     // Sign out from Firebase
     if (guardAuth) {
-        guardAuth.signOut().catch(err => console.warn('Sign out error:', err));
+        guardAuth.signOut().catch(function(err) { console.warn('Sign out error:', err); });
     }
 
     currentUser = null;
@@ -275,7 +275,7 @@ function startSessionMonitor() {
     }
 
     // Check session validity periodically
-    sessionCheckInterval = setInterval(() => {
+    sessionCheckInterval = setInterval(function() {
         const session = verifySession();
         if (!session) {
             console.warn('🔒 Auth Guard: Session expired during monitoring');
@@ -285,7 +285,7 @@ function startSessionMonitor() {
     }, SESSION_CONFIG.checkInterval);
 
     // Refresh session on user activity
-    ['click', 'keypress', 'scroll', 'mousemove'].forEach(event => {
+    ['click', 'keypress', 'scroll', 'mousemove'].forEach(function(event) {
         document.addEventListener(event, debounce(refreshSession, 60000), { passive: true });
     });
 }
@@ -295,10 +295,11 @@ function startSessionMonitor() {
  */
 function debounce(func, wait) {
     let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
+    return function executedFunction() {
+        const args = arguments;
+        const later = function() {
             clearTimeout(timeout);
-            func(...args);
+            func.apply(null, args);
         };
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
@@ -313,7 +314,8 @@ function debounce(func, wait) {
  * Sign out user and redirect to login
  * @param {string} reason - Optional logout reason
  */
-async function logout(reason = 'logged_out') {
+async function logout(reason) {
+    reason = reason || 'logged_out';
     showLoadingOverlay('Signing out...');
 
     try {
@@ -329,7 +331,7 @@ async function logout(reason = 'logged_out') {
     clearAllSessions();
 
     // STRICT: Prevent browser from saving form data
-    document.querySelectorAll('input[type="email"], input[type="password"]').forEach(input => {
+    document.querySelectorAll('input[type="email"], input[type="password"]').forEach(function(input) {
         input.value = '';
         input.autocomplete = 'off';
     });
@@ -343,14 +345,15 @@ async function logout(reason = 'logged_out') {
     const params = new URLSearchParams();
     params.set('reason', reason);
     params.set('_t', Date.now());
-    window.location.replace(`${SESSION_CONFIG.loginPage}?${params.toString()}`);
+    window.location.replace(SESSION_CONFIG.loginPage + '?' + params.toString());
 }
 
 /**
  * Show loading overlay
  * @param {string} message - Loading message
  */
-function showLoadingOverlay(message = 'Loading...') {
+function showLoadingOverlay(message) {
+    message = message || 'Loading...';
     const existing = document.getElementById('guard-loading-overlay');
     if (existing) existing.remove();
 
@@ -400,7 +403,7 @@ function updateUserUI(user) {
     const userDisplay = document.querySelector('.admin-user span');
     if (userDisplay && user.email) {
         const displayName = user.displayName || user.email.split('@')[0];
-        userDisplay.innerHTML = `👤 <strong>${displayName}</strong> <small style="color:#9ca3af;">(${user.email})</small>`;
+        userDisplay.innerHTML = '👤 <strong>' + displayName + '</strong> <small style="color:#9ca3af;">(' + user.email + ')</small>';
     }
 
     // Add logout button to sidebar if not exists
@@ -411,7 +414,7 @@ function updateUserUI(user) {
         logoutBtn.className = 'nav-item';
         logoutBtn.style.cssText = 'color: #ef4444; margin-top: auto; border-left-color: #ef4444;';
         logoutBtn.innerHTML = '<span>🚪</span> Sign Out';
-        logoutBtn.onclick = () => logout();
+        logoutBtn.onclick = function() { logout(); };
 
         // Insert at the end of sidebar-nav
         sidebarNav.appendChild(logoutBtn);
@@ -491,4 +494,6 @@ function applySecurityProtections() {
 window.logout = logout;
 window.checkAuthentication = checkAuthentication;
 window.refreshSession = refreshSession;
-window.currentUser = currentUser;
+Object.defineProperty(window, 'currentUser', {
+    get: function() { return currentUser; }
+});

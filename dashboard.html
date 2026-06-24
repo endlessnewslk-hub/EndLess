@@ -6,28 +6,24 @@
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EndLess — Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EndLess — Admin Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="dashboard.css">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <base target="_blank">
-<base target="_blank">
 </head>
 <body>
     <div id="admin-dashboard" class="admin-dashboard">
-        <!-- Mobile Hamburger -->
-        <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open menu">
-            <span></span><span></span><span></span>
-        </button>
-
         <!-- Sidebar Overlay (mobile) -->
         <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
         <aside class="admin-sidebar" id="admin-sidebar">
             <div class="sidebar-header">
+                <button class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close menu">&times;</button>
                 <h2>
                     <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
                         <span class="admin-logo-icon">E</span>
@@ -134,6 +130,7 @@
                     <button class="btn-primary" id="btn-add-news">+ Add New Article</button>
                     <input type="text" id="news-search" placeholder="Search articles..." class="search-input">
                 </div>
+                <div class="ptr-hint">↓ Pull down to refresh</div>
                 <div class="table-wrapper">
                     <div class="table-scroll">
                         <table class="data-table">
@@ -152,6 +149,7 @@
                             <tbody id="news-table-body"></tbody>
                         </table>
                     </div>
+                    <div class="mobile-card-list" id="news-mobile-cards"></div>
                 </div>
             </div>
 
@@ -175,6 +173,7 @@
                             <tbody id="ads-table-body"></tbody>
                         </table>
                     </div>
+                    <div class="mobile-card-list" id="ads-mobile-cards"></div>
                 </div>
             </div>
 
@@ -191,6 +190,7 @@
                             <tbody id="categories-table-body"></tbody>
                         </table>
                     </div>
+                    <div class="mobile-card-list" id="categories-mobile-cards"></div>
                 </div>
             </div>
 
@@ -205,9 +205,40 @@
                         </div>
                         <button class="btn-danger" id="btn-reset-data">Reset to Default Data</button>
                     </div>
+                    <div class="panel">
+                        <h3>🧹 Clean Broken Posts</h3>
+                        <p style="color: #6b7280; margin-bottom: 1rem;">Remove posts with missing titles or undefined content.</p>
+                        <button class="btn-danger" id="btn-clean-broken">Clean Broken Posts</button>
+                    </div>
                 </div>
             </div>
         </main>
+
+        <!-- Mobile Bottom Navigation -->
+        <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+            <div class="nav-items">
+                <button class="nav-item-mobile active" data-page="dashboard">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-item-mobile" data-page="news">
+                    <i class="fas fa-newspaper"></i>
+                    <span>News</span>
+                </button>
+                <button class="nav-item-mobile" data-page="ads">
+                    <i class="fas fa-bullhorn"></i>
+                    <span>Ads</span>
+                </button>
+                <button class="nav-item-mobile" data-page="categories">
+                    <i class="fas fa-tags"></i>
+                    <span>Categories</span>
+                </button>
+                <button class="nav-item-mobile" data-page="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </button>
+            </div>
+        </nav>
     </div>
 
     <!-- NEWS MODAL -->
@@ -220,7 +251,6 @@
             <div class="modal-body">
                 <input type="hidden" id="news-id">
 
-                <!-- Language Tabs -->
                 <div class="lang-tabs">
                     <button type="button" class="lang-tab active" data-lang="ta">தமிழ்</button>
                     <button type="button" class="lang-tab" data-lang="en">English</button>
@@ -260,7 +290,7 @@
                             <p>Click to upload photo</p>
                             <small>or drag and drop image here</small>
                         </div>
-                        <img id="news-photo-preview" src="" alt="Photo Preview" style="max-height: 200px; display: none; border-radius: 6px; margin-top: 0.5rem;">
+                        <img id="news-photo-preview" src="" alt="Photo Preview" style="max-height: 200px; display: none; border-radius: 6px; margin-top: 0.5rem; width: 100%; object-fit: cover;">
                     </div>
                     <input type="hidden" id="news-photo-data">
                 </div>
