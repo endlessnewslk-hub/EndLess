@@ -315,8 +315,20 @@ function isGarbagePost(n) {
     return !hasTitle || !hasId;
 }
 
-// Load and clean data
-var rawNews = JSON.parse(localStorage.getItem('endless_news')) || DEFAULT_NEWS;
+// Load and clean data with retry for mobile new-tab contexts
+function getNewsFromStorage() {
+    var data = localStorage.getItem('endless_news');
+    if (data) {
+        try {
+            return JSON.parse(data);
+        } catch(e) {
+            console.warn('Failed to parse news from localStorage');
+        }
+    }
+    return null;
+}
+
+var rawNews = getNewsFromStorage() || DEFAULT_NEWS;
 var cleanedNews = rawNews.filter(function(n) { return !isGarbagePost(n); });
 if (cleanedNews.length < rawNews.length) {
     localStorage.setItem('endless_news', JSON.stringify(cleanedNews));
