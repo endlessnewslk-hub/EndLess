@@ -20,7 +20,22 @@ try {
             firebase.initializeApp(firebaseConfig);
         }
         db = firebase.firestore();
-        console.log('Firebase connected successfully');
+
+        // STRICT: Disable offline cache to prevent deleted docs from reappearing
+        // This forces Firestore to always fetch fresh data from server
+        db.settings({
+            cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
+            ignoreUndefinedProperties: true
+        });
+
+        // Disable persistence completely to prevent ghost documents
+        db.disableNetwork().then(function() {
+            return db.enableNetwork();
+        }).catch(function(err) {
+            console.warn('Network toggle error:', err);
+        });
+
+        console.log('Firebase connected successfully (cache disabled)');
     } else {
         console.warn('Firebase SDK not loaded - using localStorage only');
     }
@@ -113,6 +128,8 @@ const DEFAULT_CATEGORIES = [
 // ── Helper: Check if post is "Untitled" or garbage ──
 function isUntitledOrGarbage(n) {
     if (!n) return true;
+    if (typeof n !== 'object') return true;
+
     var t = String(n.title || '').trim();
     var t_en = String(n.title_en || '').trim();
     var t_si = String(n.title_si || '').trim();
@@ -120,13 +137,24 @@ function isUntitledOrGarbage(n) {
     var c_en = String(n.content_en || '').trim();
     var c_si = String(n.content_si || '').trim();
 
-    var hasRealTitle = t !== '' && t.toLowerCase() !== 'untitled' && t.toLowerCase() !== 'undefined' &&
-                       t_en !== '' && t_en.toLowerCase() !== 'untitled' && t_en.toLowerCase() !== 'undefined' &&
-                       t_si !== '' && t_si.toLowerCase() !== 'untitled' && t_si.toLowerCase() !== 'undefined';
-    var hasRealContent = c !== '' && c.toLowerCase() !== 'undefined' &&
-                         c_en !== '' && c_en.toLowerCase() !== 'undefined' &&
-                         c_si !== '' && c_si.toLowerCase() !== 'undefined';
-    return !hasRealTitle || !hasRealContent;
+    // Check for empty, null, undefined, "Untitled", "undefined" strings
+    var isEmptyOrGarbage = function(str) {
+        if (!str) return true;
+        var s = String(str).trim().toLowerCase();
+        return s === '' || s === 'untitled' || s === 'undefined' || s === 'null' || 
+               s === 'nan' || s === '[object object]' || s === '0' || s === 'false';
+    };
+
+    // At least ONE language must have valid title
+    var hasRealTitle = (!isEmptyOrGarbage(t)) || (!isEmptyOrGarbage(t_en)) || (!isEmptyOrGarbage(t_si));
+
+    // At least ONE language must have valid content
+    var hasRealContent = (!isEmptyOrGarbage(c)) || (!isEmptyOrGarbage(c_en)) || (!isEmptyOrGarbage(c_si));
+
+    // Also check if ID is valid
+    var hasValidId = n.id !== undefined && n.id !== null && n.id !== '';
+
+    return !hasRealTitle || !hasRealContent || !hasValidId;
 }
 
 // ── Helper: Get display title for checking ──
@@ -136,18 +164,20 @@ function getDisplayTitle(n) {
 
 // ── Data Initialization ──
 async function initData() {
+    // STRICT: Always start fresh - clear any stale cache
     adminNews = JSON.parse(localStorage.getItem('endless_news')) || [];
     adminAds = JSON.parse(localStorage.getItem('endless_ads')) || [];
     adminCats = JSON.parse(localStorage.getItem('endless_categories')) || [];
 
-    // STEP 1: Clean localStorage first
+    // STEP 1: Aggressive clean - remove ALL garbage posts immediately
     var beforeNewsCount = adminNews.length;
     adminNews = adminNews.filter(function(n) {
         return !isUntitledOrGarbage(n);
     });
-    if (adminNews.length < beforeNewsCount) {
+    var removedLocal = beforeNewsCount - adminNews.length;
+    if (removedLocal > 0) {
         saveNews();
-        console.log('Removed garbage from localStorage');
+        console.log('Removed ' + removedLocal + ' garbage posts from localStorage');
     }
 
     cleanBrokenPosts();
@@ -167,10 +197,22 @@ async function initData() {
 
     updateCategoryCounts();
 
-    // STEP 2: Sync with Firebase and clean garbage there too
+    // STEP 2: Sync with Firebase - force server fetch, no cache
     if (db) {
         try {
             await syncFromFirebase();
+
+            // FINAL CLEAN: After Firebase sync, clean again to catch any ghost docs
+            var afterSyncCount = adminNews.length;
+            adminNews = adminNews.filter(function(n) {
+                return !isUntitledOrGarbage(n);
+            });
+            var removedAfterSync = afterSyncCount - adminNews.length;
+            if (removedAfterSync > 0) {
+                saveNews();
+                console.log('Removed ' + removedAfterSync + ' ghost posts after Firebase sync');
+                showToast('Removed ' + removedAfterSync + ' broken post(s)', 'success');
+            }
         } catch (err) {
             console.warn('Firebase sync failed, using localStorage:', err);
         }
@@ -187,6 +229,7 @@ function cleanBrokenPosts() {
     if (removedCount > 0) {
         saveNews();
         showToast('Removed ' + removedCount + ' broken post(s)', 'success');
+        console.log('cleanBrokenPosts: Removed ' + removedCount + ' garbage posts');
     }
     return removedCount;
 }
@@ -207,7 +250,21 @@ function updateCategoryCounts() {
 async function syncFromFirebase() {
     if (!db) return;
     try {
-        var newsSnapshot = await db.collection('news').get();
+        // STRICT: Clear any cached data before fetching to prevent ghost documents
+        try {
+            await db.terminate();
+            db = firebase.firestore();
+            db.settings({
+                cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
+                ignoreUndefinedProperties: true
+            });
+            console.log('Firestore cache cleared, fetching fresh data...');
+        } catch (cacheErr) {
+            console.warn('Cache clear error:', cacheErr);
+        }
+
+        // Use get({ source: 'server' }) to force server fetch, bypass cache
+        var newsSnapshot = await db.collection('news').get({ source: 'server' });
         if (!newsSnapshot.empty) {
             var firebaseNews = [];
             var untitledDocIds = [];
@@ -254,7 +311,7 @@ async function syncFromFirebase() {
             localStorage.setItem('endless_news', JSON.stringify(adminNews));
         }
 
-        var adsSnapshot = await db.collection('ads').get();
+        var adsSnapshot = await db.collection('ads').get({ source: 'server' });
         if (!adsSnapshot.empty) {
             adminAds = adsSnapshot.docs.map(function(doc) {
                 var data = doc.data();
@@ -264,7 +321,7 @@ async function syncFromFirebase() {
             localStorage.setItem('endless_ads', JSON.stringify(adminAds));
         }
 
-        var catsSnapshot = await db.collection('categories').get();
+        var catsSnapshot = await db.collection('categories').get({ source: 'server' });
         if (!catsSnapshot.empty) {
             adminCats = catsSnapshot.docs.map(function(doc) {
                 var data = doc.data();

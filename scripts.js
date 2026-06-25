@@ -298,7 +298,32 @@ const DEFAULT_CATEGORIES = [
     { id: "health", name: "சுகாதாரம்", name_en: "Health", name_si: "සෞඛ්‍යය", count: 0 }
 ];
 
-let newsData = JSON.parse(localStorage.getItem('endless_news')) || DEFAULT_NEWS;
+// ── STRICT: Auto-clean garbage posts from localStorage on every load ──
+function isGarbagePost(n) {
+    if (!n || typeof n !== 'object') return true;
+    var t = String(n.title || '').trim();
+    var t_en = String(n.title_en || '').trim();
+    var t_si = String(n.title_si || '').trim();
+    var isBad = function(s) {
+        if (!s) return true;
+        var x = String(s).trim().toLowerCase();
+        return x === '' || x === 'untitled' || x === 'undefined' || x === 'null' || 
+               x === 'nan' || x === '[object object]';
+    };
+    var hasTitle = !isBad(t) || !isBad(t_en) || !isBad(t_si);
+    var hasId = n.id !== undefined && n.id !== null && n.id !== '';
+    return !hasTitle || !hasId;
+}
+
+// Load and clean data
+var rawNews = JSON.parse(localStorage.getItem('endless_news')) || DEFAULT_NEWS;
+var cleanedNews = rawNews.filter(function(n) { return !isGarbagePost(n); });
+if (cleanedNews.length < rawNews.length) {
+    localStorage.setItem('endless_news', JSON.stringify(cleanedNews));
+    console.log('Auto-removed ' + (rawNews.length - cleanedNews.length) + ' garbage post(s)');
+}
+
+let newsData = cleanedNews.length > 0 ? cleanedNews : DEFAULT_NEWS;
 let adsData = JSON.parse(localStorage.getItem('endless_ads')) || DEFAULT_ADS;
 let categoriesData = JSON.parse(localStorage.getItem('endless_categories')) || DEFAULT_CATEGORIES;
 let currentFilter = 'All';
@@ -337,7 +362,7 @@ function escapeHtml(text) {
 
 /* ─── RENDER FUNCTIONS ─── */
 function renderHero() {
-    const featured = newsData.filter(n => n.featured && n.status === 'published').slice(0, 3);
+    const featured = newsData.filter(n => n.featured && n.status === 'published' && !isGarbagePost(n)).slice(0, 3);
     if (featured.length === 0) return;
 
     const main = featured[0];
@@ -371,7 +396,8 @@ function renderHero() {
 }
 
 function renderFeed() {
-    let filtered = newsData.filter(n => n.status === 'published');
+    // STRICT: Filter out garbage posts before rendering
+    let filtered = newsData.filter(n => n.status === 'published' && !isGarbagePost(n));
 
     if (currentFilter !== 'All') {
         const catNames = categoriesData.filter(c => 
@@ -420,7 +446,7 @@ function renderFeed() {
 }
 
 function renderTrending() {
-    const trending = newsData.filter(n => n.trending && n.status === 'published').slice(0, 5);
+    const trending = newsData.filter(n => n.trending && n.status === 'published' && !isGarbagePost(n)).slice(0, 5);
     const list = document.getElementById('trending-list');
     if (!list) return;
 
@@ -493,7 +519,7 @@ function renderAds() {
 }
 
 function renderTicker() {
-    const breaking = newsData.filter(n => n.status === 'published').slice(0, 8);
+    const breaking = newsData.filter(n => n.status === 'published' && !isGarbagePost(n)).slice(0, 8);
     const ticker = document.getElementById('ticker-content');
     if (!ticker) return;
 
@@ -505,7 +531,7 @@ function renderTicker() {
 /* ─── ARTICLE MODAL ─── */
 function openArticle(id) {
     const article = newsData.find(n => n.id === id);
-    if (!article) return;
+    if (!article || isGarbagePost(article)) return;
 
     const modal = document.getElementById('article-modal');
     const body = document.getElementById('modal-body');
