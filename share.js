@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════
-   ENDLESS — SOCIAL SHARE SYSTEM
-   Rich Social Media Share with Preview Cards
+   ENDLESS — RICH SOCIAL SHARE SYSTEM
+   Open Graph / Instant Article Style Share Cards
    Supports: Facebook, X (Twitter), WhatsApp, Copy Link
    Multi-language: Tamil, English, Sinhala
    ═══════════════════════════════════════ */
@@ -10,8 +10,9 @@
 
     // ── Configuration ──
     const SHARE_CONFIG = {
-        brandName: 'EndLess',
+        brandName: 'EndLess News',
         brandUrl: window.location.origin + window.location.pathname,
+        brandLogo: window.location.origin + '/favicon.ico',
         maxTitleLength: 100,
         maxExcerptLength: 150
     };
@@ -35,7 +36,9 @@
             read_more: 'மேலும் படிக்க:',
             via: 'வழியாக',
             share_preview: 'பகிர்வு முன்னோட்டம்',
-            share_description: 'இந்த கட்டுரையை உங்கள் நண்பர்களுடன் பகிருங்கள்'
+            news: 'செய்திகள்',
+            breaking: 'உடனடி செய்தி',
+            trending: 'பிரபலமானவை'
         },
         en: {
             share_article: 'Share',
@@ -54,7 +57,9 @@
             read_more: 'Read more:',
             via: 'via',
             share_preview: 'Share Preview',
-            share_description: 'Share this article with your friends'
+            news: 'News',
+            breaking: 'Breaking',
+            trending: 'Trending'
         },
         si: {
             share_article: 'බෙදාගන්න',
@@ -73,7 +78,9 @@
             read_more: 'තවත් කියවන්න:',
             via: 'මගින්',
             share_preview: 'බෙදාගැනීමේ පෙරදසුන',
-            share_description: 'මෙම ලිපිය ඔබේ මිතුරන් සමඟ බෙදාගන්න'
+            news: 'පුවත්',
+            breaking: 'අලුත්ම',
+            trending: 'ජනප්‍රිය'
         }
     };
 
@@ -105,6 +112,17 @@
         return article[`${field}${suffix}`] || article[field] || article[`${field}_en`] || article[`${field}_si`] || '';
     }
 
+    function formatShareDate(dateStr) {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        const lang = getCurrentLang();
+        const options = { day: 'numeric', month: 'long', year: 'numeric' };
+        
+        if (lang === 'ta') return date.toLocaleDateString('ta-IN', options);
+        if (lang === 'si') return date.toLocaleDateString('si-LK', options);
+        return date.toLocaleDateString('en-US', options);
+    }
+
     // ── SVG Icons (Official Logos) ──
     const ICONS = {
         facebook: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>`,
@@ -114,8 +132,10 @@
         check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
         link: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
         share: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>`,
+        calendar: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`,
+        clock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`,
         eye: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`,
-        calendar: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`
+        trending: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>`
     };
 
     // ═══════════════════════════════════════
@@ -139,22 +159,50 @@
 
                 <div class="share-preview-section">
                     <div class="share-preview-label" data-share-key="share_preview">Share Preview</div>
-                    <div class="share-card" id="share-card-preview">
-                        <div class="share-card-image-wrap">
-                            <img class="share-card-image" id="share-preview-image" src="" alt="">
-                            <div class="share-card-image-overlay"></div>
+                    
+                    <!-- RICH SHARE CARD (Facebook/Instant Article Style) -->
+                    <div class="rich-share-card" id="share-card-preview">
+                        <div class="rich-card-image-wrap">
+                            <img class="rich-card-image" id="share-preview-image" src="" alt="">
+                            <div class="rich-card-image-overlay">
+                                <div class="rich-card-badge" id="share-preview-badge">
+                                    <span class="rich-badge-icon">🔥</span>
+                                    <span id="share-preview-badge-text">Trending</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="share-card-body">
-                            <div class="share-card-source">
-                                <div class="logo-mini">E</div>
-                                <span>EndLess News</span>
+                        
+                        <div class="rich-card-body">
+                            <div class="rich-card-source">
+                                <div class="rich-source-logo">
+                                    <span class="rich-logo-text">E</span>
+                                </div>
+                                <div class="rich-source-info">
+                                    <span class="rich-source-name">ENDLESS NEWS</span>
+                                    <span class="rich-source-verified">✓ Verified</span>
+                                </div>
                             </div>
-                            <div class="share-card-title" id="share-preview-title"></div>
-                            <div class="share-card-excerpt" id="share-preview-excerpt"></div>
-                            <div class="share-card-meta">
-                                <span class="share-card-date" id="share-preview-date"></span>
+                            
+                            <h3 class="rich-card-title" id="share-preview-title"></h3>
+                            
+                            <p class="rich-card-excerpt" id="share-preview-excerpt"></p>
+                            
+                            <div class="rich-card-meta">
+                                <span class="rich-meta-item">
+                                    ${ICONS.calendar}
+                                    <span id="share-preview-date"></span>
+                                </span>
+                                <span class="rich-meta-item" id="share-preview-category-wrap">
+                                    <span class="rich-category-dot"></span>
+                                    <span id="share-preview-category"></span>
+                                </span>
+                                <span class="rich-meta-item">
+                                    ${ICONS.eye}
+                                    <span>2.4K views</span>
+                                </span>
                             </div>
-                            <div class="share-card-link">
+                            
+                            <div class="rich-card-link">
                                 ${ICONS.link}
                                 <span id="share-preview-url"></span>
                             </div>
@@ -216,6 +264,9 @@
         updateSharePreview(article);
         updateShareLabels();
 
+        // Update Open Graph meta tags for better sharing
+        updateOpenGraphTags(article);
+
         const overlay = document.getElementById('share-overlay');
         if (overlay) {
             overlay.classList.add('open');
@@ -228,6 +279,50 @@
             const key = el.dataset.shareKey;
             el.textContent = getShareText(key);
         });
+    }
+
+    // ═══════════════════════════════════════
+    // UPDATE OPEN GRAPH META TAGS
+    // ═══════════════════════════════════════
+    function updateOpenGraphTags(article) {
+        const title = getLocalizedField(article, 'title') || 'EndLess News';
+        const excerpt = getLocalizedField(article, 'excerpt') || '';
+        const image = article.image || 'https://via.placeholder.com/1200x630?text=EndLess+News';
+        const url = SHARE_CONFIG.brandUrl + '?article=' + article.id;
+        const category = getLocalizedField(article, 'category') || 'News';
+
+        // Remove existing OG tags
+        document.querySelectorAll('meta[property^="og:"], meta[name^="twitter:"]').forEach(tag => tag.remove());
+
+        // Create new OG tags
+        const ogTags = [
+            { property: 'og:title', content: title },
+            { property: 'og:description', content: excerpt },
+            { property: 'og:image', content: image },
+            { property: 'og:image:width', content: '1200' },
+            { property: 'og:image:height', content: '630' },
+            { property: 'og:url', content: url },
+            { property: 'og:type', content: 'article' },
+            { property: 'og:site_name', content: 'EndLess News' },
+            { property: 'og:locale', content: getCurrentLang() === 'ta' ? 'ta_IN' : getCurrentLang() === 'si' ? 'si_LK' : 'en_US' },
+            { name: 'twitter:card', content: 'summary_large_image' },
+            { name: 'twitter:title', content: title },
+            { name: 'twitter:description', content: excerpt },
+            { name: 'twitter:image', content: image },
+            { name: 'twitter:site', content: '@EndLessNews' },
+            { name: 'description', content: excerpt }
+        ];
+
+        ogTags.forEach(tag => {
+            const meta = document.createElement('meta');
+            if (tag.property) meta.setAttribute('property', tag.property);
+            if (tag.name) meta.setAttribute('name', tag.name);
+            meta.setAttribute('content', tag.content);
+            document.head.appendChild(meta);
+        });
+
+        // Update document title
+        document.title = title + ' | EndLess News';
     }
 
     // ═══════════════════════════════════════
@@ -249,18 +344,34 @@
     };
 
     // ═══════════════════════════════════════
-    // UPDATE SHARE PREVIEW
+    // UPDATE SHARE PREVIEW (Rich Card Style)
     // ═══════════════════════════════════════
     function updateSharePreview(article) {
         const title = getLocalizedField(article, 'title') || 'EndLess News';
         const excerpt = getLocalizedField(article, 'excerpt') || '';
         const image = article.image || 'https://via.placeholder.com/800x400?text=EndLess+News';
         const url = SHARE_CONFIG.brandUrl + '?article=' + article.id;
-        const date = article.date ? new Date(article.date).toLocaleDateString(getCurrentLang() === 'ta' ? 'ta-IN' : getCurrentLang() === 'si' ? 'si-LK' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+        const date = formatShareDate(article.date);
+        const category = getLocalizedField(article, 'category') || getShareText('news');
+        const isTrending = article.trending || false;
 
+        // Image
         const imgEl = document.getElementById('share-preview-image');
         if (imgEl) imgEl.src = image;
 
+        // Badge
+        const badgeEl = document.getElementById('share-preview-badge');
+        const badgeTextEl = document.getElementById('share-preview-badge-text');
+        if (badgeEl && badgeTextEl) {
+            if (isTrending) {
+                badgeEl.style.display = 'flex';
+                badgeTextEl.textContent = getShareText('trending');
+            } else {
+                badgeEl.style.display = 'none';
+            }
+        }
+
+        // Title
         const titleEl = document.getElementById('share-preview-title');
         if (titleEl) {
             titleEl.textContent = title.length > SHARE_CONFIG.maxTitleLength 
@@ -268,6 +379,7 @@
                 : title;
         }
 
+        // Excerpt
         const excerptEl = document.getElementById('share-preview-excerpt');
         if (excerptEl) {
             excerptEl.textContent = excerpt.length > SHARE_CONFIG.maxExcerptLength 
@@ -275,9 +387,15 @@
                 : excerpt;
         }
 
+        // Date
         const dateEl = document.getElementById('share-preview-date');
         if (dateEl) dateEl.textContent = date;
 
+        // Category
+        const catEl = document.getElementById('share-preview-category');
+        if (catEl) catEl.textContent = category;
+
+        // URL
         const urlEl = document.getElementById('share-preview-url');
         if (urlEl) urlEl.textContent = url;
     }
@@ -308,7 +426,7 @@
     }
 
     // ═══════════════════════════════════════
-    // GENERATE RICH SHARE TEXT
+    // GENERATE RICH SHARE TEXT (For all platforms)
     // ═══════════════════════════════════════
     function generateShareText(article, platform) {
         const lang = getCurrentLang();
@@ -316,27 +434,30 @@
         const excerpt = getLocalizedField(article, 'excerpt') || '';
         const url = SHARE_CONFIG.brandUrl + '?article=' + article.id;
         const category = getLocalizedField(article, 'category') || 'News';
-        
         const readMore = getShareText('read_more');
         const via = getShareText('via');
 
         if (platform === 'facebook') {
-            return `${title}\n\n${excerpt}\n\n${readMore} ${url}\n\n${via} EndLess News`;
+            return `${title}\n\n${excerpt}\n\n🏷️ ${category}\n\n${readMore} ${url}\n\n${via} EndLess News 📰`;
         }
         
         if (platform === 'x') {
-            return `${title}\n\n${excerpt.substring(0, 80)}${excerpt.length > 80 ? '...' : ''}\n\n${url}\n\n${via} @EndLessNews 🔗`;
+            return `${title}\n\n${excerpt.substring(0, 100)}${excerpt.length > 100 ? '...' : ''}\n\n🔗 ${url}\n\n${via} @EndLessNews`;
         }
         
         if (platform === 'whatsapp') {
-            return `*${title}* 📰\n\n_${excerpt}_\n\n*${category}* | EndLess News\n\n${readMore} ${url}`;
+            return `*📰 ${title}*\n\n_${excerpt}_\n\n🏷️ *${category}* | EndLess News\n\n${readMore} 👇\n${url}`;
+        }
+
+        if (platform === 'copy') {
+            return `📰 ${title}\n\n${excerpt}\n\n🏷️ ${category} | EndLess News\n📅 ${formatShareDate(article.date)}\n\n${readMore} ${url}`;
         }
 
         return `${title} — ${url}`;
     }
 
     // ═══════════════════════════════════════
-    // SHARE TO FACEBOOK
+    // SHARE TO FACEBOOK (With Rich Content)
     // ═══════════════════════════════════════
     window.shareToFacebook = function() {
         if (!currentShareArticle) return;
@@ -346,15 +467,15 @@
         const description = encodeURIComponent(getLocalizedField(currentShareArticle, 'excerpt') || '');
         const image = encodeURIComponent(currentShareArticle.image || '');
 
-        // Facebook Share Dialog with Open Graph parameters
-        const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${title}&description=${description}&picture=${image}`;
+        // Facebook Share Dialog with full Open Graph parameters
+        const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${encodeURIComponent(generateShareText(currentShareArticle, 'facebook'))}&picture=${image}&title=${title}&description=${description}`;
 
         openShareWindow(shareUrl, 'Share on Facebook');
         showShareToast(getShareText('opening_facebook'), ICONS.facebook);
     };
 
     // ═══════════════════════════════════════
-    // SHARE TO X (TWITTER)
+    // SHARE TO X (TWITTER) (With Rich Content)
     // ═══════════════════════════════════════
     window.shareToX = function() {
         if (!currentShareArticle) return;
@@ -369,7 +490,7 @@
     };
 
     // ═══════════════════════════════════════
-    // SHARE TO WHATSAPP
+    // SHARE TO WHATSAPP (With Rich Content)
     // ═══════════════════════════════════════
     window.shareToWhatsApp = function() {
         if (!currentShareArticle) return;
@@ -383,24 +504,21 @@
     };
 
     // ═══════════════════════════════════════
-    // COPY SHARE LINK
+    // COPY SHARE LINK (Rich Formatted Text)
     // ═══════════════════════════════════════
     window.copyShareLink = function() {
         if (!currentShareArticle) return;
 
-        const url = SHARE_CONFIG.brandUrl + '?article=' + currentShareArticle.id;
         const richText = generateShareText(currentShareArticle, 'copy');
 
-        const fullText = `${richText}`;
-
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(fullText).then(function() {
+            navigator.clipboard.writeText(richText).then(function() {
                 showCopySuccess();
             }).catch(function() {
-                fallbackCopy(fullText);
+                fallbackCopy(richText);
             });
         } else {
-            fallbackCopy(fullText);
+            fallbackCopy(richText);
         }
     };
 
@@ -446,12 +564,12 @@
     // OPEN SHARE WINDOW
     // ═══════════════════════════════════════
     function openShareWindow(url, title) {
-        const width = 600;
-        const height = 600;
+        const width = 650;
+        const height = 650;
         const left = (window.innerWidth - width) / 2;
         const top = (window.innerHeight - height) / 2;
 
-        window.open(url, title, `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`);
+        window.open(url, title, `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes,status=yes`);
     }
 
     // ═══════════════════════════════════════
@@ -540,7 +658,7 @@
     // ═══════════════════════════════════════
     function init() {
         addShareButtonsToArticles();
-        console.log('📤 EndLess Share System initialized');
+        console.log('📤 EndLess Rich Share System initialized');
     }
 
     if (document.readyState === 'loading') {
