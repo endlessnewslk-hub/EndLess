@@ -441,7 +441,7 @@ function renderFeed() {
     }
 
     grid.innerHTML = toShow.map(item => `
-        <article class="article-card" onclick="openArticle(${item.id})">
+        <article class="article-card" onclick="openArticle(${item.id})" data-article-id="${item.id}">
             <img src="${escapeHtml(item.image)}" alt="${escapeHtml(getLocalized(item, 'title'))}" loading="lazy">
             <div class="card-body">
                 <div class="meta">
@@ -453,6 +453,16 @@ function renderFeed() {
             </div>
         </article>
     `).join('');
+
+    // Add share buttons to article cards
+    setTimeout(function() {
+        grid.querySelectorAll('.article-card').forEach(function(card) {
+            var articleId = parseInt(card.dataset.articleId);
+            if (articleId) {
+                addShareToArticleCard(card, articleId);
+            }
+        });
+    }, 10);
 
     document.getElementById('load-more-wrap').style.display = filtered.length > displayedCount ? 'block' : 'none';
 }
@@ -588,6 +598,11 @@ function openArticle(id) {
 
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
+
+    // Add share button to modal
+    setTimeout(function() {
+        addShareToModal(id);
+    }, 100);
 
     // Add swipe to close on mobile
     if (isTouchDevice) {
@@ -880,4 +895,110 @@ if ('requestIdleCallback' in window) {
             }
         });
     });
+}
+
+
+/* ═══════════════════════════════════════
+   SOCIAL SHARE SYSTEM
+   ═══════════════════════════════════════ */
+
+function addShareToArticleCard(articleCard, articleId) {
+    if (!articleCard) return;
+    const cardBody = articleCard.querySelector('.card-body');
+    if (!cardBody) return;
+    if (cardBody.querySelector('.article-share-btn')) return;
+
+    const shareBtn = document.createElement('button');
+    shareBtn.className = 'article-share-btn';
+    shareBtn.style.cssText = `
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.4rem 0.875rem;
+        background: linear-gradient(135deg, var(--primary, #e11d48), var(--primary-hover, #be123c));
+        color: #fff;
+        border: none;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 3px 12px rgba(225, 29, 72, 0.25);
+        margin-top: 0.5rem;
+        font-family: inherit;
+    `;
+    shareBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;">
+            <circle cx="18" cy="5" r="3"/>
+            <circle cx="6" cy="12" r="3"/>
+            <circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+        Share
+    `;
+    shareBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (typeof openShareOverlay === 'function') {
+            openShareOverlay(articleId);
+        }
+    });
+    cardBody.appendChild(shareBtn);
+}
+
+function addShareToModal(articleId) {
+    const modalBody = document.getElementById('modal-body');
+    if (!modalBody) return;
+    const modalArticleBody = modalBody.querySelector('.modal-article .modal-body');
+    if (!modalArticleBody) return;
+    if (modalArticleBody.querySelector('.modal-share-section')) return;
+
+    const shareSection = document.createElement('div');
+    shareSection.className = 'modal-share-section';
+    shareSection.style.cssText = `
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 2px solid var(--border, #e5e7eb);
+        text-align: center;
+    `;
+    shareSection.innerHTML = `
+        <p style="font-size: 0.85rem; color: var(--text-muted, #6b7280); margin-bottom: 0.75rem; font-weight: 600;">
+            📢 Share this article
+        </p>
+        <button class="article-share-btn" style="
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.65rem 1.5rem;
+            background: linear-gradient(135deg, var(--primary, #e11d48), var(--primary-hover, #be123c));
+            color: #fff;
+            border: none;
+            border-radius: 999px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(225, 29, 72, 0.3);
+            font-family: inherit;
+        ">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;">
+                <circle cx="18" cy="5" r="3"/>
+                <circle cx="6" cy="12" r="3"/>
+                <circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            Share This Article
+        </button>
+    `;
+    const btn = shareSection.querySelector('.article-share-btn');
+    if (btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (typeof openShareOverlay === 'function') {
+                openShareOverlay(articleId);
+            }
+        });
+    }
+    modalArticleBody.appendChild(shareSection);
 }
