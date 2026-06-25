@@ -110,23 +110,44 @@ const DEFAULT_CATEGORIES = [
     { id: "health", name: "Health", name_en: "Health", name_si: "Health", count: 0 }
 ];
 
+// ── Helper: Check if post is "Untitled" or garbage ──
+function isUntitledOrGarbage(n) {
+    if (!n) return true;
+    var t = String(n.title || '').trim();
+    var t_en = String(n.title_en || '').trim();
+    var t_si = String(n.title_si || '').trim();
+    var c = String(n.content || '').trim();
+    var c_en = String(n.content_en || '').trim();
+    var c_si = String(n.content_si || '').trim();
+
+    var hasRealTitle = t !== '' && t.toLowerCase() !== 'untitled' && t.toLowerCase() !== 'undefined' &&
+                       t_en !== '' && t_en.toLowerCase() !== 'untitled' && t_en.toLowerCase() !== 'undefined' &&
+                       t_si !== '' && t_si.toLowerCase() !== 'untitled' && t_si.toLowerCase() !== 'undefined';
+    var hasRealContent = c !== '' && c.toLowerCase() !== 'undefined' &&
+                         c_en !== '' && c_en.toLowerCase() !== 'undefined' &&
+                         c_si !== '' && c_si.toLowerCase() !== 'undefined';
+    return !hasRealTitle || !hasRealContent;
+}
+
+// ── Helper: Get display title for checking ──
+function getDisplayTitle(n) {
+    return String(n.title_en || n.title || n.title_si || '').trim();
+}
+
 // ── Data Initialization ──
 async function initData() {
     adminNews = JSON.parse(localStorage.getItem('endless_news')) || [];
     adminAds = JSON.parse(localStorage.getItem('endless_ads')) || [];
     adminCats = JSON.parse(localStorage.getItem('endless_categories')) || [];
 
-    // Permanently remove "Untitled" and empty-title posts
+    // STEP 1: Clean localStorage first
     var beforeNewsCount = adminNews.length;
     adminNews = adminNews.filter(function(n) {
-        var t = String(n.title || '').trim();
-        var t_en = String(n.title_en || '').trim();
-        var t_si = String(n.title_si || '').trim();
-        return t !== 'Untitled' && t_en !== 'Untitled' && t_si !== 'Untitled' &&
-               t !== '' && t_en !== '' && t_si !== '';
+        return !isUntitledOrGarbage(n);
     });
     if (adminNews.length < beforeNewsCount) {
         saveNews();
+        console.log('Removed garbage from localStorage');
     }
 
     cleanBrokenPosts();
@@ -146,6 +167,7 @@ async function initData() {
 
     updateCategoryCounts();
 
+    // STEP 2: Sync with Firebase and clean garbage there too
     if (db) {
         try {
             await syncFromFirebase();
@@ -159,16 +181,7 @@ async function initData() {
 function cleanBrokenPosts() {
     var beforeCount = adminNews.length;
     adminNews = adminNews.filter(function(n) {
-        var titleStr = String(n.title || n.title_en || n.title_si || '').trim();
-        var hasValidTitle = n && (n.title || n.title_en || n.title_si) &&
-            titleStr !== '' &&
-            titleStr.toLowerCase() !== 'undefined' &&
-            titleStr.toLowerCase() !== 'untitled';
-        var contentStr = String(n.content || n.content_en || n.content_si || '').trim();
-        var hasValidContent = n && (n.content || n.content_en || n.content_si) &&
-            contentStr !== '' &&
-            contentStr.toLowerCase() !== 'undefined';
-        return hasValidTitle && hasValidContent;
+        return !isUntitledOrGarbage(n);
     });
     var removedCount = beforeCount - adminNews.length;
     if (removedCount > 0) {
@@ -196,13 +209,51 @@ async function syncFromFirebase() {
     try {
         var newsSnapshot = await db.collection('news').get();
         if (!newsSnapshot.empty) {
-            adminNews = newsSnapshot.docs.map(function(doc) {
+            var firebaseNews = [];
+            var untitledDocIds = [];
+
+            newsSnapshot.docs.forEach(function(doc) {
                 var data = doc.data();
                 data.id = doc.id;
-                return data;
+                if (isUntitledOrGarbage(data)) {
+                    // Mark for deletion from Firebase
+                    untitledDocIds.push(doc.id);
+                } else {
+                    firebaseNews.push(data);
+                }
             });
+
+            // Delete garbage posts from Firebase permanently
+            if (untitledDocIds.length > 0) {
+                console.log('Deleting garbage posts from Firebase:', untitledDocIds);
+                for (var i = 0; i < untitledDocIds.length; i++) {
+                    try {
+                        await db.collection('news').doc(untitledDocIds[i]).delete();
+                        console.log('Deleted from Firebase:', untitledDocIds[i]);
+                    } catch (err) {
+                        console.warn('Failed to delete from Firebase:', untitledDocIds[i], err);
+                    }
+                }
+                showToast('Removed ' + untitledDocIds.length + ' garbage post(s) from cloud', 'success');
+            }
+
+            // Merge: keep local + firebase, but filter garbage
+            var allNews = adminNews.concat(firebaseNews);
+            var seenIds = {};
+            var mergedNews = [];
+            allNews.forEach(function(n) {
+                if (!seenIds[n.id]) {
+                    seenIds[n.id] = true;
+                    if (!isUntitledOrGarbage(n)) {
+                        mergedNews.push(n);
+                    }
+                }
+            });
+
+            adminNews = mergedNews;
             localStorage.setItem('endless_news', JSON.stringify(adminNews));
         }
+
         var adsSnapshot = await db.collection('ads').get();
         if (!adsSnapshot.empty) {
             adminAds = adsSnapshot.docs.map(function(doc) {
@@ -212,6 +263,7 @@ async function syncFromFirebase() {
             });
             localStorage.setItem('endless_ads', JSON.stringify(adminAds));
         }
+
         var catsSnapshot = await db.collection('categories').get();
         if (!catsSnapshot.empty) {
             adminCats = catsSnapshot.docs.map(function(doc) {
@@ -221,6 +273,7 @@ async function syncFromFirebase() {
             });
             localStorage.setItem('endless_categories', JSON.stringify(adminCats));
         }
+
         updateCategoryCounts();
     } catch (error) {
         console.error('Firebase read error:', error);
@@ -332,7 +385,11 @@ function escapeHtml(text) {
 
 // ── Dashboard Renderer ──
 function renderDashboard() {
-    var published = adminNews.filter(function(n) {
+    // Filter out garbage for display and counts
+    var cleanNews = adminNews.filter(function(n) {
+        return !isUntitledOrGarbage(n);
+    });
+    var published = cleanNews.filter(function(n) {
         return n.status === 'published';
     });
 
@@ -343,7 +400,7 @@ function renderDashboard() {
     var recentNewsTable = document.getElementById('recent-news-table');
     var recentAdsTable = document.getElementById('recent-ads-table');
 
-    if (statTotalNews) statTotalNews.textContent = adminNews.length;
+    if (statTotalNews) statTotalNews.textContent = cleanNews.length;
     if (statPublished) statPublished.textContent = published.length;
     if (statActiveAds) statActiveAds.textContent = adminAds.filter(function(a) {
         return a.active;
@@ -377,9 +434,13 @@ function renderNewsTable() {
     var searchInput = document.getElementById('news-search');
     var search = searchInput ? searchInput.value.toLowerCase() : '';
 
-    var filtered = adminNews;
+    // Always filter out garbage/Untitled before rendering
+    var filtered = adminNews.filter(function(n) {
+        return !isUntitledOrGarbage(n);
+    });
+
     if (search) {
-        filtered = adminNews.filter(function(n) {
+        filtered = filtered.filter(function(n) {
             return (n.title && n.title.toLowerCase().indexOf(search) !== -1) ||
                 (n.title_en && n.title_en.toLowerCase().indexOf(search) !== -1) ||
                 (n.title_si && n.title_si.toLowerCase().indexOf(search) !== -1);
