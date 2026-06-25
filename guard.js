@@ -45,6 +45,7 @@ let guardAuth = null;
 let guardApp = null;
 let sessionCheckInterval = null;
 let currentUser = null;
+let authCheckComplete = false;
 
 // ═══════════════════════════════════════════════════════
 // INITIALIZE FIREBASE AUTH (if not already initialized)
@@ -120,65 +121,16 @@ function isAuthorized(email) {
 }
 
 /**
- * Main authentication check - runs on every page load
+ * Show access denied screen and redirect
  */
-function checkAuthentication() {
-    const session = verifySession();
-
-    if (!session) {
-        console.warn('🔒 Auth Guard: No valid session found');
-        redirectToLogin('session_expired');
-        return false;
+function showAccessDenied(reason) {
+    // Hide the admin dashboard content immediately
+    const dashboard = document.getElementById('admin-dashboard');
+    if (dashboard) {
+        dashboard.style.display = 'none';
     }
 
-    // Verify with Firebase if available
-    if (guardAuth) {
-        guardAuth.onAuthStateChanged(function(user) {
-            if (!user) {
-                console.warn('🔒 Auth Guard: Firebase user not found');
-                clearAllSessions();
-                redirectToLogin('auth_required');
-                return;
-            }
-
-            // Check authorization
-            if (!isAuthorized(user.email)) {
-                console.warn('🔒 Auth Guard: Unauthorized email', user.email);
-                clearAllSessions();
-                redirectToLogin('unauthorized');
-                return;
-            }
-
-            currentUser = user;
-            console.log('🔒 Auth Guard: User authenticated', user.email);
-
-            // Update UI with user info
-            updateUserUI(user);
-        });
-    } else {
-        // Fallback: trust session storage if Firebase not available
-        if (!isAuthorized(session.email)) {
-            clearAllSessions();
-            redirectToLogin('unauthorized');
-            return false;
-        }
-        currentUser = session;
-        updateUserUI(session);
-    }
-
-    return true;
-}
-
-/**
- * Redirect to login page with reason
- * @param {string} reason - Redirect reason code
- */
-function redirectToLogin(reason) {
-    const params = new URLSearchParams();
-    params.set('reason', reason);
-    params.set('redirect', encodeURIComponent(window.location.href));
-
-    // Show brief message before redirect
+    // Show redirect message
     const body = document.body;
     body.innerHTML = `
         <div style="
@@ -191,19 +143,32 @@ function redirectToLogin(reason) {
             color: #fff;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             text-align: center;
-            padding: 2rem;
+            padding: 2rem 1rem;
         ">
-            <div style="font-size: 4rem; margin-bottom: 1rem;">🔒</div>
-            <h2 style="margin-bottom: 0.5rem;">Access Denied</h2>
-            <p style="color: #a0a0b8; margin-bottom: 2rem;">
+            <div style="font-size: 4rem; margin-bottom: 1rem; animation: pulse 2s infinite;">🔒</div>
+            <h2 style="margin-bottom: 0.5rem; font-size: 1.5rem;">Access Denied</h2>
+            <p style="color: #a0a0b8; margin-bottom: 2rem; font-size: 0.95rem; line-height: 1.5;">
                 ${getReasonMessage(reason)}
             </p>
+            <div style="
+                width: 40px;
+                height: 40px;
+                border: 3px solid rgba(220, 38, 38, 0.2);
+                border-top-color: #dc2626;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin-bottom: 1rem;
+            "></div>
             <p style="color: #6b6b8a; font-size: 0.875rem;">Redirecting to login...</p>
+            <style>
+                @keyframes spin { to { transform: rotate(360deg); } }
+                @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+            </style>
         </div>
     `;
 
     setTimeout(function() {
-        window.location.href = SESSION_CONFIG.loginPage + '?' + params.toString();
+        window.location.replace(SESSION_CONFIG.loginPage + '?reason=' + reason + '&_t=' + Date.now());
     }, 2000);
 }
 
@@ -224,6 +189,82 @@ function getReasonMessage(reason) {
     return messages[reason] || 'Please sign in to continue.';
 }
 
+/**
+ * Main authentication check - runs on every page load
+ * SYNCHRONOUS check first, then async Firebase verification
+ */
+function checkAuthentication() {
+    // STEP 1: Check local session immediately (synchronous)
+    const session = verifySession();
+
+    if (!session) {
+        console.warn('🔒 Auth Guard: No valid session found');
+        showAccessDenied('session_expired');
+        return false;
+    }
+
+    // STEP 2: Check if email is authorized from session
+    if (!isAuthorized(session.email)) {
+        console.warn('🔒 Auth Guard: Unauthorized email in session', session.email);
+        clearAllSessions();
+        showAccessDenied('unauthorized');
+        return false;
+    }
+
+    // STEP 3: Set current user from session (temporary, until Firebase confirms)
+    currentUser = session;
+    updateUserUI(session);
+
+    // STEP 4: Async Firebase verification (in background)
+    if (guardAuth) {
+        guardAuth.onAuthStateChanged(function(user) {
+            if (!user) {
+                console.warn('🔒 Auth Guard: Firebase user not found');
+                clearAllSessions();
+                showAccessDenied('auth_required');
+                return;
+            }
+
+            // Check authorization
+            if (!isAuthorized(user.email)) {
+                console.warn('🔒 Auth Guard: Unauthorized email', user.email);
+                clearAllSessions();
+                showAccessDenied('unauthorized');
+                return;
+            }
+
+            currentUser = user;
+            console.log('🔒 Auth Guard: Firebase user authenticated', user.email);
+            updateUserUI(user);
+
+            // Show dashboard now that auth is confirmed
+            const dashboard = document.getElementById('admin-dashboard');
+            if (dashboard) {
+                dashboard.style.display = '';
+            }
+
+            // Remove loading overlay
+            const loadingOverlay = document.getElementById('auth-loading-overlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'none';
+            }
+        });
+    } else {
+        // Firebase not available - trust session for now but warn
+        console.warn('🔒 Auth Guard: Firebase not available, trusting session');
+        const dashboard = document.getElementById('admin-dashboard');
+        if (dashboard) {
+            dashboard.style.display = '';
+        }
+        const loadingOverlay = document.getElementById('auth-loading-overlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+        }
+    }
+
+    return true;
+}
+
 // ═══════════════════════════════════════════════════════
 // SESSION MANAGEMENT
 // ═══════════════════════════════════════════════════════
@@ -234,11 +275,9 @@ function getReasonMessage(reason) {
 function clearAllSessions() {
     sessionStorage.removeItem('endless_auth_session');
     localStorage.removeItem('endless_auth_persistent');
-
-    // Also clear any other auth-related data
     sessionStorage.removeItem('endless_theme');
 
-    // Sign out from Firebase
+    // Also clear any other auth-related data
     if (guardAuth) {
         guardAuth.signOut().catch(function(err) { console.warn('Sign out error:', err); });
     }
@@ -280,7 +319,7 @@ function startSessionMonitor() {
         if (!session) {
             console.warn('🔒 Auth Guard: Session expired during monitoring');
             clearAllSessions();
-            redirectToLogin('session_expired');
+            showAccessDenied('session_expired');
         }
     }, SESSION_CONFIG.checkInterval);
 
@@ -449,13 +488,6 @@ function applySecurityProtections() {
         };
     }
 
-    // Warn before leaving with unsaved changes (optional)
-    window.onbeforeunload = function(e) {
-        // Only warn if there are unsaved changes
-        // Return undefined to allow navigation without warning
-        return undefined;
-    };
-
     // Disable right-click context menu (optional security measure)
     // document.addEventListener('contextmenu', e => e.preventDefault());
 }
@@ -470,6 +502,16 @@ function applySecurityProtections() {
  */
 (function initAuthGuard() {
     console.log('🔒 Auth Guard: Initializing...');
+
+    // STRICT: If we're on the login page, don't run auth checks
+    // Login page should always be accessible
+    const currentPage = window.location.pathname.split('/').pop() || '';
+    const isLoginPage = currentPage === 'x7k9m2.html' || currentPage === '' || currentPage === 'index.html';
+
+    if (isLoginPage) {
+        console.log('🔒 Auth Guard: Login page detected, skipping auth check');
+        return;
+    }
 
     // Initialize Firebase
     initGuardAuth();

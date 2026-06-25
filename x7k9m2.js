@@ -23,6 +23,9 @@ const firebaseConfig = {
 let auth = null;
 let app = null;
 
+// Allowed admin emails
+const ALLOWED_ADMIN_EMAILS = ['endlessnewslk@gmail.com'];
+
 try {
     if (typeof firebase !== 'undefined') {
         // Initialize Firebase App (prevent duplicate initialization)
@@ -432,12 +435,14 @@ async function signInWithEmail(email, password) {
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
         const user = userCredential.user;
 
-        // Verify email is verified (optional security)
-        // if (!user.emailVerified) {
-        //     showErrorModal('Email Not Verified', 'Please verify your email before logging in.');
-        //     await auth.signOut();
-        //     return;
-        // }
+        // STRICT: Check if email is in allowed admin list
+        if (!ALLOWED_ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+            await auth.signOut();
+            showErrorModal('Access Denied', 'This email is not authorized for admin access.');
+            setButtonLoading(elements.btnLogin, false);
+            showLoading(false);
+            return;
+        }
 
         // Create session
         createSession(user);
@@ -511,6 +516,15 @@ async function signInWithGoogle() {
 
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
+
+        // STRICT: Check if email is in allowed admin list
+        if (!ALLOWED_ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+            await auth.signOut();
+            showErrorModal('Access Denied', 'This Google account is not authorized for admin access.');
+            setButtonLoading(elements.btnGoogle, false);
+            showLoading(false);
+            return;
+        }
 
         createSession(user);
 
@@ -767,14 +781,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize particles
     initParticles();
 
-    // Theme toggle is now inside login card (absolute position)
-    // No scroll handling needed - it moves with the card
-
-    // Check if already logged in
-    if (checkExistingSession()) {
-        redirectToAdmin();
-        return;
-    }
+    // STRICT: Login page should ALWAYS show login form
+    // Do NOT auto-redirect to dashboard even if session exists
+    // User must explicitly login every time they visit this page
 
     // STRICT: Clear any previously saved credentials on load
     // This ensures no pre-filled data after logout

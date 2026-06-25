@@ -22,7 +22,6 @@ try {
         db = firebase.firestore();
 
         // STRICT: Disable offline cache to prevent deleted docs from reappearing
-        // This forces Firestore to always fetch fresh data from server
         db.settings({
             cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
             ignoreUndefinedProperties: true
@@ -141,7 +140,7 @@ function isUntitledOrGarbage(n) {
     var isEmptyOrGarbage = function(str) {
         if (!str) return true;
         var s = String(str).trim().toLowerCase();
-        return s === '' || s === 'untitled' || s === 'undefined' || s === 'null' || 
+        return s === '' || s === 'untitled' || s === 'undefined' || s === 'null' ||
                s === 'nan' || s === '[object object]' || s === '0' || s === 'false';
     };
 
@@ -216,6 +215,18 @@ async function initData() {
         } catch (err) {
             console.warn('Firebase sync failed, using localStorage:', err);
         }
+    }
+
+    // Show dashboard after auth is verified
+    var dashboard = document.getElementById('admin-dashboard');
+    if (dashboard) {
+        dashboard.style.display = 'flex';
+    }
+
+    // Remove auth loading overlay
+    var authLoading = document.getElementById('auth-loading-overlay');
+    if (authLoading) {
+        authLoading.style.display = 'none';
     }
 }
 
