@@ -24,7 +24,20 @@ const TRANSLATIONS = {
         by_author: "எழுதியவர்", published_on: "வெளியிடப்பட்டது",
         breaking_news: "உடனடி செய்திகள்", ad_label: "விளம்பரம்",
         search_results: "தேடல் முடிவுகள்", no_results: "எந்த செய்தியும் கிடைக்கவில்லை",
-        close: "மூடு", loading: "ஏற்றுகிறது..."
+        close: "மூடு", loading: "ஏற்றுகிறது...",
+        share_article: "பகிர்",
+        share_this_article: "இந்த கட்டுரையைப் பகிர்",
+        share_facebook: "பேஸ்புக்",
+        share_x: "எக்ஸ்",
+        share_whatsapp: "வாட்ஸ்அப்",
+        share_copy: "நகலெடு",
+        share_copied: "நகலெடுக்கப்பட்டது!",
+        share_link_copied: "இணைப்பு கிளிப்போர்டில் நகலெடுக்கப்பட்டது!",
+        share_failed: "நகலெடுக்க முடியவில்லை",
+        share_opening_facebook: "பேஸ்புக் திறக்கிறது...",
+        share_opening_x: "எக்ஸ் திறக்கிறது...",
+        share_opening_whatsapp: "வாட்ஸ்அப் திறக்கிறது...",
+        shared_from: "இதிலிருந்து பகிரப்பட்டது"
     },
     en: {
         nav_home: "Home", nav_world: "World", nav_tech: "Technology",
@@ -43,7 +56,20 @@ const TRANSLATIONS = {
         all_stories: "All Stories", read_more: "Read More", by_author: "By",
         published_on: "Published on", breaking_news: "Breaking News",
         ad_label: "Advertisement", search_results: "Search Results",
-        no_results: "No articles found", close: "Close", loading: "Loading..."
+        no_results: "No articles found", close: "Close", loading: "Loading...",
+        share_article: "Share",
+        share_this_article: "Share this article",
+        share_facebook: "Facebook",
+        share_x: "X",
+        share_whatsapp: "WhatsApp",
+        share_copy: "Copy",
+        share_copied: "Copied!",
+        share_link_copied: "Link copied to clipboard!",
+        share_failed: "Failed to copy",
+        share_opening_facebook: "Opening Facebook...",
+        share_opening_x: "Opening X...",
+        share_opening_whatsapp: "Opening WhatsApp...",
+        shared_from: "Shared from"
     },
     si: {
         nav_home: "මුල් පිටුව", nav_world: "ලෝකය", nav_tech: "තාක්ෂණය",
@@ -63,7 +89,20 @@ const TRANSLATIONS = {
         read_more: "තවත් කියවන්න", by_author: "ලිපිගත කළේ",
         published_on: "ප්‍රකාශිත දිනය", breaking_news: "අලුත්ම පුවත්",
         ad_label: "දැන්වීම", search_results: "සෙවුම් ප්‍රතිඵල",
-        no_results: "ලිපි හමු නොවීය", close: "වසන්න", loading: "පූරණය වෙමින්..."
+        no_results: "ලිපි හමු නොවීය", close: "වසන්න", loading: "පූරණය වෙමින්...",
+        share_article: "බෙදාගන්න",
+        share_this_article: "මෙම ලිපිය බෙදාගන්න",
+        share_facebook: "ෆේස්බුක්",
+        share_x: "එක්ස්",
+        share_whatsapp: "වට්ස්ඇප්",
+        share_copy: "පිටපත් කරන්න",
+        share_copied: "පිටපත් කරන ලදී!",
+        share_link_copied: "සබැඳිය පසුරු පුවරුවට පිටපත් කරන ලදී!",
+        share_failed: "පිටපත් කිරීමට අසමත් විය",
+        share_opening_facebook: "ෆේස්බුක් විවෘත කරමින්...",
+        share_opening_x: "එක්ස් විවෘත කරමින්...",
+        share_opening_whatsapp: "වට්ස්ඇප් විවෘත කරමින්...",
+        shared_from: "වෙතින් බෙදාගත්තේ"
     }
 };
 
@@ -249,7 +288,7 @@ const DEFAULT_NEWS = [
         content: "<p>கிரீஸ் கடலோரத்தில் கண்டுபிடிக்கப்பட்ட 2,000 வயது ரோமானிய வணிக கப்பல் சிறப்பாக பாதுகாக்கப்பட்ட பானைகளைக் கொண்டுள்ளது. இந்த கப்பல் கிரேதாவின் மது, ஸ்பெயினின் ஒலிவ எண்ணெய், சிரியாவின் கண்ணாடி பொருட்களை ஏற்றிச் சென்றது.</p>",
         content_en: "<p>A 2,000-year-old Roman trading vessel found off the coast of Greece contains perfectly preserved amphorae. The cargo included wine from Crete, olive oil from Spain, and glassware from Syria.</p>",
         content_si: "<p>ග්‍රීසියේ වෙරළබඩින් සොයාගත් වසර 2000ක් පැරණි රෝමානු වෙළඳ නැව සම්පූර්ණයෙන්ම සුරකුණු ඇම්ෆෝරා ඇතුළත් වේ. බඩු තොගයට ක්‍රීට් වල මුද්‍රිත පානය, ස්පාඤ්ඤයේ ඔලිව් තෙල් සහ සිරියාවේ වීදුරු භාණ්ඩ ඇතුළත් විය.</p>",
-        category: "உலகம்", category_en: "World", name_si: "ලෝකය",
+        category: "உலகம்", category_en: "World", category_si: "ලෝකය",
         author: "சோஃபியா அந்தோனெல்லி", author_en: "Sophia Antonelli", author_si: "සොෆියා ඇන්ටොනෙල්ලි",
         date: new Date(Date.now() - 3600000 * 30).toISOString(),
         image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop",
@@ -457,7 +496,7 @@ function renderFeed() {
     // Add share buttons to article cards
     setTimeout(function() {
         grid.querySelectorAll('.article-card').forEach(function(card) {
-            var articleId = parseInt(card.dataset.articleId);
+            var articleId = card.dataset.articleId;
             if (articleId) {
                 addShareToArticleCard(card, articleId);
             }
@@ -927,6 +966,9 @@ function addShareToArticleCard(articleCard, articleId) {
         margin-top: 0.5rem;
         font-family: inherit;
     `;
+    
+    const shareText = TRANSLATIONS[currentLang].share_article || 'Share';
+    
     shareBtn.innerHTML = `
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;">
             <circle cx="18" cy="5" r="3"/>
@@ -935,7 +977,7 @@ function addShareToArticleCard(articleCard, articleId) {
             <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
             <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
         </svg>
-        Share
+        ${shareText}
     `;
     shareBtn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -953,6 +995,9 @@ function addShareToModal(articleId) {
     if (!modalArticleBody) return;
     if (modalArticleBody.querySelector('.modal-share-section')) return;
 
+    const shareText = TRANSLATIONS[currentLang].share_this_article || 'Share this article';
+    const btnText = TRANSLATIONS[currentLang].share_article || 'Share';
+
     const shareSection = document.createElement('div');
     shareSection.className = 'modal-share-section';
     shareSection.style.cssText = `
@@ -963,7 +1008,7 @@ function addShareToModal(articleId) {
     `;
     shareSection.innerHTML = `
         <p style="font-size: 0.85rem; color: var(--text-muted, #6b7280); margin-bottom: 0.75rem; font-weight: 600;">
-            📢 Share this article
+            📢 ${shareText}
         </p>
         <button class="article-share-btn" style="
             display: inline-flex;
@@ -988,7 +1033,7 @@ function addShareToModal(articleId) {
                 <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
                 <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
             </svg>
-            Share This Article
+            ${btnText}
         </button>
     `;
     const btn = shareSection.querySelector('.article-share-btn');
