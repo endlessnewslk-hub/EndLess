@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════
    ENDLESS — SOCIAL SHARE SYSTEM
-   News Channel Style Share Overlay
+   Rich Social Media Share with Preview Cards
    Supports: Facebook, X (Twitter), WhatsApp, Copy Link
    Multi-language: Tamil, English, Sinhala
    ═══════════════════════════════════════ */
@@ -16,7 +16,7 @@
         maxExcerptLength: 150
     };
 
-    // ── Share Text Translations (fallback if scripts.js not loaded) ──
+    // ── Share Text Translations ──
     const SHARE_I18N = {
         ta: {
             share_article: 'பகிர்',
@@ -33,7 +33,9 @@
             opening_whatsapp: 'வாட்ஸ்அப் திறக்கிறது...',
             shared_from: 'இதிலிருந்து பகிரப்பட்டது',
             read_more: 'மேலும் படிக்க:',
-            via: 'வழியாக'
+            via: 'வழியாக',
+            share_preview: 'பகிர்வு முன்னோட்டம்',
+            share_description: 'இந்த கட்டுரையை உங்கள் நண்பர்களுடன் பகிருங்கள்'
         },
         en: {
             share_article: 'Share',
@@ -50,7 +52,9 @@
             opening_whatsapp: 'Opening WhatsApp...',
             shared_from: 'Shared from',
             read_more: 'Read more:',
-            via: 'via'
+            via: 'via',
+            share_preview: 'Share Preview',
+            share_description: 'Share this article with your friends'
         },
         si: {
             share_article: 'බෙදාගන්න',
@@ -67,7 +71,9 @@
             opening_whatsapp: 'වට්ස්ඇප් විවෘත කරමින්...',
             shared_from: 'වෙතින් බෙදාගත්තේ',
             read_more: 'තවත් කියවන්න:',
-            via: 'මගින්'
+            via: 'මගින්',
+            share_preview: 'බෙදාගැනීමේ පෙරදසුන',
+            share_description: 'මෙම ලිපිය ඔබේ මිතුරන් සමඟ බෙදාගන්න'
         }
     };
 
@@ -107,7 +113,9 @@
         copy: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
         check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
         link: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
-        share: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>`
+        share: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>`,
+        eye: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`,
+        calendar: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`
     };
 
     // ═══════════════════════════════════════
@@ -129,9 +137,13 @@
                     </div>
                 </div>
 
-                <div class="share-preview">
+                <div class="share-preview-section">
+                    <div class="share-preview-label" data-share-key="share_preview">Share Preview</div>
                     <div class="share-card" id="share-card-preview">
-                        <img class="share-card-image" id="share-preview-image" src="" alt="">
+                        <div class="share-card-image-wrap">
+                            <img class="share-card-image" id="share-preview-image" src="" alt="">
+                            <div class="share-card-image-overlay"></div>
+                        </div>
                         <div class="share-card-body">
                             <div class="share-card-source">
                                 <div class="logo-mini">E</div>
@@ -139,6 +151,9 @@
                             </div>
                             <div class="share-card-title" id="share-preview-title"></div>
                             <div class="share-card-excerpt" id="share-preview-excerpt"></div>
+                            <div class="share-card-meta">
+                                <span class="share-card-date" id="share-preview-date"></span>
+                            </div>
                             <div class="share-card-link">
                                 ${ICONS.link}
                                 <span id="share-preview-url"></span>
@@ -241,6 +256,7 @@
         const excerpt = getLocalizedField(article, 'excerpt') || '';
         const image = article.image || 'https://via.placeholder.com/800x400?text=EndLess+News';
         const url = SHARE_CONFIG.brandUrl + '?article=' + article.id;
+        const date = article.date ? new Date(article.date).toLocaleDateString(getCurrentLang() === 'ta' ? 'ta-IN' : getCurrentLang() === 'si' ? 'si-LK' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
 
         const imgEl = document.getElementById('share-preview-image');
         if (imgEl) imgEl.src = image;
@@ -258,6 +274,9 @@
                 ? excerpt.substring(0, SHARE_CONFIG.maxExcerptLength) + '...' 
                 : excerpt;
         }
+
+        const dateEl = document.getElementById('share-preview-date');
+        if (dateEl) dateEl.textContent = date;
 
         const urlEl = document.getElementById('share-preview-url');
         if (urlEl) urlEl.textContent = url;
@@ -289,6 +308,34 @@
     }
 
     // ═══════════════════════════════════════
+    // GENERATE RICH SHARE TEXT
+    // ═══════════════════════════════════════
+    function generateShareText(article, platform) {
+        const lang = getCurrentLang();
+        const title = getLocalizedField(article, 'title') || 'EndLess News';
+        const excerpt = getLocalizedField(article, 'excerpt') || '';
+        const url = SHARE_CONFIG.brandUrl + '?article=' + article.id;
+        const category = getLocalizedField(article, 'category') || 'News';
+        
+        const readMore = getShareText('read_more');
+        const via = getShareText('via');
+
+        if (platform === 'facebook') {
+            return `${title}\n\n${excerpt}\n\n${readMore} ${url}\n\n${via} EndLess News`;
+        }
+        
+        if (platform === 'x') {
+            return `${title}\n\n${excerpt.substring(0, 80)}${excerpt.length > 80 ? '...' : ''}\n\n${url}\n\n${via} @EndLessNews 🔗`;
+        }
+        
+        if (platform === 'whatsapp') {
+            return `*${title}* 📰\n\n_${excerpt}_\n\n*${category}* | EndLess News\n\n${readMore} ${url}`;
+        }
+
+        return `${title} — ${url}`;
+    }
+
+    // ═══════════════════════════════════════
     // SHARE TO FACEBOOK
     // ═══════════════════════════════════════
     window.shareToFacebook = function() {
@@ -296,8 +343,11 @@
 
         const url = encodeURIComponent(SHARE_CONFIG.brandUrl + '?article=' + currentShareArticle.id);
         const title = encodeURIComponent(getLocalizedField(currentShareArticle, 'title') || '');
+        const description = encodeURIComponent(getLocalizedField(currentShareArticle, 'excerpt') || '');
+        const image = encodeURIComponent(currentShareArticle.image || '');
 
-        const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${title}`;
+        // Facebook Share Dialog with Open Graph parameters
+        const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${title}&description=${description}&picture=${image}`;
 
         openShareWindow(shareUrl, 'Share on Facebook');
         showShareToast(getShareText('opening_facebook'), ICONS.facebook);
@@ -310,8 +360,7 @@
         if (!currentShareArticle) return;
 
         const url = encodeURIComponent(SHARE_CONFIG.brandUrl + '?article=' + currentShareArticle.id);
-        const title = getLocalizedField(currentShareArticle, 'title') || '';
-        const text = encodeURIComponent(title + ' via @EndLessNews 🔗');
+        const text = encodeURIComponent(generateShareText(currentShareArticle, 'x'));
 
         const shareUrl = `https://twitter.com/intent/tweet?text=${text}&url=${url}`;
 
@@ -325,12 +374,9 @@
     window.shareToWhatsApp = function() {
         if (!currentShareArticle) return;
 
-        const url = encodeURIComponent(SHARE_CONFIG.brandUrl + '?article=' + currentShareArticle.id);
-        const title = getLocalizedField(currentShareArticle, 'title') || '';
-        const readMore = getShareText('read_more');
-        const text = encodeURIComponent(`*EndLess News* 📰\n\n${title}\n\n${readMore} `);
+        const text = encodeURIComponent(generateShareText(currentShareArticle, 'whatsapp'));
 
-        const shareUrl = `https://wa.me/?text=${text}${url}`;
+        const shareUrl = `https://wa.me/?text=${text}`;
 
         openShareWindow(shareUrl, 'Share on WhatsApp');
         showShareToast(getShareText('opening_whatsapp'), ICONS.whatsapp);
@@ -343,15 +389,18 @@
         if (!currentShareArticle) return;
 
         const url = SHARE_CONFIG.brandUrl + '?article=' + currentShareArticle.id;
+        const richText = generateShareText(currentShareArticle, 'copy');
+
+        const fullText = `${richText}`;
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(url).then(function() {
+            navigator.clipboard.writeText(fullText).then(function() {
                 showCopySuccess();
             }).catch(function() {
-                fallbackCopy(url);
+                fallbackCopy(fullText);
             });
         } else {
-            fallbackCopy(url);
+            fallbackCopy(fullText);
         }
     };
 
@@ -398,7 +447,7 @@
     // ═══════════════════════════════════════
     function openShareWindow(url, title) {
         const width = 600;
-        const height = 500;
+        const height = 600;
         const left = (window.innerWidth - width) / 2;
         const top = (window.innerHeight - height) / 2;
 
