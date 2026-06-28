@@ -389,7 +389,7 @@
 .share-actions {
     padding: 1rem 1.25rem;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 0.625rem;
     background: var(--surface, #ffffff);
     flex-shrink: 0;
@@ -469,6 +469,16 @@
     background: linear-gradient(135deg, #25d366, #128c7e); 
     color: #fff;
     box-shadow: 0 4px 12px rgba(37, 211, 102, 0.25);
+}
+.share-btn-messenger .share-btn-icon { 
+    background: linear-gradient(135deg, #00b2ff, #0078ff); 
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 178, 255, 0.25);
+}
+.share-btn-telegram .share-btn-icon { 
+    background: linear-gradient(135deg, #0088cc, #229ed9); 
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 136, 204, 0.25);
 }
 .share-btn-copy .share-btn-icon { 
     background: linear-gradient(135deg, #f3f4f6, #e5e7eb); 
@@ -652,7 +662,7 @@
     }
 
     .share-actions {
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 0.5rem;
         padding: 0.875rem 1rem;
     }
@@ -726,6 +736,12 @@
 }
 .share-btn-whatsapp:hover .share-btn-icon {
     box-shadow: 0 8px 25px rgba(37, 211, 102, 0.35);
+}
+.share-btn-messenger:hover .share-btn-icon {
+    box-shadow: 0 8px 25px rgba(0, 178, 255, 0.35);
+}
+.share-btn-telegram:hover .share-btn-icon {
+    box-shadow: 0 8px 25px rgba(0, 136, 204, 0.35);
 }
 .share-btn-copy:hover .share-btn-icon {
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
