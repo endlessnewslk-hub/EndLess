@@ -21,13 +21,11 @@ try {
         }
         db = firebase.firestore();
 
-        // STRICT: Disable offline cache to prevent deleted docs from reappearing
         db.settings({
             cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
             ignoreUndefinedProperties: true
         });
 
-        // Disable persistence completely to prevent ghost documents
         db.disableNetwork().then(function() {
             return db.enableNetwork();
         }).catch(function(err) {
@@ -51,7 +49,7 @@ let editingNewsId = null;
 let editingAdId = null;
 let currentNewsLang = 'ta';
 
-// ── Admin Password (for reset protection) ──
+// ── Admin Password ──
 const ADMIN_PASSWORD = "6402@Faizan";
 
 // ── Default Data ──
@@ -124,10 +122,9 @@ const DEFAULT_CATEGORIES = [
     { id: "health", name: "Health", name_en: "Health", name_si: "Health", count: 0 }
 ];
 
-// ── Helper: Check if post is "Untitled" or garbage ──
+// ── Helper: Check if post is garbage ──
 function isUntitledOrGarbage(n) {
-    if (!n) return true;
-    if (typeof n !== 'object') return true;
+    if (!n || typeof n !== 'object') return true;
 
     var t = String(n.title || '').trim();
     var t_en = String(n.title_en || '').trim();
@@ -135,40 +132,45 @@ function isUntitledOrGarbage(n) {
     var c = String(n.content || '').trim();
     var c_en = String(n.content_en || '').trim();
     var c_si = String(n.content_si || '').trim();
+    // Also check excerpt fields (main site uses these)
+    var e = String(n.excerpt || '').trim();
+    var e_en = String(n.excerpt_en || '').trim();
+    var e_si = String(n.excerpt_si || '').trim();
 
-    // Check for empty, null, undefined, "Untitled", "undefined" strings
     var isEmptyOrGarbage = function(str) {
         if (!str) return true;
         var s = String(str).trim().toLowerCase();
         return s === '' || s === 'untitled' || s === 'undefined' || s === 'null' ||
-               s === 'nan' || s === '[object object]' || s === '0' || s === 'false';
+               s === 'nan' || s === '[object object]';
     };
 
-    // At least ONE language must have valid title
     var hasRealTitle = (!isEmptyOrGarbage(t)) || (!isEmptyOrGarbage(t_en)) || (!isEmptyOrGarbage(t_si));
-
-    // At least ONE language must have valid content
-    var hasRealContent = (!isEmptyOrGarbage(c)) || (!isEmptyOrGarbage(c_en)) || (!isEmptyOrGarbage(c_si));
-
-    // Also check if ID is valid
+    // Content OR excerpt in any language is valid
+    var hasRealContent = (!isEmptyOrGarbage(c)) || (!isEmptyOrGarbage(c_en)) || (!isEmptyOrGarbage(c_si)) ||
+                         (!isEmptyOrGarbage(e)) || (!isEmptyOrGarbage(e_en)) || (!isEmptyOrGarbage(e_si));
     var hasValidId = n.id !== undefined && n.id !== null && n.id !== '';
 
     return !hasRealTitle || !hasRealContent || !hasValidId;
 }
 
-// ── Helper: Get display title for checking ──
-function getDisplayTitle(n) {
-    return String(n.title_en || n.title || n.title_si || '').trim();
-}
-
 // ── Data Initialization ──
 async function initData() {
-    // STRICT: Always start fresh - clear any stale cache
-    adminNews = JSON.parse(localStorage.getItem('endless_news')) || [];
-    adminAds = JSON.parse(localStorage.getItem('endless_ads')) || [];
-    adminCats = JSON.parse(localStorage.getItem('endless_categories')) || [];
+    // Safe JSON parse with fallback
+    function safeJSONParse(key, fallback) {
+        try {
+            var data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : fallback;
+        } catch (e) {
+            console.warn('Failed to parse ' + key + ':', e);
+            return fallback;
+        }
+    }
 
-    // STEP 1: Aggressive clean - remove ALL garbage posts immediately
+    adminNews = safeJSONParse('endless_news', []);
+    adminAds = safeJSONParse('endless_ads', []);
+    adminCats = safeJSONParse('endless_categories', []);
+
+    // Clean garbage posts
     var beforeNewsCount = adminNews.length;
     adminNews = adminNews.filter(function(n) {
         return !isUntitledOrGarbage(n);
@@ -196,12 +198,10 @@ async function initData() {
 
     updateCategoryCounts();
 
-    // STEP 2: Sync with Firebase - force server fetch, no cache
     if (db) {
         try {
             await syncFromFirebase();
 
-            // FINAL CLEAN: After Firebase sync, clean again to catch any ghost docs
             var afterSyncCount = adminNews.length;
             adminNews = adminNews.filter(function(n) {
                 return !isUntitledOrGarbage(n);
@@ -217,13 +217,11 @@ async function initData() {
         }
     }
 
-    // Show dashboard after auth is verified
     var dashboard = document.getElementById('admin-dashboard');
     if (dashboard) {
         dashboard.style.display = 'flex';
     }
 
-    // Remove auth loading overlay
     var authLoading = document.getElementById('auth-loading-overlay');
     if (authLoading) {
         authLoading.style.display = 'none';
@@ -261,7 +259,6 @@ function updateCategoryCounts() {
 async function syncFromFirebase() {
     if (!db) return;
     try {
-        // STRICT: Clear any cached data before fetching to prevent ghost documents
         try {
             await db.terminate();
             db = firebase.firestore();
@@ -274,7 +271,6 @@ async function syncFromFirebase() {
             console.warn('Cache clear error:', cacheErr);
         }
 
-        // Use get({ source: 'server' }) to force server fetch, bypass cache
         var newsSnapshot = await db.collection('news').get({ source: 'server' });
         if (!newsSnapshot.empty) {
             var firebaseNews = [];
@@ -284,14 +280,12 @@ async function syncFromFirebase() {
                 var data = doc.data();
                 data.id = doc.id;
                 if (isUntitledOrGarbage(data)) {
-                    // Mark for deletion from Firebase
                     untitledDocIds.push(doc.id);
                 } else {
                     firebaseNews.push(data);
                 }
             });
 
-            // Delete garbage posts from Firebase permanently
             if (untitledDocIds.length > 0) {
                 console.log('Deleting garbage posts from Firebase:', untitledDocIds);
                 for (var i = 0; i < untitledDocIds.length; i++) {
@@ -305,7 +299,6 @@ async function syncFromFirebase() {
                 showToast('Removed ' + untitledDocIds.length + ' garbage post(s) from cloud', 'success');
             }
 
-            // Merge: keep local + firebase, but filter garbage
             var allNews = adminNews.concat(firebaseNews);
             var seenIds = {};
             var mergedNews = [];
@@ -453,7 +446,6 @@ function escapeHtml(text) {
 
 // ── Dashboard Renderer ──
 function renderDashboard() {
-    // Filter out garbage for display and counts
     var cleanNews = adminNews.filter(function(n) {
         return !isUntitledOrGarbage(n);
     });
@@ -502,7 +494,6 @@ function renderNewsTable() {
     var searchInput = document.getElementById('news-search');
     var search = searchInput ? searchInput.value.toLowerCase() : '';
 
-    // Always filter out garbage/Untitled before rendering
     var filtered = adminNews.filter(function(n) {
         return !isUntitledOrGarbage(n);
     });
@@ -515,43 +506,61 @@ function renderNewsTable() {
         });
     }
 
-    // Desktop table
-    tbody.innerHTML = filtered.map(function(n) {
-        var langs = [];
-        if (n.title) langs.push('<span class="badge badge-lang">TA</span>');
-        if (n.title_en) langs.push('<span class="badge badge-lang">EN</span>');
-        if (n.title_si) langs.push('<span class="badge badge-lang">SI</span>');
-        var dateStr = n.date ? new Date(n.date).toLocaleDateString() : 'N/A';
-        var imgSrc = escapeHtml(n.image || '');
-        var placeholder = 'https://via.placeholder.com/60x40?text=No+Image';
-        return '<tr><td><img src="' + imgSrc + '" alt="" onerror="this.src=' + "'" + placeholder + "'" + '"></td>' +
-            '<td><strong>' + escapeHtml(n.title_en || n.title || '') + '</strong><br><small style="color:#6b7280;">' + escapeHtml(n.title || '') + '</small></td>' +
-            '<td>' + escapeHtml(n.category_en || n.category || '') + '</td>' +
-            '<td>' + escapeHtml(n.author_en || n.author || '') + '</td>' +
-            '<td>' + dateStr + '</td>' +
-            '<td>' + langs.join('') + '</td>' +
-            '<td><span class="badge ' + (n.status === 'published' ? 'badge-green' : 'badge-gray') + '">' + (n.status || 'draft') + '</span></td>' +
-            '<td><button class="btn-icon btn-edit" onclick="editNews(' + n.id + ')">&#9999;&#65039;</button>' +
-            '<button class="btn-icon btn-delete" onclick="deleteNews(' + n.id + ')">&#128465;&#65039;</button></td></tr>';
-    }).join('');
+    // Inline styles for action buttons (ensures visibility even without CSS file)
+    var btnEditStyle = 'display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:#3b82f6;color:#fff;cursor:pointer;font-size:16px;margin-right:6px;transition:all 0.2s;';
+    var btnDeleteStyle = 'display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:#ef4444;color:#fff;cursor:pointer;font-size:16px;transition:all 0.2s;';
+    var btnEditHover = 'this.style.background=\'#2563eb\';this.style.transform=\'scale(1.05)\';';
+    var btnEditOut = 'this.style.background=\'#3b82f6\';this.style.transform=\'scale(1)\';';
+    var btnDeleteHover = 'this.style.background=\'#dc2626\';this.style.transform=\'scale(1.05)\';';
+    var btnDeleteOut = 'this.style.background=\'#ef4444\';this.style.transform=\'scale(1)\';';
 
-    // Mobile cards
-    if (mobileCards) {
-        mobileCards.innerHTML = filtered.map(function(n) {
+    // Desktop table
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#6b7280;">No articles found. Click "+ Add New Article" to create one.</td></tr>';
+    } else {
+        tbody.innerHTML = filtered.map(function(n) {
+            var langs = [];
+            if (n.title) langs.push('<span class="badge badge-lang">TA</span>');
+            if (n.title_en) langs.push('<span class="badge badge-lang">EN</span>');
+            if (n.title_si) langs.push('<span class="badge badge-lang">SI</span>');
             var dateStr = n.date ? new Date(n.date).toLocaleDateString() : 'N/A';
             var imgSrc = escapeHtml(n.image || '');
             var placeholder = 'https://via.placeholder.com/60x40?text=No+Image';
-            return '<div class="mobile-card">' +
-                '<div class="card-header"><img src="' + imgSrc + '" alt="" onerror="this.src=' + "'" + placeholder + "'" + '">' +
-                '<div class="card-title">' + escapeHtml(n.title_en || n.title || 'Untitled') + '</div></div>' +
-                '<div class="card-meta"><span>' + escapeHtml(n.category_en || n.category || 'Uncategorized') + '</span><span>|</span>' +
-                '<span>' + escapeHtml(n.author_en || n.author || 'Unknown') + '</span><span>|</span>' +
-                '<span>' + dateStr + '</span><span>|</span>' +
-                '<span class="badge ' + (n.status === 'published' ? 'badge-green' : 'badge-gray') + '">' + (n.status || 'draft') + '</span></div>' +
-                '<div class="card-actions">' +
-                '<button class="btn-icon btn-edit" onclick="editNews(' + n.id + ')" style="width:44px;height:44px;">&#9999;&#65039;</button>' +
-                '<button class="btn-icon btn-delete" onclick="deleteNews(' + n.id + ')" style="width:44px;height:44px;">&#128465;&#65039;</button></div></div>';
+            return '<tr><td><img src="' + imgSrc + '" alt="" onerror="this.src=' + "'" + placeholder + "'" + '" style="width:60px;height:40px;object-fit:cover;border-radius:4px;"></td>' +
+                '<td><strong>' + escapeHtml(n.title_en || n.title || '') + '</strong><br><small style="color:#6b7280;">' + escapeHtml(n.title || '') + '</small></td>' +
+                '<td>' + escapeHtml(n.category_en || n.category || '') + '</td>' +
+                '<td>' + escapeHtml(n.author_en || n.author || '') + '</td>' +
+                '<td>' + dateStr + '</td>' +
+                '<td>' + langs.join('') + '</td>' +
+                '<td><span class="badge ' + (n.status === 'published' ? 'badge-green' : 'badge-gray') + '">' + (n.status || 'draft') + '</span></td>' +
+                '<td><button class="btn-icon btn-edit" style="' + btnEditStyle + '" onmouseover="' + btnEditHover + '" onmouseout="' + btnEditOut + '" onclick="editNews(' + n.id + ')" title="Edit">&#9999;&#65039;</button>' +
+                '<button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onmouseover="' + btnDeleteHover + '" onmouseout="' + btnDeleteOut + '" onclick="deleteNews(' + n.id + ')" title="Delete">&#128465;&#65039;</button></td></tr>';
         }).join('');
+    }
+
+    // Mobile cards
+    if (mobileCards) {
+        if (filtered.length === 0) {
+            mobileCards.innerHTML = '<div style="text-align:center;padding:2rem;color:#6b7280;">No articles found.</div>';
+        } else {
+            mobileCards.innerHTML = filtered.map(function(n) {
+                var dateStr = n.date ? new Date(n.date).toLocaleDateString() : 'N/A';
+                var imgSrc = escapeHtml(n.image || '');
+                var placeholder = 'https://via.placeholder.com/60x40?text=No+Image';
+                return '<div class="mobile-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin-bottom:1rem;">' +
+                    '<div class="card-header" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">' +
+                    '<img src="' + imgSrc + '" alt="" onerror="this.src=' + "'" + placeholder + "'" + '" style="width:60px;height:40px;object-fit:cover;border-radius:4px;">' +
+                    '<div class="card-title" style="font-weight:600;font-size:0.95rem;">' + escapeHtml(n.title_en || n.title || 'Untitled') + '</div></div>' +
+                    '<div class="card-meta" style="display:flex;flex-wrap:wrap;gap:0.5rem;font-size:0.8rem;color:#6b7280;margin-bottom:0.75rem;">' +
+                    '<span>' + escapeHtml(n.category_en || n.category || 'Uncategorized') + '</span><span>|</span>' +
+                    '<span>' + escapeHtml(n.author_en || n.author || 'Unknown') + '</span><span>|</span>' +
+                    '<span>' + dateStr + '</span><span>|</span>' +
+                    '<span class="badge ' + (n.status === 'published' ? 'badge-green' : 'badge-gray') + '">' + (n.status || 'draft') + '</span></div>' +
+                    '<div class="card-actions" style="display:flex;gap:0.5rem;">' +
+                    '<button style="' + btnEditStyle + 'width:44px;height:44px;" onmouseover="' + btnEditHover + '" onmouseout="' + btnEditOut + '" onclick="editNews(' + n.id + ')" title="Edit">&#9999;&#65039;</button>' +
+                    '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onmouseover="' + btnDeleteHover + '" onmouseout="' + btnDeleteOut + '" onclick="deleteNews(' + n.id + ')" title="Delete">&#128465;&#65039;</button></div></div>';
+            }).join('');
+        }
     }
 }
 
@@ -561,29 +570,42 @@ function renderAdsTable() {
     var mobileCards = document.getElementById('ads-mobile-cards');
     if (!tbody) return;
 
-    tbody.innerHTML = adminAds.map(function(a) {
-        var imgSrc = escapeHtml(a.image || '');
-        return '<tr><td><img src="' + imgSrc + '" alt="" style="width:80px;height:50px;object-fit:cover;border-radius:4px;" onerror="this.style.display=' + "'none'" + '"></td>' +
-            '<td><strong>' + escapeHtml(a.title_en || a.title || '') + '</strong><br><small style="color:#6b7280;">' + escapeHtml(a.title || '') + '</small></td>' +
-            '<td>' + escapeHtml(a.position || '') + '</td>' +
-            '<td><a href="' + escapeHtml(a.link || '#') + '" target="_blank" style="color:#2563eb;">' + escapeHtml((a.link || '').substring(0, 30)) + '...</a></td>' +
-            '<td><span class="badge ' + (a.active ? 'badge-green' : 'badge-gray') + '">' + (a.active ? 'Active' : 'Inactive') + '</span></td>' +
-            '<td><button class="btn-icon btn-edit" onclick="editAd(' + a.id + ')">&#9999;&#65039;</button>' +
-            '<button class="btn-icon btn-delete" onclick="deleteAd(' + a.id + ')">&#128465;&#65039;</button></td></tr>';
-    }).join('');
+    var btnEditStyle = 'display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:#3b82f6;color:#fff;cursor:pointer;font-size:16px;margin-right:6px;';
+    var btnDeleteStyle = 'display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:#ef4444;color:#fff;cursor:pointer;font-size:16px;';
+
+    if (adminAds.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#6b7280;">No ads found. Click "+ Add New Ad" to create one.</td></tr>';
+    } else {
+        tbody.innerHTML = adminAds.map(function(a) {
+            var imgSrc = escapeHtml(a.image || '');
+            return '<tr><td><img src="' + imgSrc + '" alt="" style="width:80px;height:50px;object-fit:cover;border-radius:4px;" onerror="this.style.display=' + "'none'" + '"></td>' +
+                '<td><strong>' + escapeHtml(a.title_en || a.title || '') + '</strong><br><small style="color:#6b7280;">' + escapeHtml(a.title || '') + '</small></td>' +
+                '<td>' + escapeHtml(a.position || '') + '</td>' +
+                '<td><a href="' + escapeHtml(a.link || '#') + '" target="_blank" style="color:#2563eb;">' + escapeHtml((a.link || '').substring(0, 30)) + '...</a></td>' +
+                '<td><span class="badge ' + (a.active ? 'badge-green' : 'badge-gray') + '">' + (a.active ? 'Active' : 'Inactive') + '</span></td>' +
+                '<td><button class="btn-icon btn-edit" style="' + btnEditStyle + '" onclick="editAd(' + a.id + ')" title="Edit">&#9999;&#65039;</button>' +
+                '<button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onclick="deleteAd(' + a.id + ')" title="Delete">&#128465;&#65039;</button></td></tr>';
+        }).join('');
+    }
 
     if (mobileCards) {
-        mobileCards.innerHTML = adminAds.map(function(a) {
-            var imgSrc = escapeHtml(a.image || '');
-            return '<div class="mobile-card">' +
-                '<div class="card-header"><img src="' + imgSrc + '" alt="" style="width:80px;height:50px;object-fit:cover;border-radius:4px;" onerror="this.style.display=' + "'none'" + '">' +
-                '<div class="card-title">' + escapeHtml(a.title_en || a.title || 'Untitled') + '</div></div>' +
-                '<div class="card-meta"><span>' + escapeHtml(a.position || 'Unknown') + '</span><span>|</span>' +
-                '<span class="badge ' + (a.active ? 'badge-green' : 'badge-gray') + '">' + (a.active ? 'Active' : 'Inactive') + '</span></div>' +
-                '<div class="card-actions">' +
-                '<button class="btn-icon btn-edit" onclick="editAd(' + a.id + ')" style="width:44px;height:44px;">&#9999;&#65039;</button>' +
-                '<button class="btn-icon btn-delete" onclick="deleteAd(' + a.id + ')" style="width:44px;height:44px;">&#128465;&#65039;</button></div></div>';
-        }).join('');
+        if (adminAds.length === 0) {
+            mobileCards.innerHTML = '<div style="text-align:center;padding:2rem;color:#6b7280;">No ads found.</div>';
+        } else {
+            mobileCards.innerHTML = adminAds.map(function(a) {
+                var imgSrc = escapeHtml(a.image || '');
+                return '<div class="mobile-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin-bottom:1rem;">' +
+                    '<div class="card-header" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">' +
+                    '<img src="' + imgSrc + '" alt="" style="width:80px;height:50px;object-fit:cover;border-radius:4px;" onerror="this.style.display=' + "'none'" + '">' +
+                    '<div class="card-title" style="font-weight:600;">' + escapeHtml(a.title_en || a.title || 'Untitled') + '</div></div>' +
+                    '<div class="card-meta" style="font-size:0.8rem;color:#6b7280;margin-bottom:0.75rem;">' +
+                    '<span>' + escapeHtml(a.position || 'Unknown') + '</span> | ' +
+                    '<span class="badge ' + (a.active ? 'badge-green' : 'badge-gray') + '">' + (a.active ? 'Active' : 'Inactive') + '</span></div>' +
+                    '<div class="card-actions" style="display:flex;gap:0.5rem;">' +
+                    '<button style="' + btnEditStyle + 'width:44px;height:44px;" onclick="editAd(' + a.id + ')" title="Edit">&#9999;&#65039;</button>' +
+                    '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onclick="deleteAd(' + a.id + ')" title="Delete">&#128465;&#65039;</button></div></div>';
+            }).join('');
+        }
     }
 }
 
@@ -595,24 +617,35 @@ function renderCategoriesTable() {
     var mobileCards = document.getElementById('categories-mobile-cards');
     if (!tbody) return;
 
-    tbody.innerHTML = adminCats.map(function(c) {
-        var catId = escapeHtml(c.id || '');
-        return '<tr><td><strong>' + escapeHtml(c.name_en || '') + '</strong><br><small style="color:#6b7280;">' +
-            escapeHtml(c.name || '') + ' / ' + escapeHtml(c.name_si || '') + '</small></td>' +
-            '<td>' + c.count + '</td>' +
-            '<td><button class="btn-icon btn-delete" onclick="deleteCategory(' + "'" + catId + "'" + ')">&#128465;&#65039;</button></td></tr>';
-    }).join('');
+    var btnDeleteStyle = 'display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:#ef4444;color:#fff;cursor:pointer;font-size:16px;';
+
+    if (adminCats.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:2rem;color:#6b7280;">No categories found.</td></tr>';
+    } else {
+        tbody.innerHTML = adminCats.map(function(c) {
+            var catId = escapeHtml(c.id || '');
+            return '<tr><td><strong>' + escapeHtml(c.name_en || '') + '</strong><br><small style="color:#6b7280;">' +
+                escapeHtml(c.name || '') + ' / ' + escapeHtml(c.name_si || '') + '</small></td>' +
+                '<td>' + c.count + '</td>' +
+                '<td><button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onclick="deleteCategory(' + "'" + catId + "'" + ')" title="Delete">&#128465;&#65039;</button></td></tr>';
+        }).join('');
+    }
 
     if (mobileCards) {
-        mobileCards.innerHTML = adminCats.map(function(c) {
-            var catId = escapeHtml(c.id || '');
-            return '<div class="mobile-card">' +
-                '<div class="card-title">' + escapeHtml(c.name_en || '') + '</div>' +
-                '<div class="card-meta"><span>' + escapeHtml(c.name || '') + ' / ' + escapeHtml(c.name_si || '') + '</span><span>|</span>' +
-                '<span>' + c.count + ' articles</span></div>' +
-                '<div class="card-actions">' +
-                '<button class="btn-icon btn-delete" onclick="deleteCategory(' + "'" + catId + "'" + ')" style="width:44px;height:44px;">&#128465;&#65039;</button></div></div>';
-        }).join('');
+        if (adminCats.length === 0) {
+            mobileCards.innerHTML = '<div style="text-align:center;padding:2rem;color:#6b7280;">No categories found.</div>';
+        } else {
+            mobileCards.innerHTML = adminCats.map(function(c) {
+                var catId = escapeHtml(c.id || '');
+                return '<div class="mobile-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin-bottom:1rem;">' +
+                    '<div class="card-title" style="font-weight:600;margin-bottom:0.5rem;">' + escapeHtml(c.name_en || '') + '</div>' +
+                    '<div class="card-meta" style="font-size:0.8rem;color:#6b7280;margin-bottom:0.75rem;">' +
+                    '<span>' + escapeHtml(c.name || '') + ' / ' + escapeHtml(c.name_si || '') + '</span> | ' +
+                    '<span>' + c.count + ' articles</span></div>' +
+                    '<div class="card-actions">' +
+                    '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onclick="deleteCategory(' + "'" + catId + "'" + ')" title="Delete">&#128465;&#65039;</button></div></div>';
+            }).join('');
+        }
     }
 }
 
@@ -677,9 +710,12 @@ function closeNewsModal() {
 
 function editNews(id) {
     var news = adminNews.find(function(n) {
-        return n.id === id;
+        return n.id == id;
     });
-    if (!news) return;
+    if (!news) {
+        showToast('Article not found', 'error');
+        return;
+    }
 
     editingNewsId = id;
     openNewsModal(true);
@@ -796,7 +832,7 @@ async function saveNewsItem() {
 
     if (editingNewsId) {
         var idx = adminNews.findIndex(function(n) {
-            return n.id === editingNewsId;
+            return n.id == editingNewsId;
         });
         if (idx !== -1) {
             adminNews[idx] = Object.assign({}, adminNews[idx], newsItem, { id: editingNewsId });
@@ -833,7 +869,7 @@ async function saveNewsItem() {
 async function deleteNews(id) {
     if (!confirm('Delete this article?')) return;
     adminNews = adminNews.filter(function(n) {
-        return n.id !== id;
+        return n.id != id;
     });
     saveNews();
     updateCategoryCounts();
@@ -894,9 +930,12 @@ function closeAdModal() {
 
 function editAd(id) {
     var ad = adminAds.find(function(a) {
-        return a.id === id;
+        return a.id == id;
     });
-    if (!ad) return;
+    if (!ad) {
+        showToast('Ad not found', 'error');
+        return;
+    }
 
     editingAdId = id;
     openAdModal(true);
@@ -961,7 +1000,7 @@ async function saveAdItem() {
 
     if (editingAdId) {
         var idx = adminAds.findIndex(function(a) {
-            return a.id === editingAdId;
+            return a.id == editingAdId;
         });
         if (idx !== -1) {
             adminAds[idx] = Object.assign({}, adminAds[idx], adItem, { id: editingAdId });
@@ -989,7 +1028,7 @@ async function saveAdItem() {
 async function deleteAd(id) {
     if (!confirm('Delete this ad?')) return;
     adminAds = adminAds.filter(function(a) {
-        return a.id !== id;
+        return a.id != id;
     });
     saveAds();
 
@@ -1137,7 +1176,7 @@ function handleFileUpload(inputId, previewId, dataId, type) {
 }
 
 // ═══════════════════════════════════════
-// RESET DATA (Password Protected)
+// RESET DATA
 // ═══════════════════════════════════════
 async function resetData() {
     var passwordInput = document.getElementById('reset-password');
@@ -1201,28 +1240,24 @@ async function resetData() {
 document.addEventListener('DOMContentLoaded', function() {
     initData();
 
-    // Sidebar toggles
     var headerMenuBtn = document.getElementById('header-menu-btn');
     var sidebarOverlay = document.getElementById('sidebar-overlay');
 
     if (headerMenuBtn) headerMenuBtn.addEventListener('click', toggleSidebar);
     if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
 
-    // Navigation (sidebar)
     document.querySelectorAll('.nav-item').forEach(function(btn) {
         btn.addEventListener('click', function() {
             showPage(btn.dataset.page);
         });
     });
 
-    // Navigation (mobile bottom nav)
     document.querySelectorAll('.nav-item-mobile').forEach(function(btn) {
         btn.addEventListener('click', function() {
             showPage(btn.dataset.page);
         });
     });
 
-    // News Modal
     var btnAddNews = document.getElementById('btn-add-news');
     var closeNewsModalBtn = document.getElementById('close-news-modal');
     var cancelNews = document.getElementById('cancel-news');
@@ -1235,14 +1270,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (cancelNews) cancelNews.addEventListener('click', closeNewsModal);
     if (saveNewsBtn) saveNewsBtn.addEventListener('click', saveNewsItem);
 
-    // Language tabs
     document.querySelectorAll('.lang-tab').forEach(function(tab) {
         tab.addEventListener('click', function() {
             switchNewsLang(tab.dataset.lang);
         });
     });
 
-    // Ad Modal
     var btnAddAd = document.getElementById('btn-add-ad');
     var closeAdModalBtn = document.getElementById('close-ad-modal');
     var cancelAd = document.getElementById('cancel-ad');
@@ -1255,7 +1288,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (cancelAd) cancelAd.addEventListener('click', closeAdModal);
     if (saveAdBtn) saveAdBtn.addEventListener('click', saveAdItem);
 
-    // Category Modal
     var btnAddCat = document.getElementById('btn-add-cat');
     var closeCatModalBtn = document.getElementById('close-cat-modal');
     var cancelCat = document.getElementById('cancel-cat');
@@ -1266,11 +1298,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (cancelCat) cancelCat.addEventListener('click', closeCatModal);
     if (saveCatBtn) saveCatBtn.addEventListener('click', saveCategory);
 
-    // File uploads
     handleFileUpload('news-photo-file', 'news-photo-preview', 'news-photo-data', 'image');
     handleFileUpload('news-video-file', 'news-video-preview', 'news-video-data', 'video');
 
-    // Ad image file upload
     var adImageFile = document.getElementById('ad-image-file');
     if (adImageFile) {
         adImageFile.addEventListener('change', function(e) {
@@ -1293,15 +1323,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Search
     var newsSearch = document.getElementById('news-search');
     if (newsSearch) newsSearch.addEventListener('input', renderNewsTable);
 
-    // Settings - Reset Data
     var btnResetData = document.getElementById('btn-reset-data');
     if (btnResetData) btnResetData.addEventListener('click', resetData);
 
-    // Settings - Clean Broken Posts
     var btnCleanBroken = document.getElementById('btn-clean-broken');
     if (btnCleanBroken) btnCleanBroken.addEventListener('click', function() {
         var removed = cleanBrokenPosts();
@@ -1313,24 +1340,19 @@ document.addEventListener('DOMContentLoaded', function() {
         renderCategoriesTable();
     });
 
-    // Close modal on overlay click
     document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
         overlay.addEventListener('click', function(e) {
             if (e.target === overlay) overlay.classList.remove('open');
         });
     });
 
-    // Handle window resize
     window.addEventListener('resize', function() {
         if (window.innerWidth > 768) {
             closeSidebar();
         }
     });
 
-    // Swipe to close sidebar on mobile
     var touchStartX = 0;
-    var touchEndX = 0;
-
     var sidebar = document.getElementById('admin-sidebar');
     if (sidebar) {
         sidebar.addEventListener('touchstart', function(e) {
@@ -1338,7 +1360,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, { passive: true });
 
         sidebar.addEventListener('touchend', function(e) {
-            touchEndX = e.changedTouches[0].screenX;
+            var touchEndX = e.changedTouches[0].screenX;
             if (touchStartX - touchEndX > 100) {
                 closeSidebar();
             }
