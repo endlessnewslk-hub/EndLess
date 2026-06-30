@@ -32,7 +32,7 @@ try {
             console.warn('Network toggle error:', err);
         });
 
-        console.log('Firebase connected successfully (cache disabled)');
+        console.log('Firebase connected successfully');
     } else {
         console.warn('Firebase SDK not loaded - using localStorage only');
     }
@@ -48,6 +48,7 @@ let currentPage = 'dashboard';
 let editingNewsId = null;
 let editingAdId = null;
 let currentNewsLang = 'ta';
+let dataInitialized = false;
 
 // ── Admin Password ──
 const ADMIN_PASSWORD = "6402@Faizan";
@@ -122,6 +123,17 @@ const DEFAULT_CATEGORIES = [
     { id: "health", name: "Health", name_en: "Health", name_si: "Health", count: 0 }
 ];
 
+// ── Helper: Safe JSON Parse ──
+function safeJSONParse(key, fallback) {
+    try {
+        var data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : fallback;
+    } catch (e) {
+        console.warn('Failed to parse ' + key + ':', e);
+        return fallback;
+    }
+}
+
 // ── Helper: Check if post is garbage ──
 function isUntitledOrGarbage(n) {
     if (!n || typeof n !== 'object') return true;
@@ -132,7 +144,6 @@ function isUntitledOrGarbage(n) {
     var c = String(n.content || '').trim();
     var c_en = String(n.content_en || '').trim();
     var c_si = String(n.content_si || '').trim();
-    // Also check excerpt fields (main site uses these)
     var e = String(n.excerpt || '').trim();
     var e_en = String(n.excerpt_en || '').trim();
     var e_si = String(n.excerpt_si || '').trim();
@@ -145,7 +156,6 @@ function isUntitledOrGarbage(n) {
     };
 
     var hasRealTitle = (!isEmptyOrGarbage(t)) || (!isEmptyOrGarbage(t_en)) || (!isEmptyOrGarbage(t_si));
-    // Content OR excerpt in any language is valid
     var hasRealContent = (!isEmptyOrGarbage(c)) || (!isEmptyOrGarbage(c_en)) || (!isEmptyOrGarbage(c_si)) ||
                          (!isEmptyOrGarbage(e)) || (!isEmptyOrGarbage(e_en)) || (!isEmptyOrGarbage(e_si));
     var hasValidId = n.id !== undefined && n.id !== null && n.id !== '';
@@ -155,20 +165,19 @@ function isUntitledOrGarbage(n) {
 
 // ── Data Initialization ──
 async function initData() {
-    // Safe JSON parse with fallback
-    function safeJSONParse(key, fallback) {
-        try {
-            var data = localStorage.getItem(key);
-            return data ? JSON.parse(data) : fallback;
-        } catch (e) {
-            console.warn('Failed to parse ' + key + ':', e);
-            return fallback;
-        }
+    if (dataInitialized) {
+        console.log('initData: Already initialized, skipping');
+        return;
     }
+    dataInitialized = true;
+
+    console.log('=== initData() starting ===');
 
     adminNews = safeJSONParse('endless_news', []);
     adminAds = safeJSONParse('endless_ads', []);
     adminCats = safeJSONParse('endless_categories', []);
+
+    console.log('Loaded from localStorage - News:', adminNews.length, 'Ads:', adminAds.length, 'Cats:', adminCats.length);
 
     // Clean garbage posts
     var beforeNewsCount = adminNews.length;
@@ -183,21 +192,26 @@ async function initData() {
 
     cleanBrokenPosts();
 
+    // CRITICAL FIX: Load defaults IMMEDIATELY if empty
     if (adminNews.length === 0) {
+        console.log('Loaded DEFAULT news data');
         adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
         saveNews();
     }
     if (adminAds.length === 0) {
+        console.log('Loaded DEFAULT ads data');
         adminAds = JSON.parse(JSON.stringify(DEFAULT_ADS));
         saveAds();
     }
     if (adminCats.length === 0) {
+        console.log('Loaded DEFAULT categories data');
         adminCats = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
         saveCats();
     }
 
     updateCategoryCounts();
 
+    // Firebase sync (wrapped in try-catch so failure doesn't break anything)
     if (db) {
         try {
             await syncFromFirebase();
@@ -217,6 +231,7 @@ async function initData() {
         }
     }
 
+    // Show dashboard
     var dashboard = document.getElementById('admin-dashboard');
     if (dashboard) {
         dashboard.style.display = 'flex';
@@ -225,6 +240,20 @@ async function initData() {
     var authLoading = document.getElementById('auth-loading-overlay');
     if (authLoading) {
         authLoading.style.display = 'none';
+    }
+
+    console.log('Final data - News:', adminNews.length, 'Ads:', adminAds.length, 'Cats:', adminCats.length);
+    console.log('=== initData() complete ===');
+
+    // CRITICAL FIX: Re-render current page after data is ready
+    if (currentPage === 'news') {
+        renderNewsTable();
+    } else if (currentPage === 'ads') {
+        renderAdsTable();
+    } else if (currentPage === 'categories') {
+        renderCategoriesTable();
+    } else {
+        renderDashboard();
     }
 }
 
@@ -394,12 +423,28 @@ function closeSidebar() {
 
 // ── Page Navigation ──
 function showPage(page) {
+    console.log('showPage called:', page);
     currentPage = page;
+
+    // CRITICAL FIX: If data not initialized yet, wait and retry
+    if (!dataInitialized) {
+        console.log('Data not initialized yet, waiting...');
+        setTimeout(function() {
+            showPage(page);
+        }, 300);
+        return;
+    }
+
     document.querySelectorAll('.page-content').forEach(function(p) {
         p.classList.add('hidden');
     });
     var targetPage = document.getElementById('page-' + page);
-    if (targetPage) targetPage.classList.remove('hidden');
+    if (targetPage) {
+        targetPage.classList.remove('hidden');
+        console.log('Showing page:', 'page-' + page);
+    } else {
+        console.error('Page not found:', 'page-' + page);
+    }
 
     document.querySelectorAll('.nav-item').forEach(function(n) {
         n.classList.toggle('active', n.dataset.page === page);
@@ -489,7 +534,10 @@ function renderDashboard() {
 function renderNewsTable() {
     var tbody = document.getElementById('news-table-body');
     var mobileCards = document.getElementById('news-mobile-cards');
-    if (!tbody) return;
+    if (!tbody) {
+        console.error('news-table-body not found');
+        return;
+    }
 
     var searchInput = document.getElementById('news-search');
     var search = searchInput ? searchInput.value.toLowerCase() : '';
@@ -594,7 +642,7 @@ function renderAdsTable() {
         } else {
             mobileCards.innerHTML = adminAds.map(function(a) {
                 var imgSrc = escapeHtml(a.image || '');
-                return '<div class="mobile-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin-bottom:1rem;">' +
+                return '<div class="mobile-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin-bottom:1rem; ">' +
                     '<div class="card-header" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">' +
                     '<img src="' + imgSrc + '" alt="" style="width:80px;height:50px;object-fit:cover;border-radius:4px;" onerror="this.style.display=' + "'none'" + '">' +
                     '<div class="card-title" style="font-weight:600;">' + escapeHtml(a.title_en || a.title || 'Untitled') + '</div></div>' +
@@ -710,7 +758,7 @@ function closeNewsModal() {
 
 function editNews(id) {
     var news = adminNews.find(function(n) {
-        return n.id == id;
+        return n.id == id;  // FIX: Loose comparison for string/number IDs
     });
     if (!news) {
         showToast('Article not found', 'error');
@@ -832,7 +880,7 @@ async function saveNewsItem() {
 
     if (editingNewsId) {
         var idx = adminNews.findIndex(function(n) {
-            return n.id == editingNewsId;
+            return n.id == editingNewsId;  // FIX: Loose comparison
         });
         if (idx !== -1) {
             adminNews[idx] = Object.assign({}, adminNews[idx], newsItem, { id: editingNewsId });
@@ -869,7 +917,7 @@ async function saveNewsItem() {
 async function deleteNews(id) {
     if (!confirm('Delete this article?')) return;
     adminNews = adminNews.filter(function(n) {
-        return n.id != id;
+        return n.id != id;  // FIX: Loose comparison
     });
     saveNews();
     updateCategoryCounts();
@@ -930,7 +978,7 @@ function closeAdModal() {
 
 function editAd(id) {
     var ad = adminAds.find(function(a) {
-        return a.id == id;
+        return a.id == id;  // FIX: Loose comparison
     });
     if (!ad) {
         showToast('Ad not found', 'error');
@@ -1000,7 +1048,7 @@ async function saveAdItem() {
 
     if (editingAdId) {
         var idx = adminAds.findIndex(function(a) {
-            return a.id == editingAdId;
+            return a.id == editingAdId;  // FIX: Loose comparison
         });
         if (idx !== -1) {
             adminAds[idx] = Object.assign({}, adminAds[idx], adItem, { id: editingAdId });
@@ -1028,7 +1076,7 @@ async function saveAdItem() {
 async function deleteAd(id) {
     if (!confirm('Delete this ad?')) return;
     adminAds = adminAds.filter(function(a) {
-        return a.id != id;
+        return a.id != id;  // FIX: Loose comparison
     });
     saveAds();
 
