@@ -136,40 +136,12 @@ function safeJSONParse(key, fallback) {
 
 // ── Helper: Check if post is garbage ──
 function isUntitledOrGarbage(n) {
-    if (!n || typeof n !== 'object') {
-        console.log('isUntitledOrGarbage: rejected - not an object', n);
-        return true;
-    }
-
-    var t = String(n.title || '').trim();
-    var t_en = String(n.title_en || '').trim();
-    var t_si = String(n.title_si || '').trim();
-    var c = String(n.content || '').trim();
-    var c_en = String(n.content_en || '').trim();
-    var c_si = String(n.content_si || '').trim();
-    var e = String(n.excerpt || '').trim();
-    var e_en = String(n.excerpt_en || '').trim();
-    var e_si = String(n.excerpt_si || '').trim();
-
-    var isEmptyOrGarbage = function(str) {
-        if (!str) return true;
-        var s = String(str).trim().toLowerCase();
-        return s === '' || s === 'untitled' || s === 'undefined' || s === 'null' ||
-               s === 'nan' || s === '[object object]';
-    };
-
-    var hasRealTitle = (!isEmptyOrGarbage(t)) || (!isEmptyOrGarbage(t_en)) || (!isEmptyOrGarbage(t_si));
-    // FIX: Content check is more lenient - if title exists, content is optional
-    var hasRealContent = (!isEmptyOrGarbage(c)) || (!isEmptyOrGarbage(c_en)) || (!isEmptyOrGarbage(c_si)) ||
-                         (!isEmptyOrGarbage(e)) || (!isEmptyOrGarbage(e_en)) || (!isEmptyOrGarbage(e_si)) ||
-                         hasRealTitle; // If title exists, content is optional
-    var hasValidId = n.id !== undefined && n.id !== null && n.id !== '';
-
-    var result = !hasRealTitle || !hasRealContent || !hasValidId;
-    if (result) {
-        console.log('isUntitledOrGarbage: rejected item id=', n.id, 'title=', t.substring(0, 30), 'hasRealTitle=', hasRealTitle, 'hasRealContent=', hasRealContent, 'hasValidId=', hasValidId);
-    }
-    return result;
+    if (!n || typeof n !== 'object') return true;
+    var hasId = n.id !== undefined && n.id !== null && n.id !== '';
+    var hasTitle = (n.title && String(n.title).trim() !== '') ||
+                   (n.title_en && String(n.title_en).trim() !== '') ||
+                   (n.title_si && String(n.title_si).trim() !== '');
+    return !hasId || !hasTitle;
 }
 
 // ── Data Initialization ──
@@ -188,12 +160,10 @@ async function initData() {
 
     console.log('Loaded from localStorage - News:', adminNews.length, 'Ads:', adminAds.length, 'Cats:', adminCats.length);
 
-    // Log first item for debugging
     if (adminNews.length > 0) {
         console.log('First news item:', JSON.stringify(adminNews[0]).substring(0, 200));
     }
 
-    // Clean garbage posts
     var beforeNewsCount = adminNews.length;
     adminNews = adminNews.filter(function(n) {
         return !isUntitledOrGarbage(n);
@@ -204,9 +174,6 @@ async function initData() {
         console.log('Removed ' + removedLocal + ' garbage posts from localStorage');
     }
 
-    cleanBrokenPosts();
-
-    // CRITICAL FIX: Load defaults IMMEDIATELY if empty
     if (adminNews.length === 0) {
         console.log('Loaded DEFAULT news data');
         adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
@@ -225,65 +192,27 @@ async function initData() {
 
     updateCategoryCounts();
 
-    // Firebase sync (wrapped in try-catch so failure doesn't break anything)
     if (db) {
         try {
             await syncFromFirebase();
-
-            var afterSyncCount = adminNews.length;
-            adminNews = adminNews.filter(function(n) {
-                return !isUntitledOrGarbage(n);
-            });
-            var removedAfterSync = afterSyncCount - adminNews.length;
-            if (removedAfterSync > 0) {
-                saveNews();
-                console.log('Removed ' + removedAfterSync + ' ghost posts after Firebase sync');
-                showToast('Removed ' + removedAfterSync + ' broken post(s)', 'success');
-            }
         } catch (err) {
             console.warn('Firebase sync failed, using localStorage:', err);
         }
     }
 
-    // Show dashboard
     var dashboard = document.getElementById('admin-dashboard');
-    if (dashboard) {
-        dashboard.style.display = 'flex';
-    }
+    if (dashboard) dashboard.style.display = 'flex';
 
     var authLoading = document.getElementById('auth-loading-overlay');
-    if (authLoading) {
-        authLoading.style.display = 'none';
-    }
+    if (authLoading) authLoading.style.display = 'none';
 
     console.log('Final data - News:', adminNews.length, 'Ads:', adminAds.length, 'Cats:', adminCats.length);
     console.log('=== initData() complete ===');
 
-    // CRITICAL FIX: Re-render current page after data is ready
-    if (currentPage === 'news') {
-        renderNewsTable();
-    } else if (currentPage === 'ads') {
-        renderAdsTable();
-    } else if (currentPage === 'categories') {
-        renderCategoriesTable();
-    } else {
-        renderDashboard();
-    }
-}
-
-// ── Clean Broken Posts ──
-function cleanBrokenPosts() {
-    var beforeCount = adminNews.length;
-    adminNews = adminNews.filter(function(n) {
-        return !isUntitledOrGarbage(n);
-    });
-    var removedCount = beforeCount - adminNews.length;
-    if (removedCount > 0) {
-        saveNews();
-        showToast('Removed ' + removedCount + ' broken post(s)', 'success');
-        console.log('cleanBrokenPosts: Removed ' + removedCount + ' garbage posts');
-    }
-    return removedCount;
+    if (currentPage === 'news') renderNewsTable();
+    else if (currentPage === 'ads') renderAdsTable();
+    else if (currentPage === 'categories') renderCategoriesTable();
+    else renderDashboard();
 }
 
 // ── Update Category Counts ──
@@ -302,82 +231,37 @@ function updateCategoryCounts() {
 async function syncFromFirebase() {
     if (!db) return;
     try {
-        try {
-            await db.terminate();
-            db = firebase.firestore();
-            db.settings({
-                cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
-                ignoreUndefinedProperties: true
-            });
-            console.log('Firestore cache cleared, fetching fresh data...');
-        } catch (cacheErr) {
-            console.warn('Cache clear error:', cacheErr);
-        }
-
         var newsSnapshot = await db.collection('news').get({ source: 'server' });
         if (!newsSnapshot.empty) {
             var firebaseNews = [];
-            var untitledDocIds = [];
-
             newsSnapshot.docs.forEach(function(doc) {
                 var data = doc.data();
                 data.id = doc.id;
-                if (isUntitledOrGarbage(data)) {
-                    untitledDocIds.push(doc.id);
-                } else {
-                    firebaseNews.push(data);
-                }
+                if (!isUntitledOrGarbage(data)) firebaseNews.push(data);
             });
-
-            if (untitledDocIds.length > 0) {
-                console.log('Deleting garbage posts from Firebase:', untitledDocIds);
-                for (var i = 0; i < untitledDocIds.length; i++) {
-                    try {
-                        await db.collection('news').doc(untitledDocIds[i]).delete();
-                        console.log('Deleted from Firebase:', untitledDocIds[i]);
-                    } catch (err) {
-                        console.warn('Failed to delete from Firebase:', untitledDocIds[i], err);
-                    }
-                }
-                showToast('Removed ' + untitledDocIds.length + ' garbage post(s) from cloud', 'success');
-            }
-
             var allNews = adminNews.concat(firebaseNews);
             var seenIds = {};
-            var mergedNews = [];
-            allNews.forEach(function(n) {
-                if (!seenIds[n.id]) {
-                    seenIds[n.id] = true;
-                    if (!isUntitledOrGarbage(n)) {
-                        mergedNews.push(n);
-                    }
-                }
+            adminNews = allNews.filter(function(n) {
+                if (seenIds[n.id]) return false;
+                seenIds[n.id] = true;
+                return !isUntitledOrGarbage(n);
             });
-
-            adminNews = mergedNews;
             localStorage.setItem('endless_news', JSON.stringify(adminNews));
         }
-
         var adsSnapshot = await db.collection('ads').get({ source: 'server' });
         if (!adsSnapshot.empty) {
             adminAds = adsSnapshot.docs.map(function(doc) {
-                var data = doc.data();
-                data.id = doc.id;
-                return data;
+                var data = doc.data(); data.id = doc.id; return data;
             });
             localStorage.setItem('endless_ads', JSON.stringify(adminAds));
         }
-
         var catsSnapshot = await db.collection('categories').get({ source: 'server' });
         if (!catsSnapshot.empty) {
             adminCats = catsSnapshot.docs.map(function(doc) {
-                var data = doc.data();
-                data.id = doc.id;
-                return data;
+                var data = doc.data(); data.id = doc.id; return data;
             });
             localStorage.setItem('endless_categories', JSON.stringify(adminCats));
         }
-
         updateCategoryCounts();
     } catch (error) {
         console.error('Firebase read error:', error);
@@ -386,15 +270,9 @@ async function syncFromFirebase() {
 }
 
 // ── Local Storage Save ──
-function saveNews() {
-    localStorage.setItem('endless_news', JSON.stringify(adminNews));
-}
-function saveAds() {
-    localStorage.setItem('endless_ads', JSON.stringify(adminAds));
-}
-function saveCats() {
-    localStorage.setItem('endless_categories', JSON.stringify(adminCats));
-}
+function saveNews() { localStorage.setItem('endless_news', JSON.stringify(adminNews)); }
+function saveAds() { localStorage.setItem('endless_ads', JSON.stringify(adminAds)); }
+function saveCats() { localStorage.setItem('endless_categories', JSON.stringify(adminCats)); }
 
 // ── Toast ──
 function showToast(msg, type) {
@@ -403,9 +281,7 @@ function showToast(msg, type) {
     if (!toast) return;
     toast.textContent = msg;
     toast.className = 'toast ' + type + ' show';
-    setTimeout(function() {
-        toast.classList.remove('show');
-    }, 3000);
+    setTimeout(function() { toast.classList.remove('show'); }, 3000);
 }
 
 // ── Mobile Sidebar ──
@@ -439,19 +315,12 @@ function closeSidebar() {
 function showPage(page) {
     console.log('showPage called:', page);
     currentPage = page;
-
-    // CRITICAL FIX: If data not initialized yet, wait and retry
     if (!dataInitialized) {
         console.log('Data not initialized yet, waiting...');
-        setTimeout(function() {
-            showPage(page);
-        }, 300);
+        setTimeout(function() { showPage(page); }, 300);
         return;
     }
-
-    document.querySelectorAll('.page-content').forEach(function(p) {
-        p.classList.add('hidden');
-    });
+    document.querySelectorAll('.page-content').forEach(function(p) { p.classList.add('hidden'); });
     var targetPage = document.getElementById('page-' + page);
     if (targetPage) {
         targetPage.classList.remove('hidden');
@@ -459,25 +328,19 @@ function showPage(page) {
     } else {
         console.error('Page not found:', 'page-' + page);
     }
-
     document.querySelectorAll('.nav-item').forEach(function(n) {
         n.classList.toggle('active', n.dataset.page === page);
     });
     document.querySelectorAll('.nav-item-mobile').forEach(function(n) {
         n.classList.toggle('active', n.dataset.page === page);
     });
-
     var pageTitle = document.getElementById('page-title');
     if (pageTitle) pageTitle.textContent = page.charAt(0).toUpperCase() + page.slice(1);
-
     if (page === 'dashboard') renderDashboard();
     if (page === 'news') renderNewsTable();
     if (page === 'ads') renderAdsTable();
     if (page === 'categories') renderCategoriesTable();
-
-    if (window.innerWidth <= 768) {
-        closeSidebar();
-    }
+    if (window.innerWidth <= 768) closeSidebar();
     window.scrollTo(0, 0);
 }
 
@@ -505,12 +368,8 @@ function escapeHtml(text) {
 
 // ── Dashboard Renderer ──
 function renderDashboard() {
-    var cleanNews = adminNews.filter(function(n) {
-        return !isUntitledOrGarbage(n);
-    });
-    var published = cleanNews.filter(function(n) {
-        return n.status === 'published';
-    });
+    var cleanNews = adminNews.filter(function(n) { return !isUntitledOrGarbage(n); });
+    var published = cleanNews.filter(function(n) { return n.status === 'published'; });
 
     var statTotalNews = document.getElementById('stat-total-news');
     var statPublished = document.getElementById('stat-published');
@@ -521,9 +380,7 @@ function renderDashboard() {
 
     if (statTotalNews) statTotalNews.textContent = cleanNews.length;
     if (statPublished) statPublished.textContent = published.length;
-    if (statActiveAds) statActiveAds.textContent = adminAds.filter(function(a) {
-        return a.active;
-    }).length;
+    if (statActiveAds) statActiveAds.textContent = adminAds.filter(function(a) { return a.active; }).length;
     if (statCategories) statCategories.textContent = adminCats.length;
 
     if (recentNewsTable) {
@@ -535,9 +392,7 @@ function renderDashboard() {
     }
 
     if (recentAdsTable) {
-        recentAdsTable.innerHTML = adminAds.filter(function(a) {
-            return a.active;
-        }).slice(0, 5).map(function(a) {
+        recentAdsTable.innerHTML = adminAds.filter(function(a) { return a.active; }).slice(0, 5).map(function(a) {
             return '<tr><td>' + escapeHtml(a.title_en || a.title) + '</td><td>' +
                 escapeHtml(a.position) + '</td><td><span class="badge badge-green">Active</span></td></tr>';
         }).join('');
@@ -567,12 +422,6 @@ function renderNewsTable() {
 
     console.log('>>> After filter, filtered.length =', filtered.length);
 
-    // DEBUG: If all filtered out, show raw data anyway
-    if (filtered.length === 0 && adminNews.length > 0) {
-        console.warn('>>> All items filtered out! Showing raw data. First item:', adminNews[0]);
-        filtered = adminNews; // Show everything
-    }
-
     if (search) {
         filtered = filtered.filter(function(n) {
             return (n.title && n.title.toLowerCase().indexOf(search) !== -1) ||
@@ -581,7 +430,6 @@ function renderNewsTable() {
         });
     }
 
-    // Inline styles for action buttons (ensures visibility even without CSS file)
     var btnEditStyle = 'display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:#3b82f6;color:#fff;cursor:pointer;font-size:16px;margin-right:6px;transition:all 0.2s;';
     var btnDeleteStyle = 'display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:#ef4444;color:#fff;cursor:pointer;font-size:16px;transition:all 0.2s;';
     var btnEditHover = 'this.style.background=\'#2563eb\';this.style.transform=\'scale(1.05)\';';
@@ -589,7 +437,6 @@ function renderNewsTable() {
     var btnDeleteHover = 'this.style.background=\'#dc2626\';this.style.transform=\'scale(1.05)\';';
     var btnDeleteOut = 'this.style.background=\'#ef4444\';this.style.transform=\'scale(1)\';';
 
-    // Desktop table
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#6b7280;">No articles found. Click "+ Add New Article" to create one.</td></tr>';
     } else {
@@ -601,7 +448,7 @@ function renderNewsTable() {
             var dateStr = n.date ? new Date(n.date).toLocaleDateString() : 'N/A';
             var imgSrc = escapeHtml(n.image || '');
             var placeholder = 'https://via.placeholder.com/60x40?text=No+Image';
-            return '<tr><td><img src="' + imgSrc + '" alt="" onerror="this.src=' + "'" + placeholder + "'" + '" style="width:60px;height:40px;object-fit:cover;border-radius:4px;"></td>' +
+            return '<tr><td><img src="' + imgSrc + '" alt="" onerror="this.src=\'' + placeholder + '\'" style="width:60px;height:40px;object-fit:cover;border-radius:4px;"></td>' +
                 '<td><strong>' + escapeHtml(n.title_en || n.title || '') + '</strong><br><small style="color:#6b7280;">' + escapeHtml(n.title || '') + '</small></td>' +
                 '<td>' + escapeHtml(n.category_en || n.category || '') + '</td>' +
                 '<td>' + escapeHtml(n.author_en || n.author || '') + '</td>' +
@@ -613,7 +460,6 @@ function renderNewsTable() {
         }).join('');
     }
 
-    // Mobile cards
     if (mobileCards) {
         if (filtered.length === 0) {
             mobileCards.innerHTML = '<div style="text-align:center;padding:2rem;color:#6b7280;">No articles found.</div>';
@@ -624,7 +470,7 @@ function renderNewsTable() {
                 var placeholder = 'https://via.placeholder.com/60x40?text=No+Image';
                 return '<div class="mobile-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin-bottom:1rem;">' +
                     '<div class="card-header" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">' +
-                    '<img src="' + imgSrc + '" alt="" onerror="this.src=' + "'" + placeholder + "'" + '" style="width:60px;height:40px;object-fit:cover;border-radius:4px;">' +
+                    '<img src="' + imgSrc + '" alt="" onerror="this.src=\'' + placeholder + '\'" style="width:60px;height:40px;object-fit:cover;border-radius:4px;">' +
                     '<div class="card-title" style="font-weight:600;font-size:0.95rem;">' + escapeHtml(n.title_en || n.title || 'Untitled') + '</div></div>' +
                     '<div class="card-meta" style="display:flex;flex-wrap:wrap;gap:0.5rem;font-size:0.8rem;color:#6b7280;margin-bottom:0.75rem;">' +
                     '<span>' + escapeHtml(n.category_en || n.category || 'Uncategorized') + '</span><span>|</span>' +
@@ -653,7 +499,7 @@ function renderAdsTable() {
     } else {
         tbody.innerHTML = adminAds.map(function(a) {
             var imgSrc = escapeHtml(a.image || '');
-            return '<tr><td><img src="' + imgSrc + '" alt="" style="width:80px;height:50px;object-fit:cover;border-radius:4px;" onerror="this.style.display=' + "'none'" + '"></td>' +
+            return '<tr><td><img src="' + imgSrc + '" alt="" style="width:80px;height:50px;object-fit:cover;border-radius:4px;" onerror="this.style.display=\'none\'"></td>' +
                 '<td><strong>' + escapeHtml(a.title_en || a.title || '') + '</strong><br><small style="color:#6b7280;">' + escapeHtml(a.title || '') + '</small></td>' +
                 '<td>' + escapeHtml(a.position || '') + '</td>' +
                 '<td><a href="' + escapeHtml(a.link || '#') + '" target="_blank" style="color:#2563eb;">' + escapeHtml((a.link || '').substring(0, 30)) + '...</a></td>' +
@@ -671,7 +517,7 @@ function renderAdsTable() {
                 var imgSrc = escapeHtml(a.image || '');
                 return '<div class="mobile-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin-bottom:1rem;">' +
                     '<div class="card-header" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">' +
-                    '<img src="' + imgSrc + '" alt="" style="width:80px;height:50px;object-fit:cover;border-radius:4px;" onerror="this.style.display=' + "'none'" + '">' +
+                    '<img src="' + imgSrc + '" alt="" style="width:80px;height:50px;object-fit:cover;border-radius:4px;" onerror="this.style.display=\'none\'">' +
                     '<div class="card-title" style="font-weight:600;">' + escapeHtml(a.title_en || a.title || 'Untitled') + '</div></div>' +
                     '<div class="card-meta" style="font-size:0.8rem;color:#6b7280;margin-bottom:0.75rem;">' +
                     '<span>' + escapeHtml(a.position || 'Unknown') + '</span> | ' +
@@ -702,7 +548,7 @@ function renderCategoriesTable() {
             return '<tr><td><strong>' + escapeHtml(c.name_en || '') + '</strong><br><small style="color:#6b7280;">' +
                 escapeHtml(c.name || '') + ' / ' + escapeHtml(c.name_si || '') + '</small></td>' +
                 '<td>' + c.count + '</td>' +
-                '<td><button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onclick="deleteCategory(' + "'" + catId + "'" + ')" title="Delete">&#128465;&#65039;</button></td></tr>';
+                '<td><button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onclick="deleteCategory(\'' + catId + '\')" title="Delete">&#128465;&#65039;</button></td></tr>';
         }).join('');
     }
 
@@ -718,7 +564,7 @@ function renderCategoriesTable() {
                     '<span>' + escapeHtml(c.name || '') + ' / ' + escapeHtml(c.name_si || '') + '</span> | ' +
                     '<span>' + c.count + ' articles</span></div>' +
                     '<div class="card-actions">' +
-                    '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onclick="deleteCategory(' + "'" + catId + "'" + ')" title="Delete">&#128465;&#65039;</button></div></div>';
+                    '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onclick="deleteCategory(\'' + catId + '\')" title="Delete">&#128465;&#65039;</button></div></div>';
             }).join('');
         }
     }
@@ -887,7 +733,7 @@ async function saveNewsItem() {
         id: editingNewsId || Date.now(),
         title: title_ta,
         title_en: title_en || title_ta,
-        title_si: title_si || title_ta,
+ title_si: title_si || title_ta,
         content: content_ta,
         content_en: content_en || content_ta,
         content_si: content_si || content_ta,
@@ -1338,9 +1184,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var cancelNews = document.getElementById('cancel-news');
     var saveNewsBtn = document.getElementById('save-news');
 
-    if (btnAddNews) btnAddNews.addEventListener('click', function() {
-        openNewsModal();
-    });
+    if (btnAddNews) btnAddNews.addEventListener('click', function() { openNewsModal(); });
     if (closeNewsModalBtn) closeNewsModalBtn.addEventListener('click', closeNewsModal);
     if (cancelNews) cancelNews.addEventListener('click', closeNewsModal);
     if (saveNewsBtn) saveNewsBtn.addEventListener('click', saveNewsItem);
@@ -1356,9 +1200,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var cancelAd = document.getElementById('cancel-ad');
     var saveAdBtn = document.getElementById('save-ad');
 
-    if (btnAddAd) btnAddAd.addEventListener('click', function() {
-        openAdModal();
-    });
+    if (btnAddAd) btnAddAd.addEventListener('click', function() { openAdModal(); });
     if (closeAdModalBtn) closeAdModalBtn.addEventListener('click', closeAdModal);
     if (cancelAd) cancelAd.addEventListener('click', closeAdModal);
     if (saveAdBtn) saveAdBtn.addEventListener('click', saveAdItem);
@@ -1404,17 +1246,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var btnResetData = document.getElementById('btn-reset-data');
     if (btnResetData) btnResetData.addEventListener('click', resetData);
 
-    var btnCleanBroken = document.getElementById('btn-clean-broken');
-    if (btnCleanBroken) btnCleanBroken.addEventListener('click', function() {
-        var removed = cleanBrokenPosts();
-        if (removed === 0) {
-            showToast('No broken posts found!', 'success');
-        }
-        renderNewsTable();
-        renderDashboard();
-        renderCategoriesTable();
-    });
-
     document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
         overlay.addEventListener('click', function(e) {
             if (e.target === overlay) overlay.classList.remove('open');
@@ -1422,9 +1253,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     window.addEventListener('resize', function() {
-        if (window.innerWidth > 768) {
-            closeSidebar();
-        }
+        if (window.innerWidth > 768) closeSidebar();
     });
 
     var touchStartX = 0;
@@ -1436,9 +1265,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         sidebar.addEventListener('touchend', function(e) {
             var touchEndX = e.changedTouches[0].screenX;
-            if (touchStartX - touchEndX > 100) {
-                closeSidebar();
-            }
+            if (touchStartX - touchEndX > 100) closeSidebar();
         }, { passive: true });
     }
 
