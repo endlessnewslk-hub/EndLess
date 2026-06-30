@@ -136,7 +136,10 @@ function safeJSONParse(key, fallback) {
 
 // ── Helper: Check if post is garbage ──
 function isUntitledOrGarbage(n) {
-    if (!n || typeof n !== 'object') return true;
+    if (!n || typeof n !== 'object') {
+        console.log('isUntitledOrGarbage: rejected - not an object', n);
+        return true;
+    }
 
     var t = String(n.title || '').trim();
     var t_en = String(n.title_en || '').trim();
@@ -156,11 +159,17 @@ function isUntitledOrGarbage(n) {
     };
 
     var hasRealTitle = (!isEmptyOrGarbage(t)) || (!isEmptyOrGarbage(t_en)) || (!isEmptyOrGarbage(t_si));
+    // FIX: Content check is more lenient - if title exists, content is optional
     var hasRealContent = (!isEmptyOrGarbage(c)) || (!isEmptyOrGarbage(c_en)) || (!isEmptyOrGarbage(c_si)) ||
-                         (!isEmptyOrGarbage(e)) || (!isEmptyOrGarbage(e_en)) || (!isEmptyOrGarbage(e_si));
+                         (!isEmptyOrGarbage(e)) || (!isEmptyOrGarbage(e_en)) || (!isEmptyOrGarbage(e_si)) ||
+                         hasRealTitle; // If title exists, content is optional
     var hasValidId = n.id !== undefined && n.id !== null && n.id !== '';
 
-    return !hasRealTitle || !hasRealContent || !hasValidId;
+    var result = !hasRealTitle || !hasRealContent || !hasValidId;
+    if (result) {
+        console.log('isUntitledOrGarbage: rejected item id=', n.id, 'title=', t.substring(0, 30), 'hasRealTitle=', hasRealTitle, 'hasRealContent=', hasRealContent, 'hasValidId=', hasValidId);
+    }
+    return result;
 }
 
 // ── Data Initialization ──
@@ -178,6 +187,11 @@ async function initData() {
     adminCats = safeJSONParse('endless_categories', []);
 
     console.log('Loaded from localStorage - News:', adminNews.length, 'Ads:', adminAds.length, 'Cats:', adminCats.length);
+
+    // Log first item for debugging
+    if (adminNews.length > 0) {
+        console.log('First news item:', JSON.stringify(adminNews[0]).substring(0, 200));
+    }
 
     // Clean garbage posts
     var beforeNewsCount = adminNews.length;
@@ -532,6 +546,11 @@ function renderDashboard() {
 
 // ── News Table Renderer ──
 function renderNewsTable() {
+    console.log('>>> renderNewsTable called. adminNews.length =', adminNews.length);
+    if (adminNews.length > 0) {
+        console.log('>>> First item id:', adminNews[0].id, 'title:', (adminNews[0].title || '').substring(0, 30));
+    }
+
     var tbody = document.getElementById('news-table-body');
     var mobileCards = document.getElementById('news-mobile-cards');
     if (!tbody) {
@@ -545,6 +564,14 @@ function renderNewsTable() {
     var filtered = adminNews.filter(function(n) {
         return !isUntitledOrGarbage(n);
     });
+
+    console.log('>>> After filter, filtered.length =', filtered.length);
+
+    // DEBUG: If all filtered out, show raw data anyway
+    if (filtered.length === 0 && adminNews.length > 0) {
+        console.warn('>>> All items filtered out! Showing raw data. First item:', adminNews[0]);
+        filtered = adminNews; // Show everything
+    }
 
     if (search) {
         filtered = filtered.filter(function(n) {
@@ -642,7 +669,7 @@ function renderAdsTable() {
         } else {
             mobileCards.innerHTML = adminAds.map(function(a) {
                 var imgSrc = escapeHtml(a.image || '');
-                return '<div class="mobile-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin-bottom:1rem; ">' +
+                return '<div class="mobile-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin-bottom:1rem;">' +
                     '<div class="card-header" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">' +
                     '<img src="' + imgSrc + '" alt="" style="width:80px;height:50px;object-fit:cover;border-radius:4px;" onerror="this.style.display=' + "'none'" + '">' +
                     '<div class="card-title" style="font-weight:600;">' + escapeHtml(a.title_en || a.title || 'Untitled') + '</div></div>' +
@@ -758,7 +785,7 @@ function closeNewsModal() {
 
 function editNews(id) {
     var news = adminNews.find(function(n) {
-        return n.id == id;  // FIX: Loose comparison for string/number IDs
+        return n.id == id;
     });
     if (!news) {
         showToast('Article not found', 'error');
@@ -880,7 +907,7 @@ async function saveNewsItem() {
 
     if (editingNewsId) {
         var idx = adminNews.findIndex(function(n) {
-            return n.id == editingNewsId;  // FIX: Loose comparison
+            return n.id == editingNewsId;
         });
         if (idx !== -1) {
             adminNews[idx] = Object.assign({}, adminNews[idx], newsItem, { id: editingNewsId });
@@ -917,7 +944,7 @@ async function saveNewsItem() {
 async function deleteNews(id) {
     if (!confirm('Delete this article?')) return;
     adminNews = adminNews.filter(function(n) {
-        return n.id != id;  // FIX: Loose comparison
+        return n.id != id;
     });
     saveNews();
     updateCategoryCounts();
@@ -978,7 +1005,7 @@ function closeAdModal() {
 
 function editAd(id) {
     var ad = adminAds.find(function(a) {
-        return a.id == id;  // FIX: Loose comparison
+        return a.id == id;
     });
     if (!ad) {
         showToast('Ad not found', 'error');
@@ -1048,7 +1075,7 @@ async function saveAdItem() {
 
     if (editingAdId) {
         var idx = adminAds.findIndex(function(a) {
-            return a.id == editingAdId;  // FIX: Loose comparison
+            return a.id == editingAdId;
         });
         if (idx !== -1) {
             adminAds[idx] = Object.assign({}, adminAds[idx], adItem, { id: editingAdId });
@@ -1076,7 +1103,7 @@ async function saveAdItem() {
 async function deleteAd(id) {
     if (!confirm('Delete this ad?')) return;
     adminAds = adminAds.filter(function(a) {
-        return a.id != id;  // FIX: Loose comparison
+        return a.id != id;
     });
     saveAds();
 
