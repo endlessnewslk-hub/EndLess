@@ -151,40 +151,44 @@ function isUntitledOrGarbage(n) {
 async function initData() {
     if (dataInitialized) {
         console.log('initData: Already initialized, skipping');
-        return Promise.resolve();
+        return Promise.resolve(); // CRITICAL FIX: Return resolved promise
     }
-
     console.log('=== initData() starting ===');
 
-    // CRITICAL FIX: Load from localStorage first (for local testing)
-    // If empty, load defaults (for GitHub Pages)
-    var localNews = safeJSONParse('endless_news', []);
-    var localAds = safeJSONParse('endless_ads', []);
-    var localCats = safeJSONParse('endless_categories', []);
+    adminNews = safeJSONParse('endless_news', []);
+    adminAds = safeJSONParse('endless_ads', []);
+    adminCats = safeJSONParse('endless_categories', []);
 
-    // Use localStorage if available, otherwise defaults
-    if (localNews.length > 0) {
-        adminNews = localNews.filter(function(n) { return !isUntitledOrGarbage(n); });
-        console.log('Loaded from localStorage - News:', adminNews.length);
-    } else {
-        adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
+    console.log('Loaded from localStorage - News:', adminNews.length, 'Ads:', adminAds.length, 'Cats:', adminCats.length);
+
+    if (adminNews.length > 0) {
+        console.log('First news item:', JSON.stringify(adminNews[0]).substring(0, 200));
+    }
+
+    var beforeNewsCount = adminNews.length;
+    adminNews = adminNews.filter(function(n) {
+        return !isUntitledOrGarbage(n);
+    });
+    var removedLocal = beforeNewsCount - adminNews.length;
+    if (removedLocal > 0) {
+        saveNews();
+        console.log('Removed ' + removedLocal + ' garbage posts from localStorage');
+    }
+
+    if (adminNews.length === 0) {
         console.log('Loaded DEFAULT news data');
+        adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
+        saveNews();
     }
-
-    if (localAds.length > 0) {
-        adminAds = localAds;
-        console.log('Loaded from localStorage - Ads:', adminAds.length);
-    } else {
-        adminAds = JSON.parse(JSON.stringify(DEFAULT_ADS));
+    if (adminAds.length === 0) {
         console.log('Loaded DEFAULT ads data');
+        adminAds = JSON.parse(JSON.stringify(DEFAULT_ADS));
+        saveAds();
     }
-
-    if (localCats.length > 0) {
-        adminCats = localCats;
-        console.log('Loaded from localStorage - Cats:', adminCats.length);
-    } else {
-        adminCats = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+    if (adminCats.length === 0) {
         console.log('Loaded DEFAULT categories data');
+        adminCats = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+        saveCats();
     }
 
     updateCategoryCounts();
@@ -193,8 +197,10 @@ async function initData() {
         try {
             await syncFromFirebase();
         } catch (err) {
-            console.warn('Firebase sync failed:', err);
+            console.warn('Firebase sync failed, using localStorage:', err);
         }
+    } else {
+        console.log('No Firebase connection, using localStorage only');
     }
 
     var dashboard = document.getElementById('admin-dashboard');
@@ -206,11 +212,13 @@ async function initData() {
     console.log('Final data - News:', adminNews.length, 'Ads:', adminAds.length, 'Cats:', adminCats.length);
     console.log('=== initData() complete ===');
 
-    // CRITICAL FIX: Set flag and render AFTER data is ready
+    // CRITICAL FIX: Set dataInitialized ONLY after data is fully loaded
     dataInitialized = true;
+
+    // CRITICAL FIX: Always render current page after data is ready
     showPageContinue(currentPage);
 
-    return Promise.resolve();
+    return Promise.resolve(); // CRITICAL FIX: Always return promise
 }
 
 // ── Update Category Counts ──
@@ -268,11 +276,7 @@ async function syncFromFirebase() {
 }
 
 // ── Local Storage Save ──
-function saveNews() { 
-    localStorage.setItem('endless_news', JSON.stringify(adminNews)); 
-    // Also update adminNews from localStorage to keep in sync
-    adminNews = safeJSONParse('endless_news', adminNews);
-}
+function saveNews() { localStorage.setItem('endless_news', JSON.stringify(adminNews)); }
 function saveAds() { localStorage.setItem('endless_ads', JSON.stringify(adminAds)); }
 function saveCats() { localStorage.setItem('endless_categories', JSON.stringify(adminCats)); }
 
@@ -380,6 +384,9 @@ function switchNewsLang(lang) {
 }
 
 // ── HTML Escape ──
+
+
+// ── Dashboard Renderer ──
 function renderDashboard() {
     var cleanNews = adminNews.filter(function(n) { return !isUntitledOrGarbage(n); });
     var published = cleanNews.filter(function(n) { return n.status === 'published'; });
@@ -416,27 +423,28 @@ function renderDashboard() {
 function renderNewsTable() {
     console.log('>>> renderNewsTable called. adminNews.length =', adminNews.length);
     
-    // CRITICAL FIX: Reload if empty (GitHub Pages localStorage issue)
+    // CRITICAL FIX: Reload from localStorage if empty (GitHub Pages origin issue)
     if (adminNews.length === 0) {
-        console.log('>>> adminNews empty, reloading...');
+        console.log('>>> adminNews empty, reloading from localStorage...');
         var localNews = safeJSONParse('endless_news', []);
         if (localNews.length > 0) {
             adminNews = localNews.filter(function(n) { return !isUntitledOrGarbage(n); });
         } else {
+            console.log('>>> localStorage empty, loading DEFAULT_NEWS...');
             adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
+            saveNews();
         }
     }
     
     if (adminNews.length > 0) {
-        console.log('>>> First item id:', adminNews[0].id);
+        console.log('>>> First item id:', adminNews[0].id, 'title:', (adminNews[0].title || '').substring(0, 30));
     }
 
     var tbody = document.getElementById('news-table-body');
     var mobileCards = document.getElementById('news-mobile-cards');
     if (!tbody) {
         console.error('news-table-body not found');
-        return;
-    }
+        return;}
 
     var searchInput = document.getElementById('news-search');
     var search = searchInput ? searchInput.value.toLowerCase() : '';
@@ -662,7 +670,8 @@ function editNews(id) {
     });
     if (!news) {
         showToast('Article not found', 'error');
-        return;     }
+        return;
+    }
 
     editingNewsId = id;
     openNewsModal(true);
@@ -882,8 +891,7 @@ function openAdModal(isEdit) {
         if (adId) adId.value = '';
         if (titleTa) titleTa.value = '';
         if (titleEn) titleEn.value = '';
-        if (titleSi) titleSi.value = '';
-        if (link) link.value = '';
+        if (titleSi) titleSi.value = '';    if (link) link.value = '';
         if (position) position.value = 'header';
         if (image) image.value = '';
         if (imagePreview) imagePreview.style.display = 'none';
