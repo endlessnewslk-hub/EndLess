@@ -151,7 +151,7 @@ function isUntitledOrGarbage(n) {
 async function initData() {
     if (dataInitialized) {
         console.log('initData: Already initialized, skipping');
-        return;
+        return Promise.resolve(); // CRITICAL FIX: Return resolved promise
     }
     dataInitialized = true;
 
@@ -201,6 +201,8 @@ async function initData() {
         } catch (err) {
             console.warn('Firebase sync failed, using localStorage:', err);
         }
+    } else {
+        console.log('No Firebase connection, using localStorage only');
     }
 
     var dashboard = document.getElementById('admin-dashboard');
@@ -212,10 +214,10 @@ async function initData() {
     console.log('Final data - News:', adminNews.length, 'Ads:', adminAds.length, 'Cats:', adminCats.length);
     console.log('=== initData() complete ===');
 
-    if (currentPage === 'news') renderNewsTable();
-    else if (currentPage === 'ads') renderAdsTable();
-    else if (currentPage === 'categories') renderCategoriesTable();
-    else renderDashboard();
+    // CRITICAL FIX: Always render current page after data is ready
+    showPageContinue(currentPage);
+
+    return Promise.resolve(); // CRITICAL FIX: Always return promise
 }
 
 // ── Update Category Counts ──
@@ -319,22 +321,6 @@ function showPage(page) {
     console.log('showPage called:', page);
     currentPage = page;
     
-    // CRITICAL FIX: Wait for data initialization before showing page
-    if (!dataInitialized) {
-        console.log('Data not initialized yet, initializing now...');
-        initData().then(function() {
-            showPageContinue(page);
-        }).catch(function() {
-            // Even if Firebase fails, continue with localStorage data
-            showPageContinue(page);
-        });
-        return;
-    }
-    
-    showPageContinue(page);
-}
-
-function showPageContinue(page) {
     document.querySelectorAll('.page-content').forEach(function(p) { p.classList.add('hidden'); });
     var targetPage = document.getElementById('page-' + page);
     if (targetPage) {
