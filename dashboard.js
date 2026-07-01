@@ -276,7 +276,9 @@ async function syncFromFirebase() {
 }
 
 // ── Local Storage Save ──
-function saveNews() { localStorage.setItem('endless_news', JSON.stringify(adminNews)); }
+function saveNews() { 
+    localStorage.setItem('endless_news', JSON.stringify(adminNews)); 
+}
 function saveAds() { localStorage.setItem('endless_ads', JSON.stringify(adminAds)); }
 function saveCats() { localStorage.setItem('endless_categories', JSON.stringify(adminCats)); }
 
@@ -385,6 +387,12 @@ function switchNewsLang(lang) {
 
 // ── HTML Escape ──
 
+function escapeHtml(text) {
+    if (!text) return '';
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
 // ── Dashboard Renderer ──
 function renderDashboard() {
@@ -440,11 +448,12 @@ function renderNewsTable() {
         console.log('>>> First item id:', adminNews[0].id, 'title:', (adminNews[0].title || '').substring(0, 30));
     }
 
-    var tbody = document.getElementById('news-table-body');
+       var tbody = document.getElementById('news-table-body');
     var mobileCards = document.getElementById('news-mobile-cards');
-    if (!tbody) {
+    if (!tbody && !mobileCards) {
         console.error('news-table-body not found');
-        return;}
+        return;
+    }
 
     var searchInput = document.getElementById('news-search');
     var search = searchInput ? searchInput.value.toLowerCase() : '';
@@ -1332,10 +1341,3 @@ document.addEventListener('DOMContentLoaded', function() {
         renderNewsTable();
     }
 });
-
-function escapeHtml(text) {
-    if (!text) return '';
-    var div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
