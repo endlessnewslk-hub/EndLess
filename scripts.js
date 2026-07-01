@@ -442,7 +442,7 @@ if (cleanedNews.length < rawNews.length) {
     console.log('Auto-removed ' + (rawNews.length - cleanedNews.length) + ' garbage post(s)');
 }
 
-let newsData = cleanedNews.length > 0 ? cleanedNews : DEFAULT_NEWS;
+window.newsData = cleanedNews.length > 0 ? cleanedNews : DEFAULT_NEWS;
 let adsData = JSON.parse(localStorage.getItem('endless_ads')) || DEFAULT_ADS;
 let categoriesData = JSON.parse(localStorage.getItem('endless_categories')) || DEFAULT_CATEGORIES;
 let currentFilter = 'All';
