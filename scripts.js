@@ -359,7 +359,9 @@ function getNewsFromStorage() {
     var data = localStorage.getItem('endless_news');
     if (data) {
         try {
-            return JSON.parse(data);
+            var parsed = JSON.parse(data);
+            console.log('Loaded', parsed.length, 'articles from localStorage');
+            return parsed;
         } catch(e) {
             console.warn('Failed to parse news from localStorage');
         }
@@ -413,6 +415,12 @@ function escapeHtml(text) {
 
 /* ─── RENDER FUNCTIONS ─── */
 function renderHero() {
+    // CRITICAL FIX: Reload from localStorage to get latest data
+    var localNews = getNewsFromStorage();
+    if (localNews && localNews.length > 0) {
+        newsData = localNews.filter(function(n) { return !isGarbagePost(n); });
+    }
+    
     const featured = newsData.filter(n => n.featured && n.status === 'published' && !isGarbagePost(n)).slice(0, 3);
     if (featured.length === 0) return;
 
@@ -447,6 +455,12 @@ function renderHero() {
 }
 
 function renderFeed() {
+    // CRITICAL FIX: Reload from localStorage every time to get latest data
+    var localNews = getNewsFromStorage();
+    if (localNews && localNews.length > 0) {
+        newsData = localNews.filter(function(n) { return !isGarbagePost(n); });
+    }
+    
     // STRICT: Filter out garbage posts before rendering
     let filtered = newsData.filter(n => n.status === 'published' && !isGarbagePost(n));
 
@@ -507,6 +521,12 @@ function renderFeed() {
 }
 
 function renderTrending() {
+    // CRITICAL FIX: Reload from localStorage to get latest data
+    var localNews = getNewsFromStorage();
+    if (localNews && localNews.length > 0) {
+        newsData = localNews.filter(function(n) { return !isGarbagePost(n); });
+    }
+    
     const trending = newsData.filter(n => n.trending && n.status === 'published' && !isGarbagePost(n)).slice(0, 5);
     const list = document.getElementById('trending-list');
     if (!list) return;
@@ -580,6 +600,12 @@ function renderAds() {
 }
 
 function renderTicker() {
+    // CRITICAL FIX: Reload from localStorage to get latest data
+    var localNews = getNewsFromStorage();
+    if (localNews && localNews.length > 0) {
+        newsData = localNews.filter(function(n) { return !isGarbagePost(n); });
+    }
+    
     const breaking = newsData.filter(n => n.status === 'published' && !isGarbagePost(n)).slice(0, 8);
     const ticker = document.getElementById('ticker-content');
     if (!ticker) return;
@@ -591,6 +617,12 @@ function renderTicker() {
 
 /* ─── ARTICLE MODAL ─── */
 function openArticle(id) {
+    // CRITICAL FIX: Reload from localStorage to get latest data
+    var localNews = getNewsFromStorage();
+    if (localNews && localNews.length > 0) {
+        newsData = localNews.filter(function(n) { return !isGarbagePost(n); });
+    }
+    
     const article = newsData.find(n => n.id === id);
     if (!article || isGarbagePost(article)) return;
 
