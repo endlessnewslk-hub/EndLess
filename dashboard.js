@@ -151,44 +151,40 @@ function isUntitledOrGarbage(n) {
 async function initData() {
     if (dataInitialized) {
         console.log('initData: Already initialized, skipping');
-        return Promise.resolve(); // CRITICAL FIX: Return resolved promise
+        return Promise.resolve();
     }
+
     console.log('=== initData() starting ===');
 
-    adminNews = safeJSONParse('endless_news', []);
-    adminAds = safeJSONParse('endless_ads', []);
-    adminCats = safeJSONParse('endless_categories', []);
+    // CRITICAL FIX: Load from localStorage first (for local testing)
+    // If empty, load defaults (for GitHub Pages)
+    var localNews = safeJSONParse('endless_news', []);
+    var localAds = safeJSONParse('endless_ads', []);
+    var localCats = safeJSONParse('endless_categories', []);
 
-    console.log('Loaded from localStorage - News:', adminNews.length, 'Ads:', adminAds.length, 'Cats:', adminCats.length);
-
-    if (adminNews.length > 0) {
-        console.log('First news item:', JSON.stringify(adminNews[0]).substring(0, 200));
-    }
-
-    var beforeNewsCount = adminNews.length;
-    adminNews = adminNews.filter(function(n) {
-        return !isUntitledOrGarbage(n);
-    });
-    var removedLocal = beforeNewsCount - adminNews.length;
-    if (removedLocal > 0) {
-        saveNews();
-        console.log('Removed ' + removedLocal + ' garbage posts from localStorage');
-    }
-
-    if (adminNews.length === 0) {
-        console.log('Loaded DEFAULT news data');
+    // Use localStorage if available, otherwise defaults
+    if (localNews.length > 0) {
+        adminNews = localNews.filter(function(n) { return !isUntitledOrGarbage(n); });
+        console.log('Loaded from localStorage - News:', adminNews.length);
+    } else {
         adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
-        saveNews();
+        console.log('Loaded DEFAULT news data');
     }
-    if (adminAds.length === 0) {
-        console.log('Loaded DEFAULT ads data');
+
+    if (localAds.length > 0) {
+        adminAds = localAds;
+        console.log('Loaded from localStorage - Ads:', adminAds.length);
+    } else {
         adminAds = JSON.parse(JSON.stringify(DEFAULT_ADS));
-        saveAds();
+        console.log('Loaded DEFAULT ads data');
     }
-    if (adminCats.length === 0) {
-        console.log('Loaded DEFAULT categories data');
+
+    if (localCats.length > 0) {
+        adminCats = localCats;
+        console.log('Loaded from localStorage - Cats:', adminCats.length);
+    } else {
         adminCats = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
-        saveCats();
+        console.log('Loaded DEFAULT categories data');
     }
 
     updateCategoryCounts();
@@ -197,10 +193,8 @@ async function initData() {
         try {
             await syncFromFirebase();
         } catch (err) {
-            console.warn('Firebase sync failed, using localStorage:', err);
+            console.warn('Firebase sync failed:', err);
         }
-    } else {
-        console.log('No Firebase connection, using localStorage only');
     }
 
     var dashboard = document.getElementById('admin-dashboard');
@@ -212,13 +206,11 @@ async function initData() {
     console.log('Final data - News:', adminNews.length, 'Ads:', adminAds.length, 'Cats:', adminCats.length);
     console.log('=== initData() complete ===');
 
-    // CRITICAL FIX: Set dataInitialized ONLY after data is fully loaded
+    // CRITICAL FIX: Set flag and render AFTER data is ready
     dataInitialized = true;
-
-    // CRITICAL FIX: Always render current page after data is ready
     showPageContinue(currentPage);
 
-    return Promise.resolve(); // CRITICAL FIX: Always return promise
+    return Promise.resolve();
 }
 
 // ── Update Category Counts ──
@@ -276,7 +268,11 @@ async function syncFromFirebase() {
 }
 
 // ── Local Storage Save ──
-function saveNews() { localStorage.setItem('endless_news', JSON.stringify(adminNews)); }
+function saveNews() { 
+    localStorage.setItem('endless_news', JSON.stringify(adminNews)); 
+    // Also update adminNews from localStorage to keep in sync
+    adminNews = safeJSONParse('endless_news', adminNews);
+}
 function saveAds() { localStorage.setItem('endless_ads', JSON.stringify(adminAds)); }
 function saveCats() { localStorage.setItem('endless_categories', JSON.stringify(adminCats)); }
 
@@ -420,19 +416,19 @@ function renderDashboard() {
 function renderNewsTable() {
     console.log('>>> renderNewsTable called. adminNews.length =', adminNews.length);
     
-    // CRITICAL FIX: Reload from localStorage if empty (GitHub Pages origin issue)
+    // CRITICAL FIX: Reload if empty (GitHub Pages localStorage issue)
     if (adminNews.length === 0) {
-        console.log('>>> adminNews empty, reloading from localStorage...');
-        adminNews = safeJSONParse('endless_news', []);
-    }
-    if (adminNews.length === 0) {
-        console.log('>>> localStorage empty, loading DEFAULT_NEWS...');
-        adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
-        saveNews();
+        console.log('>>> adminNews empty, reloading...');
+        var localNews = safeJSONParse('endless_news', []);
+        if (localNews.length > 0) {
+            adminNews = localNews.filter(function(n) { return !isUntitledOrGarbage(n); });
+        } else {
+            adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
+        }
     }
     
     if (adminNews.length > 0) {
-        console.log('>>> First item id:', adminNews[0].id, 'title:', (adminNews[0].title || '').substring(0, 30));
+        console.log('>>> First item id:', adminNews[0].id);
     }
 
     var tbody = document.getElementById('news-table-body');
