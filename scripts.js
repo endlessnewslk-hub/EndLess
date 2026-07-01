@@ -1,3 +1,69 @@
+// ── Firebase Configuration (Same as dashboard) ──
+const firebaseConfig = {
+    apiKey: "AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA",
+    authDomain: "endless-news.firebaseapp.com",
+    projectId: "endless-news",
+    storageBucket: "endless-news.firebasestorage.app",
+    messagingSenderId: "363216005373",
+    appId: "1:363216005373:web:143fb950fb04dfc1cb7694"
+};
+
+// Initialize Firebase
+let db = null;
+try {
+    if (typeof firebase !== 'undefined') {
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        db = firebase.firestore();
+        console.log('Firebase connected in index.js');
+    }
+} catch (err) {
+    console.error('Firebase init error in index.js:', err);
+}
+
+// ── Load Data from Firebase or localStorage ──
+async function loadAllNewsData() {
+    var localData = getNewsFromStorage();
+    
+    // If localStorage has data, use it
+    if (localData && localData.length > 0) {
+        console.log('Using localStorage data:', localData.length, 'articles');
+        newsData = localData.filter(function(n) { return !isGarbagePost(n); });
+        return;
+    }
+    
+    // If no localStorage, try Firebase
+    if (db) {
+        try {
+            var snapshot = await db.collection('news').get({ source: 'server' });
+            if (!snapshot.empty) {
+                var firebaseNews = [];
+                snapshot.docs.forEach(function(doc) {
+                    var data = doc.data();
+                    data.id = doc.id;
+                    if (!isGarbagePost(data)) firebaseNews.push(data);
+                });
+                
+                if (firebaseNews.length > 0) {
+                    console.log('Using Firebase data:', firebaseNews.length, 'articles');
+                    newsData = firebaseNews;
+                    // Save to localStorage for next time
+                    localStorage.setItem('endless_news', JSON.stringify(newsData));
+                    return;
+                }
+            }
+        } catch (err) {
+            console.warn('Firebase load failed:', err);
+        }
+    }
+    
+    // Fallback to default news
+    console.log('Using DEFAULT news data');
+    newsData = DEFAULT_NEWS;
+}
+
+
 /* ═══════════════════════════════════════
    ENDLESS — MAIN WEBSITE LOGIC
    MOBILE-FIRST OPTIMIZED
@@ -831,7 +897,9 @@ function initLazyLoading() {
 }
 
 /* ─── INIT ─── */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // CRITICAL FIX: Sync from Firebase first (for mobile/GitHub Pages)
+    await syncFromFirebase();
     // Set current year
     const yearEl = document.getElementById('year');
     if (yearEl) yearEl.textContent = new Date().getFullYear();
