@@ -60,6 +60,9 @@ const DEFAULT_NEWS = [
         title: "Global Markets Rally as Inflation Data Shows Unexpected Cooling",
         title_en: "Global Markets Rally as Inflation Data Shows Unexpected Cooling",
         title_si: "Global Markets Rally as Inflation Data Shows Unexpected Cooling",
+        excerpt: "Major indices hit record highs Thursday as consumer price reports suggest the worst of the economic squeeze may be over.",
+        excerpt_en: "Major indices hit record highs Thursday as consumer price reports suggest the worst of the economic squeeze may be over.",
+        excerpt_si: "Major indices hit record highs Thursday as consumer price reports suggest the worst of the economic squeeze may be over.",
         content: "<p>Major indices hit record highs Thursday as consumer price reports suggest the worst of the economic squeeze may be over.</p>",
         content_en: "<p>Major indices hit record highs Thursday as consumer price reports suggest the worst of the economic squeeze may be over.</p>",
         content_si: "<p>Major indices hit record highs Thursday as consumer price reports suggest the worst of the economic squeeze may be over.</p>",
@@ -315,11 +318,23 @@ function closeSidebar() {
 function showPage(page) {
     console.log('showPage called:', page);
     currentPage = page;
+    
+    // CRITICAL FIX: Wait for data initialization before showing page
     if (!dataInitialized) {
-        console.log('Data not initialized yet, waiting...');
-        setTimeout(function() { showPage(page); }, 300);
+        console.log('Data not initialized yet, initializing now...');
+        initData().then(function() {
+            showPageContinue(page);
+        }).catch(function() {
+            // Even if Firebase fails, continue with localStorage data
+            showPageContinue(page);
+        });
         return;
     }
+    
+    showPageContinue(page);
+}
+
+function showPageContinue(page) {
     document.querySelectorAll('.page-content').forEach(function(p) { p.classList.add('hidden'); });
     var targetPage = document.getElementById('page-' + page);
     if (targetPage) {
@@ -336,10 +351,13 @@ function showPage(page) {
     });
     var pageTitle = document.getElementById('page-title');
     if (pageTitle) pageTitle.textContent = page.charAt(0).toUpperCase() + page.slice(1);
+    
+    // CRITICAL FIX: Always render tables when showing page
     if (page === 'dashboard') renderDashboard();
     if (page === 'news') renderNewsTable();
     if (page === 'ads') renderAdsTable();
     if (page === 'categories') renderCategoriesTable();
+    
     if (window.innerWidth <= 768) closeSidebar();
     window.scrollTo(0, 0);
 }
@@ -355,6 +373,10 @@ function switchNewsLang(lang) {
     });
     document.querySelectorAll('.lang-textarea').forEach(function(ta) {
         ta.style.display = ta.id.endsWith('-' + lang) ? 'block' : 'none';
+    });
+    // Also handle excerpt textareas
+    document.querySelectorAll('.lang-excerpt').forEach(function(ex) {
+        ex.style.display = ex.id.endsWith('-' + lang) ? 'block' : 'none';
     });
 }
 
@@ -593,11 +615,13 @@ function openNewsModal(isEdit) {
         var newsIdInput = document.getElementById('news-id');
         if (newsIdInput) newsIdInput.value = '';
 
-        ['ta', 'en', 'si'].forEach(function(lang) {
+               ['ta', 'en', 'si'].forEach(function(lang) {
             var titleInp = document.getElementById('news-title-' + lang);
+            var excerptInp = document.getElementById('news-excerpt-' + lang);
             var authorInp = document.getElementById('news-author-' + lang);
             var contentTa = document.getElementById('news-content-' + lang);
             if (titleInp) titleInp.value = '';
+            if (excerptInp) excerptInp.value = '';
             if (authorInp) authorInp.value = '';
             if (contentTa) contentTa.value = '';
         });
@@ -647,8 +671,9 @@ function editNews(id) {
     if (newsIdInput) newsIdInput.value = news.id;
     if (catSelect) catSelect.value = news.category_en || news.category || '';
 
-    var fields = {
+        var fields = {
         'news-title': ['title', 'title_en', 'title_si'],
+        'news-excerpt': ['excerpt', 'excerpt_en', 'excerpt_si'],
         'news-author': ['author', 'author_en', 'author_si'],
         'news-content': ['content', 'content_en', 'content_si']
     };
@@ -691,6 +716,10 @@ async function saveNewsItem() {
         return c.name_en === category;
     });
 
+    var excerpt_ta_el = document.getElementById('news-excerpt-ta');
+    var excerpt_en_el = document.getElementById('news-excerpt-en');
+    var excerpt_si_el = document.getElementById('news-excerpt-si');
+
     var title_ta_el = document.getElementById('news-title-ta');
     var title_en_el = document.getElementById('news-title-en');
     var title_si_el = document.getElementById('news-title-si');
@@ -723,6 +752,14 @@ async function saveNewsItem() {
     var trending = trending_el ? trending_el.checked : false;
     var status = status_el ? (status_el.checked ? 'published' : 'draft') : 'draft';
 
+    var title_ta = title_ta_el ? title_ta_el.value.trim() : '';
+    var title_en = title_en_el ? title_en_el.value.trim() : '';
+    var title_si = title_si_el ? title_si_el.value.trim() : '';
+
+    var excerpt_ta = excerpt_ta_el ? excerpt_ta_el.value.trim() : '';
+    var excerpt_en = excerpt_en_el ? excerpt_en_el.value.trim() : '';
+    var excerpt_si = excerpt_si_el ? excerpt_si_el.value.trim() : '';
+
     if (!title_ta || !category || !author_ta || !content_ta) {
         showToast('Please fill all required Tamil fields', 'error');
         switchNewsLang('ta');
@@ -734,6 +771,11 @@ async function saveNewsItem() {
         title: title_ta,
         title_en: title_en || title_ta,
  title_si: title_si || title_ta,
+
+        excerpt: excerpt_ta,
+        excerpt_en: excerpt_en || excerpt_ta,
+        excerpt_si: excerpt_si || excerpt_ta,
+
         content: content_ta,
         content_en: content_en || content_ta,
         content_si: content_si || content_ta,
@@ -749,6 +791,7 @@ async function saveNewsItem() {
         featured: featured,
         trending: trending,
         status: status
+
     };
 
     if (editingNewsId) {
@@ -765,12 +808,14 @@ async function saveNewsItem() {
     saveNews();
     updateCategoryCounts();
 
-    if (db) {
+       if (db) {
         try {
-            await db.collection('news').doc(String(newsItem.id)).set(newsItem);
+            await syncFromFirebase();
         } catch (err) {
-            console.warn('Firebase sync failed:', err);
+            console.warn('Firebase sync failed, using localStorage:', err);
         }
+    } else {
+        console.log('No Firebase connection, using localStorage only');
     }
 
     closeNewsModal();
@@ -1269,5 +1314,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }, { passive: true });
     }
 
+    // CRITICAL FIX: Render dashboard immediately after init
     renderDashboard();
+    
+    // CRITICAL FIX: If current page is news, render it too
+    if (currentPage === 'news') {
+        renderNewsTable();
+    }
 });

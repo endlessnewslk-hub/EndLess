@@ -302,12 +302,22 @@
                     <button type="button" class="lang-tab" data-lang="si">සිංහල</button>
                 </div>
 
-                <div class="form-group">
+                                <div class="form-group">
                     <label>Headline (Title) *</label>
                     <input type="text" id="news-title-ta" class="lang-input active" placeholder="தலைப்பை உள்ளிடவும்...">
                     <input type="text" id="news-title-en" class="lang-input" placeholder="Enter headline..." style="display:none;">
                     <input type="text" id="news-title-si" class="lang-input" placeholder="මාතෘකාව ඇතුළත් කරන්න..." style="display:none;">
                 </div>
+                
+                <!-- NEW: Excerpt Field -->
+                <div class="form-group">
+                    <label>Short Excerpt / Summary *</label>
+                    <textarea id="news-excerpt-ta" class="lang-excerpt active" rows="3" placeholder="செய்தியின் சுருக்கமான விளக்கத்தை இங்கே எழுதவும்... (2-3 வரிகள்)"></textarea>
+                    <textarea id="news-excerpt-en" class="lang-excerpt" rows="3" placeholder="Write a short summary/excerpt here... (2-3 lines)" style="display:none;"></textarea>
+                    <textarea id="news-excerpt-si" class="lang-excerpt" rows="3" placeholder="කෙටි සාරාංශය මෙහි ලියන්න... (පේළි 2-3)" style="display:none;"></textarea>
+                    <small style="color: #9ca3af; font-size: 0.8rem;">This short summary will appear on the homepage cards and social share previews.</small>
+                </div>
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>Category *</label>

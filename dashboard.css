@@ -985,3 +985,30 @@ body {
     .page-content { padding-bottom: 1rem; }
     .admin-sidebar .sidebar-nav { padding-bottom: 1rem; }
 }
+
+/* Excerpt Textarea Styles */
+.lang-excerpt {
+    width: 100%;
+    padding: 0.65rem 0.875rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 1rem;
+    color: #111827;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: inherit;
+    min-height: 80px;
+    resize: vertical;
+}
+
+.lang-excerpt:focus {
+    border-color: var(--admin-primary);
+}
+
+.lang-excerpt.active {
+    display: block;
+}
+
+.lang-excerpt:not(.active) {
+    display: none;
+}
