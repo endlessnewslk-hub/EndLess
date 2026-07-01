@@ -321,6 +321,22 @@ function showPage(page) {
     console.log('showPage called:', page);
     currentPage = page;
     
+    // CRITICAL FIX: Wait for data initialization before showing page
+    if (!dataInitialized) {
+        console.log('Data not initialized yet, initializing now...');
+        initData().then(function() {
+            showPageContinue(page);
+        }).catch(function() {
+            // Even if Firebase fails, continue with localStorage data
+            showPageContinue(page);
+        });
+        return;
+    }
+    
+    showPageContinue(page);
+}
+
+function showPageContinue(page) {
     document.querySelectorAll('.page-content').forEach(function(p) { p.classList.add('hidden'); });
     var targetPage = document.getElementById('page-' + page);
     if (targetPage) {
