@@ -725,6 +725,10 @@ function openArticle(id) {
                     <span>📅 ${new Date(article.date).toLocaleDateString()}</span>
                     <span>🏷️ ${escapeHtml(getLocalized(article, 'category'))}</span>
                 </div>
+                <div style="display:flex; gap:0.5rem; margin:1rem 0; flex-wrap:wrap;">
+                    <button onclick="editArticleFromWeb(${article.id})" style="padding:0.5rem 1rem; background:#3b82f6; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:600;">✏️ Edit Post</button>
+                    <button onclick="shareArticleWeb(${article.id})" style="padding:0.5rem 1rem; background:#dc2626; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:600;">📤 Share</button>
+                </div>
                 <div class="article-text">
                     ${processedContent}
                 </div>
@@ -758,6 +762,21 @@ function closeModal() {
     // Remove touch listeners
     modal.removeEventListener('touchstart', handleTouchStart);
     modal.removeEventListener('touchend', handleTouchEnd);
+}
+
+// ── Edit article from main website ──
+function editArticleFromWeb(id) {
+    // Save the article ID to localStorage for admin panel to pick up
+    localStorage.setItem('edit_article_id', String(id));
+    // Redirect to admin panel
+    window.location.href = 'dashboard.html?edit=' + id;
+}
+
+// ── Share article from modal ──
+function shareArticleWeb(id) {
+    if (typeof openShareOverlay === 'function') {
+        openShareOverlay(id);
+    }
 }
 
 function handleTouchStart(e) {

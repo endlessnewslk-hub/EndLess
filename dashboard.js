@@ -263,6 +263,23 @@ async function initData() {
     // CRITICAL FIX: Always render current page after data is ready
     showPageContinue(currentPage);
 
+    // ── CHECK FOR EDIT PARAMETER (article edit from main website) ──
+    var urlParams = new URLSearchParams(window.location.search);
+    var editId = urlParams.get('edit') || localStorage.getItem('edit_article_id');
+    if (editId) {
+        console.log('Auto-opening article for edit:', editId);
+        // Navigate to news page and open edit modal
+        currentPage = 'news';
+        showPageContinue('news');
+        setTimeout(function() {
+            editNews(parseInt(editId));
+        }, 500);
+        // Clear the localStorage flag
+        localStorage.removeItem('edit_article_id');
+        // Update URL to remove parameter
+        window.history.replaceState({}, document.title, 'dashboard.html');
+    }
+
     return Promise.resolve(); // CRITICAL FIX: Always return promise
 }
 
