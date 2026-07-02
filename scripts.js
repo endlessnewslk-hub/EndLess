@@ -1,4 +1,4 @@
-// Firebase Configuration (Same as dashboard)
+// Firebase Configuration
 const firebaseConfig = {
     apiKey: "AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA",
     authDomain: "endless-news.firebaseapp.com",
@@ -16,49 +16,10 @@ try {
             firebase.initializeApp(firebaseConfig);
         }
         db = firebase.firestore();
-        console.log('Firebase connected in index.js');
+        console.log('Firebase connected');
     }
 } catch (err) {
-    console.error('Firebase init error in index.js:', err);
-}
-
-// Load Data from Firebase or localStorage
-async function syncFromFirebase() {
-    if (!db) {
-        console.log('No Firebase connection, using localStorage/default data.');
-        window.newsData = getNewsFromStorage() || DEFAULT_NEWS;
-        return;
-    }
-    try {
-        const newsSnapshot = await db.collection('news').get({ source: 'server' });
-        let firebaseNews = [];
-        if (!newsSnapshot.empty) {
-            newsSnapshot.docs.forEach(doc => {
-                const data = doc.data();
-                data.id = doc.id;
-                if (!isGarbagePost(data)) {
-                    firebaseNews.push(data);
-                }
-            });
-        }
-
-        if (firebaseNews.length > 0) {
-            window.newsData = firebaseNews;
-            localStorage.setItem('endless_news', JSON.stringify(window.newsData));
-            console.log(`Synced ${window.newsData.length} articles from Firebase.`);
-        } else {
-            window.newsData = getNewsFromStorage() || DEFAULT_NEWS;
-            console.log('Firebase collection empty, using localStorage/default data.');
-        }
-
-    } catch (error) {
-        console.error('Firebase read error in scripts.js:', error);
-        window.newsData = getNewsFromStorage() || DEFAULT_NEWS;
-    }
-}
-
-async function loadAllNewsData() {
-    await syncFromFirebase();
+    console.error('Firebase init error:', err);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -86,6 +47,7 @@ const TRANSLATIONS = {
         published_on: "வெளியிடப்பட்டது", breaking_news: "உடனடி செய்திகள்",
         ad_label: "விளம்பரம்", search_results: "தேடல் முடிவுகள்",
         no_results: "எந்த செய்தியும் கிடைக்கவில்லை",
+        no_articles_yet: "இன்னும் செய்திகள் எதுவும் இல்லை. நிர்வாகி பேனலில் இருந்து கட்டுரைகளைப் பதிவு செய்யுங்கள்.",
         close: "மூடு", loading: "ஏற்றுகிறது...",
         share_article: "பகிர்",
         share_this_article: "இந்த கட்டுரையைப் பகிர்",
@@ -118,7 +80,9 @@ const TRANSLATIONS = {
         all_stories: "All Stories", read_more: "Read More", by_author: "By",
         published_on: "Published on", breaking_news: "Breaking News",
         ad_label: "Advertisement", search_results: "Search Results",
-        no_results: "No articles found", close: "Close", loading: "Loading...",
+        no_results: "No articles found",
+        no_articles_yet: "No articles yet. Please publish from the admin panel.",
+        close: "Close", loading: "Loading...",
         share_article: "Share",
         share_this_article: "Share this article",
         share_facebook: "Facebook",
@@ -151,7 +115,9 @@ const TRANSLATIONS = {
         read_more: "තවත් කියවන්න", by_author: "ලිපිගත කළේ",
         published_on: "ප්‍රකාශිත දිනය", breaking_news: "අලුත්ම පුවත්",
         ad_label: "දැන්වීම", search_results: "සෙවුම් ප්‍රතිඵල",
-        no_results: "ලිපි හමු නොවීය", close: "වසන්න", loading: "පූරණය වෙමින්...",
+        no_results: "ලිපි හමු නොවීය",
+        no_articles_yet: "තවම ලිපි නැත. කරුණාකර පරිපාලක පැනලයෙන් ප්‍රකාශයට පත් කරන්න.",
+        close: "වසන්න", loading: "පූරණය වෙමින්...",
         share_article: "බෙදාගන්න",
         share_this_article: "මෙම ලිපිය බෙදාගන්න",
         share_facebook: "ෆේස්බුක්",
@@ -171,208 +137,13 @@ const TRANSLATIONS = {
 let currentLang = localStorage.getItem('gd_language') || 'ta';
 let isMobile = window.innerWidth < 640;
 let touchStartY = 0;
+let isDataLoaded = false;
 
 const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
-function setLanguage(lang) {
-    currentLang = lang;
-    localStorage.setItem('gd_language', lang);
-    document.documentElement.lang = lang;
-    document.querySelectorAll('.lang-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.lang === lang);
-    });
-    document.querySelectorAll('[data-key]').forEach(el => {
-        const key = el.dataset.key;
-        if (TRANSLATIONS[lang][key]) {
-            if (el.tagName === 'INPUT' && el.placeholder) {
-                el.placeholder = TRANSLATIONS[lang][key];
-            } else {
-                const text = el.textContent;
-                const emojiMatch = text.match(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*/u);
-                const emoji = emojiMatch ? emojiMatch[0] : '';
-                el.textContent = emoji + TRANSLATIONS[lang][key];
-            }
-        }
-    });
-    renderFeed();
-    renderCategories();
-    renderTrending();
-    renderAds();
-    renderTicker();
-}
-
-const DEFAULT_NEWS = [
-    {
-        id: 1718764800001,
-        title: "உலக சந்தைகள் புதிய உச்சத்தை எட்டின",
-        title_en: "Global Markets Rally as Inflation Data Shows Unexpected Cooling",
-        title_si: "ලෝක වෙළඳපොළවල් උත්සාහයෙන් ඉහළට",
-        excerpt: "பணவீக்க தரவுகள் எதிர்பாராத குறைச்சியைக் காட்டுவதால் முக்கிய குறியீடுகள் புதிய உச்சங்களை எட்டின.",
-        excerpt_en: "Major indices hit record highs Thursday as consumer price reports suggest the worst of the economic squeeze may be over.",
-        excerpt_si: "පාරිභෝගික මිල වාර්තා තවත් ආර්ථික පීඩනය අවසන් වී ඇති බව සඳහන් කරයි.",
-        content: "<p>பணவீக்க தரவுகள் எதிர்பாராத குறைச்சியைக் காட்டுவதால் முக்கிய குறியீடுகள் புதிய உச்சங்களை எட்டின. Goldman Sachs ஆனலிஸ்டுகள் Q3 க்கு தங்கள் கணிப்பை மேம்படுத்தினர்.</p>",
-        content_en: "<p>Major indices hit record highs Thursday as consumer price reports suggest the worst of the economic squeeze may be over. Analysts at Goldman Sachs upgraded their outlook for Q3.</p>",
-        content_si: "<p>පාරිභෝගික මිල වාර්තා තවත් ආර්ථික පීඩනය අවසන් වී ඇති බව සඳහන් කරයි. Goldman Sachs විශ්ලේෂකයන් Q3 සඳහා ඔවුන්ගේ දෘෂ්ටිවාදය උත්ශ්‍රේණි කළහ.</p>",
-        category: "வணிகம்", category_en: "Business", category_si: "ව්‍යාපාර",
-        author: "எலினா ரோஸ்டோவா", author_en: "Elena Rostova", author_si: "එලීනා රෝස්ටෝවා",
-        date: new Date(Date.now() - 3600000 * 2).toISOString(),
-        image: "https://images.unsplash.com/photo-1611974765270-ca1258634369?w=800&auto=format&fit=crop",
-        video: "", featured: true, trending: true, status: "published"
-    },
-    {
-        id: 1718764800002,
-        title: "SpaceX அடுத்த தலைமுறை செயற்கைக்கோள்களை வெற்றிகரமாக ஏவியது",
-        title_en: "SpaceX Launches Next-Gen Satellite Constellation",
-        title_si: "SpaceX ඊළඟ පරම්පරා චන්ද්‍රිකා යෙවීම",
-        excerpt: "Falcon Heavy 24 முன்னணி தகவல்தொடர்பு செயற்கைக்கோள்களை சுற்றுப்பாதையில் ஏவியது.",
-        excerpt_en: "The Falcon Heavy carried 24 advanced communications satellites into orbit, promising global high-speed internet coverage.",
-        excerpt_si: "Falcon Heavy චන්ද්‍රිකා 24ක් කක්ෂයට රැගෙන ගියේය.",
-        content: "<p>Falcon Heavy 24 முன்னணி தகவல்தொடர்பு செயற்கைக்கோள்களை சுற்றுப்பாதையில் ஏவியது. இந்த செயற்கைக்கோள்கள் லேசர் இணைப்புகளைக் கொண்டுள்ளன.</p>",
-        content_en: "<p>The Falcon Heavy carried 24 advanced communications satellites into orbit. Each satellite is equipped with laser interlinks that allow data to travel at the speed of light.</p>",
-        content_si: "<p>Falcon Heavy චන්ද්‍රිකා 24ක් කක්ෂයට රැගෙන ගියේය. එකි එක චන්ද්‍රිකාව ලේසර් අන්තර්සම්බන්ධතා සහිතව ඇත.</p>",
-        category: "அறிவியல்", category_en: "Science", category_si: "විද්‍යාව",
-        author: "ஜேம்ஸ் சென்", author_en: "James Chen", author_si: "ජේම්ස් චෙන්",
-        date: new Date(Date.now() - 3600000 * 5).toISOString(),
-        image: "https://images.unsplash.com/photo-1517976487492-5750f3195933?w=800&auto=format&fit=crop",
-        video: "", featured: true, trending: false, status: "published"
-    },
-    {
-        id: 1718764800003,
-        title: "AI பாதுகாப்பு ஒப்பந்தம் கையெழுத்தானது",
-        title_en: "AI Safety Pact Signed by Leading Tech Giants",
-        title_si: "AI ආරක්ෂක ගිවිසුම අත්සන් කර ඇත",
-        excerpt: "Microsoft, Google, OpenAI புதிய வெளிப்படைத்தன்மை தரநிலைகளுக்கு ஒப்புக்கொண்டன.",
-        excerpt_en: "Microsoft, Google, and OpenAI agree to new transparency standards and third-party auditing for large language models.",
-        excerpt_si: "Microsoft, Google, OpenAI නව පාරදුශ්‍යතා සම්මතවලට එකඟ විය.",
-        content: "<p>Microsoft, Google, OpenAI புதிய வெளிப்படைத்தன்மை தரநிலைகளுக்கு ஒப்புக்கொண்டன. இந்த தன்னார்வ ஒப்பந்தம் AI உருவாக்கப்பட்ட உள்ளடக்கத்திற்கு வாட்டர்மார்க்கிங் அமைக்கிறது.</p>",
-        content_en: "<p>Microsoft, Google, and OpenAI agree to new transparency standards. The voluntary pact sets benchmarks for watermarking AI-generated content.</p>",
-        content_si: "<p>Microsoft, Google, OpenAI නව පාරදුශ්‍යතා සම්මතවලට එකඟ විය. මෙම ස්වෙච්ඡා ගිවිසුම AI-ජනිත අන්තර්ගතයට වාටර්මාර්ක් කිරීමේ පදනම සකසයි.</p>",
-        category: "தொழில்நுட்பம்", category_en: "Technology", category_si: "තාක්ෂණය",
-        author: "சாரா மில்லர்", author_en: "Sarah Miller", author_si: "සාරා මිලර්",
-        date: new Date(Date.now() - 3600000 * 8).toISOString(),
-        image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&auto=format&fit=crop",
-        video: "", featured: false, trending: true, status: "published"
-    },
-    {
-        id: 1718764800004,
-        title: "UN உச்சிமாநாட்டில் வரலாற்று சுற்றுச்சூழல் ஒப்பந்தம்",
-        title_en: "Historic Climate Agreement Reached at UN Summit",
-        title_si: "UN සමුළුවේදී ඓතිහාසික දේශගුණ ගිවිසුමක්",
-        excerpt: "நாடுகள் 2030க்கான கட்டாய கார்பன் குறைப்பு இலக்குகளை ஏற்றுக்கொண்டன.",
-        excerpt_en: "Nations commit to binding carbon reduction targets for 2030, with a new fund for developing nations.",
-        excerpt_si: "රටවල් 2030 සඳහා බැඳීම් කාබන් අඩුකිරීමේ ඉලක්කවලට කැපවී ඇත.",
-        content: "<p>நாடுகள் 2030க்கான கட்டாய கார்பன் குறைப்பு இலக்குகளை ஏற்றுக்கொண்டன. $100 பில்லியன் ஆண்டு காலநிலை நிதி தொகுப்பு வளரும் நாடுகளுக்கு ஆதரவளிக்கும்.</p>",
-        content_en: "<p>Nations commit to binding carbon reduction targets for 2030. The $100 billion annual climate finance package will support renewable energy transitions in developing nations.</p>",
-        content_si: "<p>රටවල් 2030 සඳහා බැඳීම් කාබන් අඩුකිරීමේ ඉලක්කවලට කැපවී ඇත. බිලියන 100ක වාර්ෂික දේශගුණ මූල්‍ය පැකේජය සංවර්ධනය වෙමින් පවතින රටවලට සහාය වේ.</p>",
-        category: "உலகம்", category_en: "World", category_si: "ලෝකය",
-        author: "டேவிட் ஓகோன்க்வோ", author_en: "David Okonkwo", author_si: "ඩේවිඩ් ඔකොන්ක්වෝ",
-        date: new Date(Date.now() - 3600000 * 12).toISOString(),
-        image: "https://images.unsplash.com/photo-1569163139599-0f4517e36f51?w=800&auto=format&fit=crop",
-        video: "", featured: false, trending: true, status: "published"
-    },
-    {
-        id: 1718764800005,
-        title: "புரட்சிகரமான பேட்டரி தொழில்நுட்பம் EV வரம்பை மடங்காக்குகிறது",
-        title_en: "Revolutionary Battery Tech Triples EV Range",
-        title_si: "විප්ලවීය බැටරි තාක්ෂණය EV පරාසය තෙගුණු කරයි",
-        excerpt: "MIT ஆராய்ச்சியாளர்கள் EV பயனின்மையை நீக்கும் திண்மநிலை பேட்டரி முன்மாதிரியை அறிமுகப்படுத்தினர்.",
-        excerpt_en: "Researchers at MIT unveil a solid-state battery prototype that could eliminate range anxiety for electric vehicles.",
-        excerpt_si: "MIT පර්යේෂකයන් විද්‍යුත් වාහනවලට පරාස ආතතිය ඉවත් කළ හැකි ඝන තත්ත්ව බැටරි මුල් ආදර්ශය හෙළිදරව් කළහ.",
-        content: "<p>MIT ஆராய்ச்சியாளர்கள் EV பயனின்மையை நீக்கும் திண்மநிலை பேட்டரி முன்மாதிரியை அறிமுகப்படுத்தினர். இது 1,200 Wh/L ஆற்றல் அடர்த்தியை அடைகிறது.</p>",
-        content_en: "<p>Researchers at MIT unveil a solid-state battery prototype. The lithium-metal design achieves 1,200 Wh/L energy density, roughly three times that of current Tesla batteries.</p>",
-        content_si: "<p>MIT පර්යේෂකයන් ඝන තත්ත්ව බැටරි මුල් ආදර්ශය හෙළිදරව් කළහ. ලිතියම්-ලෝහ නිර්මාණය 1,200 Wh/L බලශක්ති ඝනත්වයට ළඟා වේ.</p>",
-        category: "தொழில்நுட்பம்", category_en: "Technology", category_si: "තාක්ෂණය",
-        author: "பிரியா படேல்", author_en: "Priya Patel", author_si: "ප්‍රියා පටෙල්",
-        date: new Date(Date.now() - 3600000 * 14).toISOString(),
-        image: "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?w=800&auto=format&fit=crop",
-        video: "", featured: false, trending: false, status: "published"
-    },
-    {
-        id: 1718764800006,
-        title: "ஒலிம்பிக் 2026: நிலையான மைதானங்கள் அறிமுகம்",
-        title_en: "Olympics 2026: Sustainable Stadiums Unveiled",
-        title_si: "ඔලිම්පික් 2026: තිරසාර ක්‍රීඩාංගණ හෙළිදරව් විය",
-        excerpt: "மிலான்-கோர்டினா குழு முழுக்க முழுக்க புதுப்பிக்கத்தக்க ஆற்றல் மூலங்களால் இயக்கப்படும் பூஜ்ஜிய உமிழ்வு மைதானங்களை வெளியிட்டது.",
-        excerpt_en: "The Milan-Cortina committee reveals zero-emission venues powered entirely by renewable energy sources.",
-        excerpt_si: "මිලානෝ-කෝර්ටිනා කමිටුව සම්පූර්ණයෙන්ම නවීකරණීය බලශක්ති මූලාශ්‍ර වලින් බලගැන්වූ බුද්ධිමත් වේදිකා හෙළිදරව් කරයි.",
-        content: "<p>மிலான்-கோர்டினா குழு முழுக்க முழுக்க புதுப்பிக்கத்தக்க ஆற்றல் மூலங்களால் இயக்கப்படும் பூஜ்ஜிய உமிழ்வு மைதானங்களை வெளியிட்டது. ஒலிம்பிக் கிராமம் விளையாட்டுக்குப் பிறகு மலிவு வீடுகளாக மாற்றப்படும்.</p>",
-        content_en: "<p>The Milan-Cortina committee reveals zero-emission venues powered entirely by renewable energy sources. The Olympic Village will be converted into affordable housing after the Games.</p>",
-        content_si: "<p>මිලානෝ-කෝර්ටිනා කමිටුව සම්පූර්ණයෙන්ම නවීකරණීය බලශක්ති මූලාශ්‍ර වලින් බලගැන්වූ බුද්ධිමත් වේදිකා හෙළිදරව් කරයි. ඔලිම්පික් ගම්මිරිස් ක්‍රීඩාවෙන් පසුව මිල අඩු නිවාසවලට පරිවර්තනය කරනු ලැබේ.</p>",
-        category: "விளையாட்டு", category_en: "Sports", category_si: "ක්‍රීඩා",
-        author: "மார்க்கோ ரோஸி", author_en: "Marco Rossi", author_si: "මාර්කෝ රෝසි",
-        date: new Date(Date.now() - 3600000 * 18).toISOString(),
-        image: "https://images.unsplash.com/photo-1569517282132-25d22f4573e6?w=800&auto=format&fit=crop",
-        video: "", featured: false, trending: true, status: "published"
-    },
-    {
-        id: 1718764800007,
-        title: "புதிய மலேரியா தடுப்பூசி 90% பயன்திறனைக் காட்டுகிறது",
-        title_en: "New Malaria Vaccine Shows 90% Efficacy in Trials",
-        title_si: "නව මැලේරියා එන්නත් සාම්පලවලදී 90% ක්‍රියාකාරිත්වය පෙන්වයි",
-        excerpt: "WHO கட்டம் III சோதனை முடிவுகளை ஒட்டுமொத்த நோய்க்கு எதிரான போராட்டத்தில் திருப்புமுனையாக பாராட்டியது.",
-        excerpt_en: "The WHO hails the Phase III trial results as a potential turning point in the fight against mosquito-borne disease.",
-        excerpt_si: "WHO මදුරුවන් මගින් spreading රෝගයට එරෙහි සටනේ හැරවුම් ලක්ෂ්‍යක් ලෙස අදියර III සාම්පල ප්‍රතිඵල ප්‍රශංසා කරයි.",
-        content: "<p>WHO கட்டம் III சோதனை முடிவுகளை ஒட்டுமொத்த நோய்க்கு எதிரான போராட்டத்தில் திருப்புமுனையாக பாராட்டியது. R21/Matrix-M தடுப்பூசி 90% பாதுகாப்பை வழங்கியது.</p>",
-        content_en: "<p>The WHO hails the Phase III trial results. The R21/Matrix-M vaccine demonstrated 90% protection in children aged 5–36 months across four African countries.</p>",
-        content_si: "<p>WHO අදියර III සාම්පල ප්‍රතිඵල ප්‍රශංසා කරයි. R21/Matrix-M එන්නත අප්‍රිකානු රටවල් හතරක දරුවන් 5-36 මාස වයසේදී 90% ආරක්ෂාව සපයා ලදී.</p>",
-        category: "அறிவியல்", category_en: "Science", category_si: "විද්‍යාව",
-        author: "அமரா ஓகாஃபோர்", author_en: "Amara Okafor", author_si: "අමාරා ඔකාෆෝර්",
-        date: new Date(Date.now() - 3600000 * 22).toISOString(),
-        image: "https://images.unsplash.com/photo-1584036561566-baf8f5f1b144?w=800&auto=format&fit=crop",
-        video: "", featured: false, trending: false, status: "published"
-    },
-    {
-        id: 1718764800008,
-        title: "மத்திய வங்கிகள் டிஜிட்டல் நாணய கட்டமைப்பை ஒருங்கிணைக்கின்றன",
-        title_en: "Central Banks Coordinate on Digital Currency Framework",
-        title_si: "මධ්‍යම බැංකු ඩිජිටල් මුදල් රාමුව එකට සකසති",
-        excerpt: "BIS குறுக்க-எல்லை CBDC பரிவர்த்தனைகளுக்கு ஒருங்கிணைந்த நெறிமுறையை அறிவித்தது.",
-        excerpt_en: "The BIS announces a unified protocol for cross-border CBDC transactions to reduce remittance costs.",
-        excerpt_si: "BIS මායිම් තරණ CBDC ගනුදෙනු සඳහා ඒකීය ප්‍රොටෝකෝලයක් නිවේදනය කරයි.",
-        content: "<p>BIS குறுக்க-எல்லை CBDC பரிவர்த்தனைகளுக்கு ஒருங்கிணைந்த நெறிமுறையை அறிவித்தது. Project Unified Ledger வைப்-இல்லா பணம் அனுப்புவதற்கான கட்டணங்களை 80% வரை குறைக்கும்.</p>",
-        content_en: "<p>The BIS announces a unified protocol for cross-border CBDC transactions. Project Unified Ledger will allow instant settlement between central bank digital currencies, cutting transfer fees by up to 80%.</p>",
-        content_si: "<p>BIS මායිම් තරණ CBDC ගනුදෙනු සඳහා ඒකීය ප්‍රොටෝකෝලයක් නිවේදනය කරයි. Project Unified Ledger මධ්‍යම බැංකු ඩිජිටල් මුදල් අතර ක්ෂණික සෙට්ල්මන්ට් සඳහා ඉඩ සපයයි.</p>",
-        category: "வணிகம்", category_en: "Business", category_si: "ව්‍යාපාර",
-        author: "தாமஸ் வெபர்", author_en: "Thomas Weber", author_si: "තෝමස් වෙබර්",
-        date: new Date(Date.now() - 3600000 * 26).toISOString(),
-        image: "https://images.unsplash.com/photo-1526304640152-d4619684e484?w=800&auto=format&fit=crop",
-        video: "", featured: false, trending: false, status: "published"
-    },
-    {
-        id: 1718764800009,
-        title: "கடலடி தொல்லியலாளர்கள் பழங்கால கப்பலைக் கண்டுபிடித்தனர்",
-        title_en: "Underwater Archaeologists Discover Ancient Shipwreck",
-        title_si: "දිය යට පුරාවිද්‍යාඥයන් පුරාණ නැවක් අනතුරු සොයාගෙන ඇත",
-        excerpt: "கிரீஸ் கடலோரத்தில் கண்டுபிடிக்கப்பட்ட 2,000 வயது ரோமானிய வணிக கப்பல் சிறப்பாக பாதுகாக்கப்பட்ட பானைகளைக் கொண்டுள்ளது.",
-        excerpt_en: "A 2,000-year-old Roman trading vessel found off the coast of Greece contains perfectly preserved amphorae.",
-        excerpt_si: "ග්‍රීසියේ වෙරළබඩින් සොයාගත් වසර 2000ක් පැරණි රෝමානු වෙළඳ නැව සම්පූර්ණයෙන්ම සුරකින ලද ඇම්ෆෝරා ඇතුළත් වේ.",
-        content: "<p>கிரீஸ் கடலோரத்தில் கண்டுபிடிக்கப்பட்ட 2,000 வயது ரோமானிய வணிக கப்பல் சிறப்பாக பாதுகாக்கப்பட்ட பானைகளைக் கொண்டுள்ளது. இந்த கப்பல் கிரேத்தின் மது, ஸ்பெயினின் ஒலிவ எண்ணெய், சிரியாவின் கண்ணாடிப் பொருட்களை ஏற்றிச் சென்றது.</p>",
-        content_en: "<p>A 2,000-year-old Roman trading vessel found off the coast of Greece contains perfectly preserved amphorae. The cargo included wine from Crete, olive oil from Spain, and glassware from Syria.</p>",
-        content_si: "<p>ග්‍රීසියේ වෙරළබඩින් සොයාගත් වසර 2000ක් පැරණි රෝමානු වෙළඳ නැව සම්පූර්ණයෙන්ම සුරකින ලද ඇම්ෆෝරා ඇතුළත් වේ. බඩු තොගයට ක්‍රීට් වල මද්‍ය පානය, ස්පාඤ්ඤයේ ඔලිව් තෙල් සහ සිරියාවේ වීදුරු භාණ්ඩ ඇතුළත් විය.</p>",
-        category: "உலகம்", category_en: "World", category_si: "ලෝකය",
-        author: "சோஃபியா அந்தோனெல்லி", author_en: "Sophia Antonelli", author_si: "සොෆියා ඇන්ටොනෙල්ලි",
-        date: new Date(Date.now() - 3600000 * 30).toISOString(),
-        image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop",
-        video: "", featured: false, trending: false, status: "published"
-    },
-    {
-        id: 1718764800010,
-        title: "F1 2026 இயந்திர விதிமுறைகளை அறிவித்தது",
-        title_en: "Formula 1 Announces 2026 Engine Regulations",
-        title_si: "ෆෝමියුලා 1 2026 එන්ජින් නියමයන් නිවේදනය කරයි",
-        excerpt: "FIA 100% நிலையான எரிபொருட்களுக்கு மாறுவதையும் 2026 சீசனுக்கான சிறிய, திறமையான பவர் யூனிட்களையும் உறுதி செய்தது.",
-        excerpt_en: "The FIA confirms a move to 100% sustainable fuels and smaller, more efficient power units for the 2026 season.",
-        excerpt_si: "FIA 2026 සමය සඳහා 100% තිරසාර ඉන්ධන වෙත මාරුව සහ කුඩා, කාර්යක්ෂම බල ඒකක සඳහා යොමුවීම තහවුරු කරයි.",
-        content: "<p>FIA 100% நிலையான எரிபொருட்களுக்கு மாறுவதையும் 2026 சீசனுக்கான சிறிய, திறமையான பவர் யூனிட்களையும் உறுதி செய்தது. இயந்திரங்கள் 50% குறைந்த சக்தியை உற்பத்தி செய்யும்.</p>",
-        content_en: "<p>The FIA confirms a move to 100% sustainable fuels and smaller, more efficient power units for the 2026 season. The new engines will produce 50% less power but feature active aerodynamics and manual override systems.</p>",
-        content_si: "<p>FIA 2026 සමය සඳහා 100% තිරසාර ඉන්ධන වෙත මාරුව සහ කුඩා, කාර්යක්ෂම බල ඒකක සඳහා යොමුවීම තහවුරු කරයි. නව එන්ජින් 50% අඩු බලයක් නිපදවන නමුත් ක්‍රියාකාරී වායුගතික සහ අත්පොත ප්‍රතික්‍රියා පද්ධති ඇතුළත් වේ.</p>",
-        category: "விளையாட்டு", category_en: "Sports", category_si: "ක්‍රීඩා",
-        author: "லூயிஸ் ஹாமில்டன்", author_en: "Lewis Hamilton", author_si: "ලුවිස් හැමිල්ටන්",
-        date: new Date(Date.now() - 3600000 * 34).toISOString(),
-        image: "https://images.unsplash.com/photo-1541447270888-83e8494f9c08?w=800&auto=format&fit=crop",
-        video: "", featured: false, trending: true, status: "published"
-    }
-];
+// ─── NO DEFAULT NEWS SHOWN TO USERS ───
+// Only used as absolute fallback if admin never posted anything
+const DEFAULT_NEWS = [];
 
 const DEFAULT_ADS = [
     {
@@ -390,15 +161,14 @@ const DEFAULT_ADS = [
 ];
 
 const DEFAULT_CATEGORIES = [
-    { id: "world", name: "உலகம்", name_en: "World", name_si: "ලෝකය", count: 2 },
-    { id: "technology", name: "தொழில்நுட்பம்", name_en: "Technology", name_si: "තාක්ෂණය", count: 2 },
-    { id: "business", name: "வணிகம்", name_en: "Business", name_si: "ව්‍යාපාර", count: 2 },
-    { id: "science", name: "அறிவியல்", name_en: "Science", name_si: "විද්‍යාව", count: 2 },
-    { id: "sports", name: "விளையாட்டு", name_en: "Sports", name_si: "ක්‍රීඩා", count: 2 },
+    { id: "world", name: "உலகம்", name_en: "World", name_si: "ලෝකය", count: 0 },
+    { id: "technology", name: "தொழில்நுட்பம்", name_en: "Technology", name_si: "තාක්ෂණය", count: 0 },
+    { id: "business", name: "வணிகம்", name_en: "Business", name_si: "ව්‍යාපාර", count: 0 },
+    { id: "science", name: "அறிவியல்", name_en: "Science", name_si: "විද්‍යාව", count: 0 },
+    { id: "sports", name: "விளையாட்டு", name_en: "Sports", name_si: "ක්‍රීඩා", count: 0 },
     { id: "health", name: "சுகாதாரம்", name_en: "Health", name_si: "සෞඛ්‍යය", count: 0 }
 ];
 
-// STRICT: Auto-clean garbage posts from localStorage on every load
 function isGarbagePost(n) {
     if (!n || typeof n !== 'object') return true;
     var t = String(n.title || '').trim();
@@ -415,7 +185,6 @@ function isGarbagePost(n) {
     return !hasTitle || !hasId;
 }
 
-// Load and clean data with retry for mobile new-tab contexts
 function getNewsFromStorage() {
     var data = localStorage.getItem('endless_news');
     if (data) {
@@ -430,19 +199,65 @@ function getNewsFromStorage() {
     return null;
 }
 
-var rawNews = getNewsFromStorage() || DEFAULT_NEWS;
-var cleanedNews = rawNews.filter(function(n) { return !isGarbagePost(n); });
-if (cleanedNews.length < rawNews.length) {
-    localStorage.setItem('endless_news', JSON.stringify(cleanedNews));
-    console.log('Auto-removed ' + (rawNews.length - cleanedNews.length) + ' garbage post(s)');
-}
-
-window.newsData = cleanedNews.length > 0 ? cleanedNews : DEFAULT_NEWS;
+// ─── CRITICAL: Start with EMPTY array, wait for Firebase ───
+window.newsData = [];
 let adsData = JSON.parse(localStorage.getItem('endless_ads')) || DEFAULT_ADS;
 let categoriesData = JSON.parse(localStorage.getItem('endless_categories')) || DEFAULT_CATEGORIES;
 let currentFilter = 'All';
 let searchQuery = '';
 let displayedCount = 4;
+
+/* ─── FIREBASE SYNC ─── */
+async function syncFromFirebase() {
+    if (!db) {
+        console.log('No Firebase connection, trying localStorage...');
+        var localNews = getNewsFromStorage();
+        window.newsData = (localNews || []).filter(function(n) { return !isGarbagePost(n); });
+        return;
+    }
+
+    try {
+        console.log('Fetching articles from Firebase...');
+        const newsSnapshot = await db.collection('news').get({ source: 'server' });
+        let firebaseNews = [];
+
+        if (!newsSnapshot.empty) {
+            newsSnapshot.docs.forEach(doc => {
+                const data = doc.data();
+                data.id = doc.id;
+                if (!isGarbagePost(data)) {
+                    firebaseNews.push(data);
+                }
+            });
+        }
+
+        if (firebaseNews.length > 0) {
+            window.newsData = firebaseNews;
+            localStorage.setItem('endless_news', JSON.stringify(window.newsData));
+            console.log(`✅ Synced ${window.newsData.length} real articles from Firebase.`);
+        } else {
+            // Firebase empty — check localStorage as backup
+            var localNews = getNewsFromStorage();
+            if (localNews && localNews.length > 0) {
+                window.newsData = localNews.filter(function(n) { return !isGarbagePost(n); });
+                console.log('Firebase empty, using localStorage backup:', window.newsData.length, 'articles');
+            } else {
+                window.newsData = [];
+                console.log('No articles found anywhere.');
+            }
+        }
+    } catch (error) {
+        console.error('❌ Firebase read error:', error);
+        // On error, try localStorage
+        var localNews = getNewsFromStorage();
+        window.newsData = (localNews || []).filter(function(n) { return !isGarbagePost(n); });
+    }
+}
+
+async function loadAllNewsData() {
+    await syncFromFirebase();
+    isDataLoaded = true;
+}
 
 /* ─── HELPERS ─── */
 function getLocalized(item, field) {
@@ -474,29 +289,45 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// CRITICAL FIX: Safe ID comparison that handles both string and number IDs
 function findArticleById(id) {
     const searchId = String(id);
     return newsData.find(n => String(n.id) === searchId);
 }
 
+/* ─── LOADING SPINNER ─── */
+function showLoading() {
+    const grid = document.getElementById('news-grid');
+    const hero = document.getElementById('hero-section');
+    const trending = document.getElementById('trending-list');
+    const ticker = document.getElementById('ticker-content');
+
+    const spinnerHTML = `
+        <div style="text-align:center; padding:3rem; grid-column:1/-1;">
+            <div style="display:inline-block; width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin 1s linear infinite;"></div>
+            <p style="margin-top:1rem; color:var(--text-muted); font-size:0.9rem;">${TRANSLATIONS[currentLang].loading}</p>
+        </div>
+    `;
+
+    if (grid) grid.innerHTML = spinnerHTML;
+    if (hero) hero.innerHTML = spinnerHTML;
+    if (trending) trending.innerHTML = `<div style="text-align:center; padding:1.5rem;">${TRANSLATIONS[currentLang].loading}</div>`;
+    if (ticker) ticker.innerHTML = `<span class="ticker-item">${TRANSLATIONS[currentLang].loading}</span>`;
+}
+
 /* ─── RENDER FUNCTIONS ─── */
 function renderHero() {
-    var localNews = getNewsFromStorage();
-    if (localNews && localNews.length > 0) {
-        newsData = localNews.filter(function(n) { return !isGarbagePost(n); });
-    }
-
     const featured = newsData.filter(n => n.featured && n.status === 'published' && !isGarbagePost(n)).slice(0, 3);
-    if (featured.length === 0) return;
+    const heroSection = document.getElementById('hero-section');
+    if (!heroSection) return;
+
+    if (featured.length === 0) {
+        heroSection.innerHTML = '';
+        return;
+    }
 
     const main = featured[0];
     const side = featured.slice(1, 3);
 
-    const heroSection = document.getElementById('hero-section');
-    if (!heroSection) return;
-
-    // CRITICAL FIX: Wrap item.id in quotes for string IDs
     heroSection.innerHTML = `
         <div class="hero-main" onclick="openArticle('${main.id}')">
             <img src="${escapeHtml(main.image)}" alt="${escapeHtml(getLocalized(main, 'title'))}" loading="eager">
@@ -522,11 +353,6 @@ function renderHero() {
 }
 
 function renderFeed() {
-    var localNews = getNewsFromStorage();
-    if (localNews && localNews.length > 0) {
-        newsData = localNews.filter(function(n) { return !isGarbagePost(n); });
-    }
-
     let filtered = newsData.filter(n => n.status === 'published' && !isGarbagePost(n));
 
     if (currentFilter !== 'All') {
@@ -553,12 +379,21 @@ function renderFeed() {
     if (!grid) return;
 
     if (toShow.length === 0) {
-        grid.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:2rem; grid-column:1/-1;">${TRANSLATIONS[currentLang].no_results}</p>`;
+        if (!isDataLoaded) {
+            // Still loading
+            return;
+        }
+        // No articles message
+        grid.innerHTML = `
+            <div style="text-align:center; padding:3rem; grid-column:1/-1;">
+                <p style="font-size:1.1rem; color:var(--text-muted); margin-bottom:0.5rem;">📭</p>
+                <p style="color:var(--text-muted); font-size:0.95rem;">${TRANSLATIONS[currentLang].no_articles_yet}</p>
+            </div>
+        `;
         document.getElementById('load-more-wrap').style.display = 'none';
         return;
     }
 
-    // CRITICAL FIX: Wrap item.id in quotes for string IDs
     grid.innerHTML = toShow.map(item => `
         <article class="article-card" onclick="openArticle('${item.id}')" data-article-id="${item.id}">
             <img src="${escapeHtml(item.image)}" alt="${escapeHtml(getLocalized(item, 'title'))}" loading="lazy">
@@ -586,16 +421,15 @@ function renderFeed() {
 }
 
 function renderTrending() {
-    var localNews = getNewsFromStorage();
-    if (localNews && localNews.length > 0) {
-        newsData = localNews.filter(function(n) { return !isGarbagePost(n); });
-    }
-
     const trending = newsData.filter(n => n.trending && n.status === 'published' && !isGarbagePost(n)).slice(0, 5);
     const list = document.getElementById('trending-list');
     if (!list) return;
 
-    // CRITICAL FIX: Wrap item.id in quotes for string IDs
+    if (trending.length === 0 && isDataLoaded) {
+        list.innerHTML = `<div style="text-align:center; padding:1rem; color:var(--text-muted); font-size:0.85rem;">${TRANSLATIONS[currentLang].no_articles_yet}</div>`;
+        return;
+    }
+
     list.innerHTML = trending.map((item, i) => `
         <div class="trending-item" onclick="openArticle('${item.id}')">
             <span class="trending-num">${i + 1}</span>
@@ -665,14 +499,14 @@ function renderAds() {
 }
 
 function renderTicker() {
-    var localNews = getNewsFromStorage();
-    if (localNews && localNews.length > 0) {
-        newsData = localNews.filter(function(n) { return !isGarbagePost(n); });
-    }
-
     const breaking = newsData.filter(n => n.status === 'published' && !isGarbagePost(n)).slice(0, 8);
     const ticker = document.getElementById('ticker-content');
     if (!ticker) return;
+
+    if (breaking.length === 0 && isDataLoaded) {
+        ticker.innerHTML = `<span class="ticker-item">${TRANSLATIONS[currentLang].no_articles_yet}</span>`;
+        return;
+    }
 
     ticker.innerHTML = breaking.map(n => `
         <span class="ticker-item">${escapeHtml(getLocalized(n, 'title'))}</span>
@@ -681,7 +515,6 @@ function renderTicker() {
 
 /* ─── ARTICLE MODAL ─── */
 function openArticle(id) {
-    // CRITICAL FIX: Use safe ID comparison
     const article = findArticleById(id);
     if (!article || isGarbagePost(article)) return;
 
@@ -704,7 +537,6 @@ function openArticle(id) {
         processedContent = paragraphs.map(p => `<p>${p.trim()}</p>`).join('');
     }
 
-    // CRITICAL FIX: Wrap article.id in quotes for edit button
     body.innerHTML = `
         <div class="modal-article">
             <img src="${escapeHtml(article.image)}" alt="${escapeHtml(getLocalized(article, 'title'))}" loading="eager">
@@ -751,7 +583,6 @@ function closeModal() {
     modal.removeEventListener('touchend', handleTouchEnd);
 }
 
-// Edit article from main website
 function editArticleFromWeb(id) {
     localStorage.setItem('edit_article_id', String(id));
     window.location.href = '/EndLess/dashboard.html?edit=' + encodeURIComponent(id);
@@ -898,8 +729,8 @@ function initLazyLoading() {
 function syncNewsFromStorage() {
     var localNews = getNewsFromStorage();
     if (localNews && localNews.length > 0) {
-        newsData = localNews.filter(function(n) { return !isGarbagePost(n); });
-        console.log('✅ News synced:', newsData.length, 'articles');
+        window.newsData = localNews.filter(function(n) { return !isGarbagePost(n); });
+        console.log('News synced from localStorage:', window.newsData.length, 'articles');
         renderHero();
         renderFeed();
         renderTicker();
@@ -910,7 +741,7 @@ function syncAdsFromStorage() {
     var localAds = JSON.parse(localStorage.getItem('endless_ads')) || DEFAULT_ADS;
     if (Array.isArray(localAds) && localAds.length > 0) {
         adsData = localAds;
-        console.log('✅ Ads synced:', adsData.length, 'ads');
+        console.log('Ads synced:', adsData.length, 'ads');
         renderAds();
     }
 }
@@ -919,7 +750,7 @@ function syncCategoriesFromStorage() {
     var localCats = JSON.parse(localStorage.getItem('endless_categories')) || DEFAULT_CATEGORIES;
     if (Array.isArray(localCats) && localCats.length > 0) {
         categoriesData = localCats;
-        console.log('✅ Categories synced:', categoriesData.length, 'categories');
+        console.log('Categories synced:', categoriesData.length, 'categories');
         renderCategories();
         renderTrending();
         renderFeed();
@@ -928,7 +759,26 @@ function syncCategoriesFromStorage() {
 
 /* ─── INIT ─── */
 document.addEventListener('DOMContentLoaded', async () => {
+    // Show loading state immediately
+    showLoading();
+
+    // Try Firebase first
     await loadAllNewsData();
+
+    // If Firebase failed and we have no data, try one more time after 2 seconds
+    if (window.newsData.length === 0) {
+        console.log('No articles from Firebase, retrying in 2 seconds...');
+        setTimeout(async function() {
+            await syncFromFirebase();
+            if (window.newsData.length > 0) {
+                renderHero();
+                renderFeed();
+                renderTrending();
+                renderTicker();
+            }
+        }, 2000);
+    }
+
     const yearEl = document.getElementById('year');
     if (yearEl) yearEl.textContent = new Date().getFullYear();
 
@@ -1025,27 +875,43 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.addEventListener('storage', function(e) {
         if (e.key === 'endless_news') {
-            console.log('📢 News updated from admin panel, syncing...');
+            console.log('News updated from admin panel, syncing...');
             syncNewsFromStorage();
         } else if (e.key === 'endless_ads') {
-            console.log('📢 Ads updated from admin panel, syncing...');
+            console.log('Ads updated from admin panel, syncing...');
             syncAdsFromStorage();
         } else if (e.key === 'endless_categories') {
-            console.log('📢 Categories updated from admin panel, syncing...');
+            console.log('Categories updated from admin panel, syncing...');
             syncCategoriesFromStorage();
         }
     });
 
-    setInterval(function() {
-        var localNews = getNewsFromStorage();
-        if (localNews && localNews.length > 0) {
-            var freshNews = localNews.filter(function(n) { return !isGarbagePost(n); });
-            if (freshNews.length !== newsData.length) {
-                console.log('✅ Auto-sync: News count changed, updating display');
-                syncNewsFromStorage();
+    // Auto-refresh from Firebase every 10 seconds to catch new posts
+    setInterval(async function() {
+        if (db) {
+            try {
+                const snapshot = await db.collection('news').get({ source: 'server' });
+                let freshNews = [];
+                if (!snapshot.empty) {
+                    snapshot.docs.forEach(doc => {
+                        const data = doc.data();
+                        data.id = doc.id;
+                        if (!isGarbagePost(data)) freshNews.push(data);
+                    });
+                }
+                if (freshNews.length !== window.newsData.length) {
+                    console.log('Auto-refresh: New articles detected from Firebase');
+                    window.newsData = freshNews;
+                    renderHero();
+                    renderFeed();
+                    renderTrending();
+                    renderTicker();
+                }
+            } catch(e) {
+                // Silent fail on auto-refresh
             }
         }
-    }, 5000);
+    }, 10000);
 });
 
 /* ─── DEBOUNCE UTILITY ─── */
@@ -1183,3 +1049,12 @@ function addShareToModal(articleId) {
     }
     modalArticleBody.appendChild(shareSection);
 }
+
+// Add CSS animation for spinner
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+`;
+document.head.appendChild(style);
