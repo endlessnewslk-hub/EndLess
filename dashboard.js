@@ -892,10 +892,6 @@ async function saveNewsItem() {
     var trending = trending_el ? trending_el.checked : false;
     var status = status_el ? (status_el.checked ? 'published' : 'draft') : 'draft';
 
-    var title_ta = title_ta_el ? title_ta_el.value.trim() : '';
-    var title_en = title_en_el ? title_en_el.value.trim() : '';
-    var title_si = title_si_el ? title_si_el.value.trim() : '';
-
     var excerpt_ta = excerpt_ta_el ? excerpt_ta_el.value.trim() : '';
     var excerpt_en = excerpt_en_el ? excerpt_en_el.value.trim() : '';
     var excerpt_si = excerpt_si_el ? excerpt_si_el.value.trim() : '';
@@ -948,14 +944,14 @@ async function saveNewsItem() {
     saveNews();
     updateCategoryCounts();
 
-       if (db) {
+    if (db) {
         try {
-            await syncFromFirebase();
+            // Save the news item to Firebase FIRST before syncing
+            await db.collection('news').doc(String(newsItem.id)).set(newsItem);
+            console.log('News item saved to Firebase:', newsItem.id);
         } catch (err) {
-            console.warn('Firebase sync failed, using localStorage:', err);
+            console.warn('Firebase write failed:', err);
         }
-    } else {
-        console.log('No Firebase connection, using localStorage only');
     }
 
     closeNewsModal();
