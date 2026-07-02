@@ -259,9 +259,18 @@ async function initData() {
 
     // CRITICAL FIX: Set dataInitialized ONLY after data is fully loaded
     dataInitialized = true;
+    window.dataInitialized = true; // Also set global flag for guard.js
 
     // CRITICAL FIX: Always render current page after data is ready
     showPageContinue(currentPage);
+
+    // CRITICAL FIX: Force re-render of news table if on news page
+    if (currentPage === 'news') {
+        setTimeout(function() {
+            renderNewsTable();
+            console.log('Forced news table re-render after init');
+        }, 100);
+    }
 
     // ── CHECK FOR EDIT PARAMETER (article edit from main website) ──
     var urlParams = new URLSearchParams(window.location.search);
@@ -421,6 +430,10 @@ function showPage(page) {
     }
     
     showPageContinue(page);
+    // CRITICAL FIX: Force render when switching to news page
+    if (page === 'news') {
+        setTimeout(renderNewsTable, 50);
+    }
 }
 
 function showPageContinue(page) {

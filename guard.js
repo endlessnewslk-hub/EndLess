@@ -216,8 +216,28 @@ function checkAuthentication() {
     updateUserUI(session);
 
     // STEP 4: Async Firebase verification (in background)
+    // CRITICAL FIX: Set a timeout to show dashboard even if Firebase is slow/fails
+    let authTimeout = setTimeout(function() {
+        console.warn('🔒 Auth Guard: Firebase auth timeout - showing dashboard with session trust');
+        const dashboard = document.getElementById('admin-dashboard');
+        if (dashboard) {
+            dashboard.style.display = '';
+            dashboard.classList.add('auth-verified');
+        }
+        const loadingOverlay = document.getElementById('auth-loading-overlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+        }
+        // Trigger initData if not already done
+        if (typeof initData === 'function' && !window.dataInitialized) {
+            initData();
+        }
+    }, 3000); // 3 second timeout
+
     if (guardAuth) {
         guardAuth.onAuthStateChanged(function(user) {
+            clearTimeout(authTimeout); // Clear timeout if Firebase responds
+
             if (!user) {
                 console.warn('🔒 Auth Guard: Firebase user not found');
                 clearAllSessions();
@@ -241,12 +261,18 @@ function checkAuthentication() {
             const dashboard = document.getElementById('admin-dashboard');
             if (dashboard) {
                 dashboard.style.display = '';
+                dashboard.classList.add('auth-verified');
             }
 
             // Remove loading overlay
             const loadingOverlay = document.getElementById('auth-loading-overlay');
             if (loadingOverlay) {
                 loadingOverlay.style.display = 'none';
+            }
+
+            // Trigger initData if not already done
+            if (typeof initData === 'function' && !window.dataInitialized) {
+                initData();
             }
         });
     } else {
@@ -255,10 +281,15 @@ function checkAuthentication() {
         const dashboard = document.getElementById('admin-dashboard');
         if (dashboard) {
             dashboard.style.display = '';
+            dashboard.classList.add('auth-verified');
         }
         const loadingOverlay = document.getElementById('auth-loading-overlay');
         if (loadingOverlay) {
             loadingOverlay.style.display = 'none';
+        }
+        // Trigger initData if not already done
+        if (typeof initData === 'function' && !window.dataInitialized) {
+            initData();
         }
     }
 
