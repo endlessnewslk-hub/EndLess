@@ -241,6 +241,13 @@ async function initData() {
         console.log('No Firebase connection, using localStorage only');
     }
 
+    // CRITICAL: After Firebase sync, check again if data is empty and restore defaults
+    if (adminNews.length === 0) {
+        console.log('After Firebase sync, adminNews is empty. Restoring DEFAULT_NEWS');
+        adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
+        saveNews();
+    }
+
     var dashboard = document.getElementById('admin-dashboard');
     if (dashboard) dashboard.style.display = 'flex';
 
@@ -275,43 +282,55 @@ function updateCategoryCounts() {
 async function syncFromFirebase() {
     if (!db) return;
     try {   
-        // News
+        // News - PRESERVE LOCAL DATA IF FIREBASE IS EMPTY
         const newsSnapshot = await db.collection('news').get({ source: 'server' });
-        adminNews = []; // Clear local array
+        var firebaseNews = [];
         if (!newsSnapshot.empty) {
             newsSnapshot.docs.forEach(doc => {
                 const data = doc.data();
                 data.id = doc.id;
                 if (!isUntitledOrGarbage(data)) {
-                    adminNews.push(data);
+                    firebaseNews.push(data);
                 }
             });
+        }
+        // Only update if Firebase has data, otherwise keep local data
+        if (firebaseNews.length > 0) {
+            adminNews = firebaseNews;
         }
         localStorage.setItem('endless_news', JSON.stringify(adminNews));
         console.log(`Synced ${adminNews.length} articles from Firebase.`);
 
-        // Ads
+        // Ads - PRESERVE LOCAL DATA IF FIREBASE IS EMPTY
         const adsSnapshot = await db.collection('ads').get({ source: 'server' });
-        adminAds = []; // Clear local array
+        var firebaseAds = [];
         if (!adsSnapshot.empty) {
-            adminAds = adsSnapshot.docs.map(doc => {
+            firebaseAds = adsSnapshot.docs.map(doc => {
                 const data = doc.data();
                 data.id = doc.id;
                 return data;
             });
         }
+        // Only update if Firebase has data
+        if (firebaseAds.length > 0) {
+            adminAds = firebaseAds;
+        }
         localStorage.setItem('endless_ads', JSON.stringify(adminAds));
         console.log(`Synced ${adminAds.length} ads from Firebase.`);
 
-        // Categories
+        // Categories - PRESERVE LOCAL DATA IF FIREBASE IS EMPTY
         const catsSnapshot = await db.collection('categories').get({ source: 'server' });
-        adminCats = []; // Clear local array
+        var firebaseCats = [];
         if (!catsSnapshot.empty) {
-            adminCats = catsSnapshot.docs.map(doc => {
+            firebaseCats = catsSnapshot.docs.map(doc => {
                 const data = doc.data();
                 data.id = doc.id;
                 return data;
             });
+        }
+        // Only update if Firebase has data
+        if (firebaseCats.length > 0) {
+            adminCats = firebaseCats;
         }
         localStorage.setItem('endless_categories', JSON.stringify(adminCats));
         console.log(`Synced ${adminCats.length} categories from Firebase.`);
@@ -319,9 +338,7 @@ async function syncFromFirebase() {
         updateCategoryCounts();
     } catch (error) {
         console.error('Firebase read error:', error);
-        // Show a user-facing error message
-        showToast('Failed to sync data from server.', 'error');
-        throw error;
+        console.log('Keeping local data since Firebase sync failed');
     }
 }
 
