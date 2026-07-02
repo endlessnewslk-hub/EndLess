@@ -5,7 +5,7 @@
 
 /* ── CSS Variables (Dark Mode Default) ── */
 :root {
-    --bg-primary: #0f0f1a;  
+    --bg-primary: #0f0f1a;      
     --bg-secondary: #1a1a2e;
     --bg-card: #16162a;
     --bg-input: #0f0f1a;

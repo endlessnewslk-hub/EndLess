@@ -725,7 +725,7 @@
     window.injectShareButton = function(articleId, container) {
         if (!container) return;
         if (container.querySelector('.article-share-btn')) return;
-        
+            
         var shareBtn = document.createElement('button');
         shareBtn.className = 'article-share-btn';
         shareBtn.dataset.articleId = articleId;

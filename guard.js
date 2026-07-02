@@ -538,4 +538,4 @@ window.checkAuthentication = checkAuthentication;
 window.refreshSession = refreshSession;
 Object.defineProperty(window, 'currentUser', {
     get: function() { return currentUser; }
-}); 
+});     

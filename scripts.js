@@ -342,7 +342,7 @@ const DEFAULT_NEWS = [
         date: new Date(Date.now() - 3600000 * 26).toISOString(),
         image: "https://images.unsplash.com/photo-1526304640152-d4619684e484?w=800&auto=format&fit=crop",
         video: "", featured: false, trending: false, status: "published"
-    },  
+    },      
     {
         id: 1718764800009,
         title: "கடலடி தொல்லியலாளர்கள் பழங்கால கப்பலைக் கண்டுபிடித்தனர்",
@@ -447,7 +447,7 @@ let adsData = JSON.parse(localStorage.getItem('endless_ads')) || DEFAULT_ADS;
 let categoriesData = JSON.parse(localStorage.getItem('endless_categories')) || DEFAULT_CATEGORIES;
 let currentFilter = 'All';
 let searchQuery = '';
-let displayedCount = isMobile ? 4 : 6;
+let displayedCount = 4;
 
 /* ─── HELPERS ─── */
 function getLocalized(item, field) {

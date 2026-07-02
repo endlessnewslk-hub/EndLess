@@ -913,4 +913,4 @@ document.addEventListener('DOMContentLoaded', () => {
 // Make functions available globally for inline onclick handlers
 window.showSuccessModal = showSuccessModal;
 window.showErrorModal = showErrorModal;
-window.showLoading = showLoading;   
+window.showLoading = showLoading;       
