@@ -314,6 +314,13 @@ function showLoading() {
     if (ticker) ticker.innerHTML = `<span class="ticker-item">${TRANSLATIONS[currentLang].loading}</span>`;
 }
 
+function hideLoading() {
+    const grid = document.getElementById('news-grid');
+    const hero = document.getElementById('hero-section');
+    if (grid && grid.innerHTML.includes('animation:spin')) grid.innerHTML = '';
+    if (hero && hero.innerHTML.includes('animation:spin')) hero.innerHTML = '';
+}
+
 /* ─── RENDER FUNCTIONS ─── */
 function renderHero() {
     const featured = newsData.filter(n => n.featured && n.status === 'published' && !isGarbagePost(n)).slice(0, 3);
@@ -863,6 +870,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.key === 'Escape') closeModal();
     });
 
+    hideLoading();          
     setLanguage(currentLang);
     renderHero();
     renderFeed();
