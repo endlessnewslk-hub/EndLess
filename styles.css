@@ -2043,7 +2043,7 @@ input:focus-visible,
 button:focus-visible,
 a:focus-visible {
     outline: 2px solid var(--primary);
-    outline-offset: 2px;
+    outline-offset: 2px;    
 }
 
 /* Prevent text selection on UI elements */

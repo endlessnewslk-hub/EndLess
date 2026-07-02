@@ -14,6 +14,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         /* Auth Loading Overlay - Shown before guard verifies */
@@ -80,6 +81,9 @@
             <nav class="sidebar-nav">
                 <button class="nav-item active" data-page="dashboard">
                     <span>📊</span> Dashboard
+                </button>
+                <button class="nav-item" data-page="analytics">
+                    <span>📈</span> Analytics
                 </button>
                 <button class="nav-item" data-page="news">
                     <span>📝</span> Manage News
@@ -167,6 +171,43 @@
                             </table>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <div id="page-analytics" class="page-content hidden">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">👀</div>
+                        <div class="stat-info">
+                            <h3 id="stat-total-views">0</h3>
+                            <p>Total Views</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🖱️</div>
+                        <div class="stat-info">
+                            <h3 id="stat-ad-clicks">0</h3>
+                            <p>Ad Clicks</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📱</div>
+                        <div class="stat-info">
+                            <h3 id="stat-mobile-users">0%</h3>
+                            <p>Mobile Users</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🌍</div>
+                        <div class="stat-info">
+                            <h3 id="stat-top-country">N/A</h3>
+                            <p>Top Country</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <h3>Views Over Time</h3>
+                    <canvas id="analytics-chart"></canvas>
                 </div>
             </div>
 
@@ -266,6 +307,10 @@
                     <i class="fas fa-chart-line"></i>
                     <span>Dashboard</span>
                 </button>
+                <button class="nav-item-mobile" data-page="analytics">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Analytics</span>
+                </button>
                 <button class="nav-item-mobile" data-page="news">
                     <i class="fas fa-newspaper"></i>
                     <span>News</span>
@@ -298,7 +343,7 @@
 
                 <div class="lang-tabs">
                     <button type="button" class="lang-tab active" data-lang="ta">தமிழ்</button>
-                    <button type="button" class="lang-tab" data-lang="en">English</button>
+                    <button type="button" class="lang-tab" data-lang="en">English</button>  
                     <button type="button" class="lang-tab" data-lang="si">සිංහල</button>
                 </div>
 
@@ -332,9 +377,24 @@
                 </div>
                 <div class="form-group">
                     <label>Full News Content *</label>
-                    <textarea id="news-content-ta" class="lang-textarea active" rows="10" placeholder="முழு செய்தி கட்டுரையை இங்கே எழுதவும்..."></textarea>
-                    <textarea id="news-content-en" class="lang-textarea" rows="10" placeholder="Write full news article here..." style="display:none;"></textarea>
-                    <textarea id="news-content-si" class="lang-textarea" rows="10" placeholder="සම්පූර්ණ පුවත් ලිපිය මෙහි ලියන්න..." style="display:none;"></textarea>
+                    <div style="position: relative;">
+                        <textarea id="news-content-ta" class="lang-textarea active" rows="10" placeholder="முழு செய்தி கட்டுரையை இங்கே எழுதவும்..."></textarea>
+                        <button type="button" class="btn-copy" data-lang="ta" title="Copy Tamil Content" style="position: absolute; top: 5px; right: 5px; z-index: 10;">
+                            <i class="far fa-copy"></i>
+                        </button>
+                    </div>
+                    <div style="position: relative; display: none;">
+                        <textarea id="news-content-en" class="lang-textarea" rows="10" placeholder="Write full news article here..." style="display:none;"></textarea>
+                        <button type="button" class="btn-copy" data-lang="en" title="Copy English Content" style="position: absolute; top: 5px; right: 5px; z-index: 10; display: none;">
+                            <i class="far fa-copy"></i>
+                        </button>
+                    </div>
+                    <div style="position: relative; display: none;">
+                        <textarea id="news-content-si" class="lang-textarea" rows="10" placeholder="සම්පූර්ණ පුවත් ලිපිය මෙහි ලියන්න..." style="display:none;"></textarea>
+                         <button type="button" class="btn-copy" data-lang="si" title="Copy Sinhala Content" style="position: absolute; top: 5px; right: 5px; z-index: 10; display: none;">
+                            <i class="far fa-copy"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>News Photo</label>

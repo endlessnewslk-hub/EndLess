@@ -23,44 +23,44 @@ try {
 }
 
 // ── Load Data from Firebase or localStorage ──
-async function loadAllNewsData() {
-    var localData = getNewsFromStorage();
-    
-    // If localStorage has data, use it
-    if (localData && localData.length > 0) {
-        console.log('Using localStorage data:', localData.length, 'articles');
-        newsData = localData.filter(function(n) { return !isGarbagePost(n); });
+async function syncFromFirebase() {
+    if (!db) {
+        console.log('No Firebase connection, using localStorage/default data.');
+        window.newsData = getNewsFromStorage() || DEFAULT_NEWS;
         return;
     }
-    
-    // If no localStorage, try Firebase
-    if (db) {
-        try {
-            var snapshot = await db.collection('news').get({ source: 'server' });
-            if (!snapshot.empty) {
-                var firebaseNews = [];
-                snapshot.docs.forEach(function(doc) {
-                    var data = doc.data();
-                    data.id = doc.id;
-                    if (!isGarbagePost(data)) firebaseNews.push(data);
-                });
-                
-                if (firebaseNews.length > 0) {
-                    console.log('Using Firebase data:', firebaseNews.length, 'articles');
-                    newsData = firebaseNews;
-                    // Save to localStorage for next time
-                    localStorage.setItem('endless_news', JSON.stringify(newsData));
-                    return;
+    try {
+        const newsSnapshot = await db.collection('news').get({ source: 'server' });
+        let firebaseNews = [];
+        if (!newsSnapshot.empty) {
+            newsSnapshot.docs.forEach(doc => {
+                const data = doc.data();
+                data.id = doc.id;
+                if (!isGarbagePost(data)) {
+                    firebaseNews.push(data);
                 }
-            }
-        } catch (err) {
-            console.warn('Firebase load failed:', err);
+            });
         }
+        
+        if (firebaseNews.length > 0) {
+            window.newsData = firebaseNews;
+            localStorage.setItem('endless_news', JSON.stringify(window.newsData));
+            console.log(`Synced ${window.newsData.length} articles from Firebase.`);
+        } else {
+            // If Firebase is empty, fall back to localStorage or defaults
+            window.newsData = getNewsFromStorage() || DEFAULT_NEWS;
+            console.log('Firebase collection empty, using localStorage/default data.');
+        }
+
+    } catch (error) {
+        console.error('Firebase read error in scripts.js:', error);
+        // On error, gracefully fall back to localStorage or defaults
+        window.newsData = getNewsFromStorage() || DEFAULT_NEWS;
     }
-    
-    // Fallback to default news
-    console.log('Using DEFAULT news data');
-    newsData = DEFAULT_NEWS;
+}
+
+async function loadAllNewsData() {
+    await syncFromFirebase();
 }
 
 
@@ -342,7 +342,7 @@ const DEFAULT_NEWS = [
         date: new Date(Date.now() - 3600000 * 26).toISOString(),
         image: "https://images.unsplash.com/photo-1526304640152-d4619684e484?w=800&auto=format&fit=crop",
         video: "", featured: false, trending: false, status: "published"
-    },
+    },  
     {
         id: 1718764800009,
         title: "கடலடி தொல்லியலாளர்கள் பழங்கால கப்பலைக் கண்டுபிடித்தனர்",
@@ -898,8 +898,7 @@ function initLazyLoading() {
 
 /* ─── INIT ─── */
 document.addEventListener('DOMContentLoaded', async () => {
-    // CRITICAL FIX: Sync from Firebase first (for mobile/GitHub Pages)
-    await syncFromFirebase();
+    await loadAllNewsData();
     // Set current year
     const yearEl = document.getElementById('year');
     if (yearEl) yearEl.textContent = new Date().getFullYear();

@@ -26,12 +26,6 @@ try {
             ignoreUndefinedProperties: true
         });
 
-        db.disableNetwork().then(function() {
-            return db.enableNetwork();
-        }).catch(function(err) {
-            console.warn('Network toggle error:', err);
-        });
-
         console.log('Firebase connected successfully');
     } else {
         console.warn('Firebase SDK not loaded - using localStorage only');
@@ -230,47 +224,59 @@ function updateCategoryCounts() {
         }).length;
         cat.count = count;
     });
-    saveCats();
+    saveCats(); 
 }
 
 // ── Firebase Sync ──
 async function syncFromFirebase() {
     if (!db) return;
     try {
-        var newsSnapshot = await db.collection('news').get({ source: 'server' });
+        // News
+        const newsSnapshot = await db.collection('news').get({ source: 'server' });
+        adminNews = []; // Clear local array
         if (!newsSnapshot.empty) {
-            var firebaseNews = [];
-            newsSnapshot.docs.forEach(function(doc) {
-                var data = doc.data();
+            newsSnapshot.docs.forEach(doc => {
+                const data = doc.data();
                 data.id = doc.id;
-                if (!isUntitledOrGarbage(data)) firebaseNews.push(data);
+                if (!isUntitledOrGarbage(data)) {
+                    adminNews.push(data);
+                }
             });
-            var allNews = adminNews.concat(firebaseNews);
-            var seenIds = {};
-            adminNews = allNews.filter(function(n) {
-                if (seenIds[n.id]) return false;
-                seenIds[n.id] = true;
-                return !isUntitledOrGarbage(n);
-            });
-            localStorage.setItem('endless_news', JSON.stringify(adminNews));
         }
-        var adsSnapshot = await db.collection('ads').get({ source: 'server' });
+        localStorage.setItem('endless_news', JSON.stringify(adminNews));
+        console.log(`Synced ${adminNews.length} articles from Firebase.`);
+
+        // Ads
+        const adsSnapshot = await db.collection('ads').get({ source: 'server' });
+        adminAds = []; // Clear local array
         if (!adsSnapshot.empty) {
-            adminAds = adsSnapshot.docs.map(function(doc) {
-                var data = doc.data(); data.id = doc.id; return data;
+            adminAds = adsSnapshot.docs.map(doc => {
+                const data = doc.data();
+                data.id = doc.id;
+                return data;
             });
-            localStorage.setItem('endless_ads', JSON.stringify(adminAds));
         }
-        var catsSnapshot = await db.collection('categories').get({ source: 'server' });
+        localStorage.setItem('endless_ads', JSON.stringify(adminAds));
+        console.log(`Synced ${adminAds.length} ads from Firebase.`);
+
+        // Categories
+        const catsSnapshot = await db.collection('categories').get({ source: 'server' });
+        adminCats = []; // Clear local array
         if (!catsSnapshot.empty) {
-            adminCats = catsSnapshot.docs.map(function(doc) {
-                var data = doc.data(); data.id = doc.id; return data;
+            adminCats = catsSnapshot.docs.map(doc => {
+                const data = doc.data();
+                data.id = doc.id;
+                return data;
             });
-            localStorage.setItem('endless_categories', JSON.stringify(adminCats));
         }
+        localStorage.setItem('endless_categories', JSON.stringify(adminCats));
+        console.log(`Synced ${adminCats.length} categories from Firebase.`);
+
         updateCategoryCounts();
     } catch (error) {
         console.error('Firebase read error:', error);
+        // Show a user-facing error message
+        showToast('Failed to sync data from server.', 'error');
         throw error;
     }
 }
@@ -359,6 +365,7 @@ function showPageContinue(page) {
     
     // CRITICAL FIX: Always render tables when showing page
     if (page === 'dashboard') renderDashboard();
+    if (page === 'analytics') renderAnalyticsPage();
     if (page === 'news') renderNewsTable();
     if (page === 'ads') renderAdsTable();
     if (page === 'categories') renderCategoriesTable();
@@ -386,6 +393,7 @@ function switchNewsLang(lang) {
 }
 
 // ── HTML Escape ──
+let analyticsChart = null;
 
 function escapeHtml(text) {
     if (!text) return '';
@@ -425,6 +433,77 @@ function renderDashboard() {
                 escapeHtml(a.position) + '</td><td><span class="badge badge-green">Active</span></td></tr>';
         }).join('');
     }
+}
+
+function renderAnalyticsPage() {
+    // 1. Update stat cards with dummy data
+    document.getElementById('stat-total-views').textContent = '14,384';
+    document.getElementById('stat-ad-clicks').textContent = '212';
+    document.getElementById('stat-mobile-users').textContent = '68%';
+    document.getElementById('stat-top-country').textContent = 'India';
+
+    // 2. Render chart
+    const ctx = document.getElementById('analytics-chart');
+    if (!ctx) return;
+
+    // Destroy existing chart if it exists
+    if (analyticsChart) {
+        analyticsChart.destroy();
+    }
+
+    // Sample data for the chart
+    const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const data = {
+        labels: labels,
+        datasets: [{
+            label: 'Page Views',
+            data: [1500, 1800, 1600, 2100, 2000, 2400, 2800],
+            fill: true,
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            tension: 0.4,
+            pointBackgroundColor: '#ef4444',
+            pointRadius: 5,
+            pointHoverRadius: 7
+        }]
+    };
+
+    // Chart configuration
+    const config = {
+        type: 'line',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(200, 200, 200, 0.1)'
+                    },
+                    ticks: {
+                        color: '#a0a0b8'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        color: '#a0a0b8'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    };
+
+    // Create the chart
+    analyticsChart = new Chart(ctx, config);
 }
 
 // ── News Table Renderer ──
@@ -1340,4 +1419,17 @@ document.addEventListener('DOMContentLoaded', function() {
     if (currentPage === 'news') {
         renderNewsTable();
     }
+
+    // Add event listeners for copy buttons
+    document.querySelectorAll('.btn-copy').forEach(button => {
+        button.addEventListener('click', () => {
+            const lang = button.dataset.lang;
+            const content = document.getElementById(`news-content-${lang}`).value;
+            navigator.clipboard.writeText(content).then(() => {
+                showToast('Content copied!', 'success');
+            }, () => {
+                showToast('Failed to copy content.', 'error');
+            });
+        });
+    });
 });
