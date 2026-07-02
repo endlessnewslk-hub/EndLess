@@ -154,6 +154,27 @@ function safeJSONParse(key, fallback) {
     }
 }
 
+// ── Helper: Reload news from localStorage and restore defaults if needed ──
+function reloadAdminNewsFromStorage() {
+    var stored = safeJSONParse('endless_news', []);
+    if (!Array.isArray(stored) || stored.length === 0) {
+        console.log('reloadAdminNewsFromStorage: no stored news found, restoring DEFAULT_NEWS');
+        adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
+        saveNews();
+        return;
+    }
+
+    adminNews = stored.filter(function(n) {
+        return !isUntitledOrGarbage(n);
+    });
+
+    if (adminNews.length === 0) {
+        console.log('reloadAdminNewsFromStorage: stored news invalid or garbage, restoring DEFAULT_NEWS');
+        adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
+        saveNews();
+    }
+}
+
 // ── Helper: Check if post is garbage ──
 function isUntitledOrGarbage(n) {
     if (!n || typeof n !== 'object') return true;
@@ -172,7 +193,7 @@ async function initData() {
     }
     console.log('=== initData() starting ===');
 
-    adminNews = safeJSONParse('endless_news', []);
+    reloadAdminNewsFromStorage();
     adminAds = safeJSONParse('endless_ads', []);
     adminCats = safeJSONParse('endless_categories', []);
 
@@ -533,24 +554,21 @@ function renderAnalyticsPage() {
 function renderNewsTable() {
     console.log('>>> renderNewsTable called. adminNews.length =', adminNews.length);
     
-    // CRITICAL FIX: Reload from localStorage if empty (GitHub Pages origin issue)
-    if (adminNews.length === 0) {
-        console.log('>>> adminNews empty, reloading from localStorage...');
-        var localNews = safeJSONParse('endless_news', []);
-        if (localNews.length > 0) {
-            adminNews = localNews.filter(function(n) { return !isUntitledOrGarbage(n); });
-        } else {
-            console.log('>>> localStorage empty, loading DEFAULT_NEWS...');
-            adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
-            saveNews();
-        }
-    }
-    
+    // CRITICAL FIX: Reload admin news from storage before rendering
+    reloadAdminNewsFromStorage();
+
     if (adminNews.length > 0) {
         console.log('>>> First item id:', adminNews[0].id, 'title:', (adminNews[0].title || '').substring(0, 30));
     }
 
-       var tbody = document.getElementById('news-table-body');
+    // If admin news was empty, ensure default data is always loaded.
+    if (adminNews.length === 0) {
+        console.log('>>> adminNews is empty after localStorage load, restoring DEFAULT_NEWS');
+        adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
+        saveNews();
+    }
+
+    var tbody = document.getElementById('news-table-body');
     var mobileCards = document.getElementById('news-mobile-cards');
     if (!tbody && !mobileCards) {
         console.error('news-table-body not found');
