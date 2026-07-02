@@ -896,6 +896,45 @@ function initLazyLoading() {
     }
 }
 
+/* ═══════════════════════════════════════
+   REAL-TIME SYNC FROM ADMIN PANEL
+   ═══════════════════════════════════════ */
+
+// ── Sync news data from admin panel ──
+function syncNewsFromStorage() {
+    var localNews = getNewsFromStorage();
+    if (localNews && localNews.length > 0) {
+        newsData = localNews.filter(function(n) { return !isGarbagePost(n); });
+        console.log('✅ News synced:', newsData.length, 'articles');
+        // Re-render all news-related sections
+        renderHero();
+        renderFeed();
+        renderTicker();
+    }
+}
+
+// ── Sync ads data from admin panel ──
+function syncAdsFromStorage() {
+    var localAds = JSON.parse(localStorage.getItem('endless_ads')) || DEFAULT_ADS;
+    if (Array.isArray(localAds) && localAds.length > 0) {
+        adsData = localAds;
+        console.log('✅ Ads synced:', adsData.length, 'ads');
+        renderAds();
+    }
+}
+
+// ── Sync categories from admin panel ──
+function syncCategoriesFromStorage() {
+    var localCats = JSON.parse(localStorage.getItem('endless_categories')) || DEFAULT_CATEGORIES;
+    if (Array.isArray(localCats) && localCats.length > 0) {
+        categoriesData = localCats;
+        console.log('✅ Categories synced:', categoriesData.length, 'categories');
+        renderCategories();
+        renderTrending();
+        renderFeed();
+    }
+}
+
 /* ─── INIT ─── */
 document.addEventListener('DOMContentLoaded', async () => {
     await loadAllNewsData();
@@ -1007,6 +1046,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initialize lazy loading
     setTimeout(initLazyLoading, 100);
+
+    // ── CRITICAL: Listen for admin panel changes in real-time ──
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'endless_news') {
+            console.log('📢 News updated from admin panel, syncing...');
+            syncNewsFromStorage();
+        } else if (e.key === 'endless_ads') {
+            console.log('📢 Ads updated from admin panel, syncing...');
+            syncAdsFromStorage();
+        } else if (e.key === 'endless_categories') {
+            console.log('📢 Categories updated from admin panel, syncing...');
+            syncCategoriesFromStorage();
+        }
+    });
+
+    // ── Periodic sync fallback (every 5 seconds) ──
+    setInterval(function() {
+        var localNews = getNewsFromStorage();
+        if (localNews && localNews.length > 0) {
+            var freshNews = localNews.filter(function(n) { return !isGarbagePost(n); });
+            if (freshNews.length !== newsData.length) {
+                console.log('✅ Auto-sync: News count changed, updating display');
+                syncNewsFromStorage();
+            }
+        }
+    }, 5000);
 });
 
 /* ─── DEBOUNCE UTILITY ─── */
