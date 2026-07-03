@@ -200,7 +200,8 @@ function getNewsFromStorage() {
 }
 
 // ─── CRITICAL: Start with EMPTY array, wait for Firebase ───
-window.newsData = [];
+var newsData = [];
+window.newsData = newsData;
 let adsData = JSON.parse(localStorage.getItem('endless_ads')) || DEFAULT_ADS;
 let categoriesData = JSON.parse(localStorage.getItem('endless_categories')) || DEFAULT_CATEGORIES;
 let currentFilter = 'All';
@@ -209,10 +210,12 @@ let displayedCount = 4;
 
 /* ─── FIREBASE SYNC ─── */
 async function syncFromFirebase() {
+    // ALWAYS load localStorage first as base data
+    var localNews = getNewsFromStorage();
+    newsData = (localNews || []).filter(function(n) { return !isGarbagePost(n); });
+
     if (!db) {
-        console.log('No Firebase connection, trying localStorage...');
-        var localNews = getNewsFromStorage();
-        window.newsData = (localNews || []).filter(function(n) { return !isGarbagePost(n); });
+        console.log('No Firebase connection, using localStorage only:', newsData.length, 'articles');
         return;
     }
 
@@ -232,25 +235,26 @@ async function syncFromFirebase() {
         }
 
         if (firebaseNews.length > 0) {
-            window.newsData = firebaseNews;
-            localStorage.setItem('endless_news', JSON.stringify(window.newsData));
-            console.log(`✅ Synced ${window.newsData.length} real articles from Firebase.`);
-        } else {
-            // Firebase empty — check localStorage as backup
-            var localNews = getNewsFromStorage();
-            if (localNews && localNews.length > 0) {
-                window.newsData = localNews.filter(function(n) { return !isGarbagePost(n); });
-                console.log('Firebase empty, using localStorage backup:', window.newsData.length, 'articles');
-            } else {
-                window.newsData = [];
-                console.log('No articles found anywhere.');
+            // Merge: Firebase articles + localStorage articles (avoid duplicates by ID)
+            var existingIds = new Set(firebaseNews.map(n => String(n.id)));
+            var merged = [...firebaseNews];
+            if (localNews) {
+                localNews.forEach(function(n) {
+                    if (!existingIds.has(String(n.id)) && !isGarbagePost(n)) {
+                        merged.push(n);
+                    }
+                });
             }
+            newsData = merged;
+            localStorage.setItem('endless_news', JSON.stringify(newsData));
+            console.log('✅ Synced', newsData.length, 'articles (Firebase + localStorage merged)');
+        } else {
+            console.log('Firebase empty, using localStorage:', newsData.length, 'articles');
         }
     } catch (error) {
         console.error('❌ Firebase read error:', error);
-        // On error, try localStorage
-        var localNews = getNewsFromStorage();
-        window.newsData = (localNews || []).filter(function(n) { return !isGarbagePost(n); });
+        // Keep localStorage data already loaded above
+        console.log('Using localStorage fallback:', newsData.length, 'articles');
     }
 }
 
@@ -292,6 +296,37 @@ function escapeHtml(text) {
 function findArticleById(id) {
     const searchId = String(id);
     return newsData.find(n => String(n.id) === searchId);
+}
+
+/* ─── LANGUAGE SWITCHER ─── */
+function setLanguage(lang) {
+    currentLang = lang;
+    localStorage.setItem('gd_language', lang);
+
+    // Update all elements with data-key
+    document.querySelectorAll('[data-key]').forEach(el => {
+        const key = el.dataset.key;
+        if (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) {
+            if (el.tagName === 'INPUT' && el.placeholder !== undefined) {
+                el.placeholder = TRANSLATIONS[lang][key];
+            } else {
+                el.textContent = TRANSLATIONS[lang][key];
+            }
+        }
+    });
+
+    // Update lang buttons
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang);
+    });
+
+    // Re-render all content
+    renderHero();
+    renderFeed();
+    renderTrending();
+    renderCategories();
+    renderAds();
+    renderTicker();
 }
 
 /* ─── LOADING SPINNER ─── */
@@ -736,8 +771,8 @@ function initLazyLoading() {
 function syncNewsFromStorage() {
     var localNews = getNewsFromStorage();
     if (localNews && localNews.length > 0) {
-        window.newsData = localNews.filter(function(n) { return !isGarbagePost(n); });
-        console.log('News synced from localStorage:', window.newsData.length, 'articles');
+        newsData = (localNews || []).filter(function(n) { return !isGarbagePost(n); });
+        console.log('News synced from localStorage:', newsData.length, 'articles');
         renderHero();
         renderFeed();
         renderTicker();
@@ -773,11 +808,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadAllNewsData();
 
     // If Firebase failed and we have no data, try one more time after 2 seconds
-    if (window.newsData.length === 0) {
+    if (newsData.length === 0) {
         console.log('No articles from Firebase, retrying in 2 seconds...');
         setTimeout(async function() {
             await syncFromFirebase();
-            if (window.newsData.length > 0) {
+            if (newsData.length > 0) {
                 renderHero();
                 renderFeed();
                 renderTrending();
@@ -907,9 +942,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if (!isGarbagePost(data)) freshNews.push(data);
                     });
                 }
-                if (freshNews.length !== window.newsData.length) {
+                if (freshNews.length !== newsData.length) {
                     console.log('Auto-refresh: New articles detected from Firebase');
-                    window.newsData = freshNews;
+                    newsData = freshNews;
                     renderHero();
                     renderFeed();
                     renderTrending();
