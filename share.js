@@ -562,6 +562,59 @@ const SHARE_I18N = {
             return waText;
         }
 
+        if (platform === 'telegram') {
+            // Telegram supports *bold*, _italic_, `code`, [text](url)
+            var tgText = '';
+            if (lang === 'ta') {
+                tgText = '🔴 *' + title + '*\n\n';
+                if (excerpt) tgText += '📰 ' + excerpt + '\n\n';
+                tgText += '✍️ ' + author + ' | 📅 ' + date + '\n';
+                tgText += '🏷️ ' + category + '\n\n';
+                tgText += '▶️ [மேலும் படிக்க](' + url + ')\n\n';
+                tgText += '📱 *EndLess News* - உலக செய்திகள்';
+            } else if (lang === 'si') {
+                tgText = '🔴 *' + title + '*\n\n';
+                if (excerpt) tgText += '📰 ' + excerpt + '\n\n';
+                tgText += '✍️ ' + author + ' | 📅 ' + date + '\n';
+                tgText += '🏷️ ' + category + '\n\n';
+                tgText += '▶️ [තවත් කියවන්න](' + url + ')\n\n';
+                tgText += '📱 *EndLess News* - ලෝක පුවත්';
+            } else {
+                tgText = '🔴 *' + title + '*\n\n';
+                if (excerpt) tgText += '📰 ' + excerpt + '\n\n';
+                tgText += '✍️ By ' + author + ' | 📅 ' + date + '\n';
+                tgText += '🏷️ ' + category + '\n\n';
+                tgText += '▶️ [Read more](' + url + ')\n\n';
+                tgText += '📱 *EndLess News* - World News & Analysis';
+            }
+            return tgText;
+        }
+
+        if (platform === 'messenger') {
+            // Messenger uses Facebook OG tags for preview, but we send rich text too
+            var msText = '';
+            if (lang === 'ta') {
+                msText = title + '\n\n';
+                if (excerpt) msText += excerpt + '\n\n';
+                msText += '✍️ ' + author + ' | 📅 ' + date + ' | 🏷️ ' + category + '\n\n';
+                msText += '▶️ மேலும் படிக்க: ' + url + '\n';
+                msText += '📱 EndLess News - உலக செய்திகள்';
+            } else if (lang === 'si') {
+                msText = title + '\n\n';
+                if (excerpt) msText += excerpt + '\n\n';
+                msText += '✍️ ' + author + ' | 📅 ' + date + ' | 🏷️ ' + category + '\n\n';
+                msText += '▶️ තවත් කියවන්න: ' + url + '\n';
+                msText += '📱 EndLess News - ලෝක පුවත්';
+            } else {
+                msText = title + '\n\n';
+                if (excerpt) msText += excerpt + '\n\n';
+                msText += '✍️ By ' + author + ' | 📅 ' + date + ' | 🏷️ ' + category + '\n\n';
+                msText += '▶️ Read more: ' + url + '\n';
+                msText += '📱 EndLess News - World News & Analysis';
+            }
+            return msText;
+        }
+
         if (platform === 'facebook') {
             return title + '\n\n' + excerpt + '\n\n🏷️ ' + category + '\n\n' + readMore + ' ' + url + '\n\n' + via + ' EndLess News 📰';
         }
@@ -644,6 +697,7 @@ const SHARE_I18N = {
         if (!currentShareArticle) return;
 
         var url = encodeURIComponent(SHARE_CONFIG.brandUrl + '?article=' + currentShareArticle.id);
+        var text = encodeURIComponent(generateShareText(currentShareArticle, 'messenger'));
         var shareUrl = 'https://www.facebook.com/dialog/send?link=' + url + '&app_id=363216005373&redirect_uri=' + encodeURIComponent(SHARE_CONFIG.brandUrl);
 
         openShareWindow(shareUrl, 'Share on Messenger');
@@ -657,7 +711,7 @@ const SHARE_I18N = {
         if (!currentShareArticle) return;
 
         var url = encodeURIComponent(SHARE_CONFIG.brandUrl + '?article=' + currentShareArticle.id);
-        var text = encodeURIComponent(getLocalizedField(currentShareArticle, 'title') || 'EndLess News');
+        var text = encodeURIComponent(generateShareText(currentShareArticle, 'telegram'));
 
         var shareUrl = 'https://t.me/share/url?url=' + url + '&text=' + text;
 
