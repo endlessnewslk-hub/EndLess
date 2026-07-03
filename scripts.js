@@ -590,9 +590,7 @@ function openArticle(id) {
                     <span>📅 ${new Date(article.date).toLocaleDateString()}</span>
                     <span>🏷️ ${escapeHtml(getLocalized(article, 'category'))}</span>
                 </div>
-                <div style="display:flex; gap:0.5rem; margin:1rem 0; flex-wrap:wrap;">
-                    <button onclick="editArticleFromWeb('${article.id}')" style="padding:0.5rem 1rem; background:#3b82f6; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:600;">✏️ Edit Post</button>
-                </div>
+                
                 <div class="article-text">
                     ${processedContent}
                 </div>
@@ -625,10 +623,6 @@ function closeModal() {
     modal.removeEventListener('touchend', handleTouchEnd);
 }
 
-function editArticleFromWeb(id) {
-    localStorage.setItem('edit_article_id', String(id));
-    window.location.href = '/EndLess/dashboard.html?edit=' + encodeURIComponent(id);
-}
 
 function handleTouchStart(e) {
     touchStartY = e.changedTouches[0].screenY;
