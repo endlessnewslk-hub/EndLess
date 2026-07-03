@@ -523,11 +523,44 @@ const SHARE_I18N = {
     function generateShareText(article, platform) {
         var lang = getCurrentLang();
         var title = getLocalizedField(article, 'title') || 'EndLess News';
+        var title_en = article.title_en || title;
         var excerpt = getLocalizedField(article, 'excerpt') || '';
         var url = SHARE_CONFIG.brandUrl + '?article=' + article.id;
         var category = getLocalizedField(article, 'category') || 'News';
         var readMore = getShareText('read_more');
         var via = getShareText('via');
+        var imageUrl = generateCloudinaryCard(article);
+        var date = formatShareDate(article.date);
+        var author = getLocalizedField(article, 'author') || 'EndLess News';
+
+        // Build professional share text based on platform
+        if (platform === 'whatsapp') {
+            // WhatsApp supports *bold*, _italic_, ~strikethrough~, `monospace`
+            var waText = '';
+            if (lang === 'ta') {
+                waText = '🔴 *' + title + '*\n\n';
+                if (excerpt) waText += '📰 ' + excerpt + '\n\n';
+                waText += '✍️ ' + author + ' | 📅 ' + date + '\n';
+                waText += '🏷️ ' + category + '\n\n';
+                waText += '🔗 ' + url + '\n\n';
+                waText += '▶️ மேலும் படிக்க: ' + url;
+            } else if (lang === 'si') {
+                waText = '🔴 *' + title + '*\n\n';
+                if (excerpt) waText += '📰 ' + excerpt + '\n\n';
+                waText += '✍️ ' + author + ' | 📅 ' + date + '\n';
+                waText += '🏷️ ' + category + '\n\n';
+                waText += '🔗 ' + url + '\n\n';
+                waText += '▶️ තවත් කියවන්න: ' + url;
+            } else {
+                waText = '🔴 *' + title + '*\n\n';
+                if (excerpt) waText += '📰 ' + excerpt + '\n\n';
+                waText += '✍️ By ' + author + ' | 📅 ' + date + '\n';
+                waText += '🏷️ ' + category + '\n\n';
+                waText += '🔗 ' + url + '\n\n';
+                waText += '▶️ Read more: ' + url;
+            }
+            return waText;
+        }
 
         if (platform === 'facebook') {
             return title + '\n\n' + excerpt + '\n\n🏷️ ' + category + '\n\n' + readMore + ' ' + url + '\n\n' + via + ' EndLess News 📰';
