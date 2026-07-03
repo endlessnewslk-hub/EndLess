@@ -33,26 +33,37 @@
         var cfg = SHARE_CONFIG.cloudinary;
         var imageUrl = article.image || 'https://via.placeholder.com/1200x630?text=EndLess+News';
 
-        // Build Cloudinary transformation URL
-        // Structure: fetch/transforms/image_url
-        var baseUrl = 'https://res.cloudinary.com/' + cfg.cloudName + '/image/fetch/';
+        // Validate image URL
+        if (!imageUrl || imageUrl.trim() === '') {
+            console.warn('No image URL for article, using fallback');
+            return 'https://via.placeholder.com/1200x630?text=EndLess+News';
+        }
 
-        // Card dimensions and fill crop
-        var transforms = 'w_' + cfg.cardWidth + ',h_' + cfg.cardHeight + ',c_fill/';
+        try {
+            // Build Cloudinary transformation URL
+            var baseUrl = 'https://res.cloudinary.com/' + cfg.cloudName + '/image/fetch/';
 
-        // Add dark overlay at bottom for logo visibility
-        transforms += 'b_rgb:000000,o_20/';
+            // Simple reliable transforms: resize + logo + text
+            // q_auto,f_auto for optimal format/quality
+            var transforms = 'w_' + cfg.cardWidth + ',h_' + cfg.cardHeight + ',c_fill,q_auto,f_auto/';
 
-        // Add EndLess logo (top-left corner, 150px wide)
-        transforms += 'l_' + cfg.logoPublicId + ',w_150,g_north_west,x_30,y_30/';
+            // Add EndLess logo overlay (top-left)
+            transforms += 'l_' + cfg.logoPublicId + ',w_120,g_north_west,x_20,y_20/';
 
-        // Add "EndLess News" brand text at bottom center
-        transforms += 'l_text:Arial_40_bold:EndLess%20News,co_rgb:e11d48,g_south,y_25/';
+            // Add brand text at bottom
+            transforms += 'l_text:Arial_38_bold:EndLess%20News,co_rgb:e11d48,g_south,y_20/';
 
-        // Encode the source image URL
-        var encodedImage = encodeURIComponent(imageUrl);
+            // Encode the source image URL
+            var encodedImage = encodeURIComponent(imageUrl);
+            var finalUrl = baseUrl + transforms + encodedImage;
 
-        return baseUrl + transforms + encodedImage;
+            console.log('Cloudinary card URL:', finalUrl);
+            return finalUrl;
+
+        } catch (e) {
+            console.error('Cloudinary URL build failed:', e);
+            return imageUrl; // Fallback to original image
+        }
     }
 
 const SHARE_I18N = {
@@ -360,6 +371,8 @@ const SHARE_I18N = {
         var image = generateCloudinaryCard(article);
         var url = SHARE_CONFIG.brandUrl + '?article=' + article.id;
         var category = getLocalizedField(article, 'category') || 'News';
+
+        console.log('OG Image set to:', image);
 
         // Remove existing OG tags
         document.querySelectorAll('meta[property^="og:"], meta[name^="twitter:"], meta[name="description"]').forEach(function(tag) {
