@@ -17,11 +17,45 @@
         })(),
         brandLogo: window.location.origin + '/favicon.ico',
         maxTitleLength: 120,
-        maxExcerptLength: 160
+        maxExcerptLength: 160,
+        cloudinary: {
+            cloudName: 'df2pc8kd0',
+            logoPublicId: 'endless-logo',
+            cardWidth: 1200,
+            cardHeight: 630
+        }
     };
 
     // ── Share Text Translations ──
-    const SHARE_I18N = {
+    
+    // ── Cloudinary Branded Card Generator ──
+    function generateCloudinaryCard(article) {
+        var cfg = SHARE_CONFIG.cloudinary;
+        var imageUrl = article.image || 'https://via.placeholder.com/1200x630?text=EndLess+News';
+
+        // Build Cloudinary transformation URL
+        // Structure: fetch/transforms/image_url
+        var baseUrl = 'https://res.cloudinary.com/' + cfg.cloudName + '/image/fetch/';
+
+        // Card dimensions and fill crop
+        var transforms = 'w_' + cfg.cardWidth + ',h_' + cfg.cardHeight + ',c_fill/';
+
+        // Add dark overlay at bottom for logo visibility
+        transforms += 'b_rgb:000000,o_20/';
+
+        // Add EndLess logo (top-left corner, 150px wide)
+        transforms += 'l_' + cfg.logoPublicId + ',w_150,g_north_west,x_30,y_30/';
+
+        // Add "EndLess News" brand text at bottom center
+        transforms += 'l_text:Arial_40_bold:EndLess%20News,co_rgb:e11d48,g_south,y_25/';
+
+        // Encode the source image URL
+        var encodedImage = encodeURIComponent(imageUrl);
+
+        return baseUrl + transforms + encodedImage;
+    }
+
+const SHARE_I18N = {
         ta: {
             share_article: 'பகிர்',
             share_this_article: 'இந்த கட்டுரையைப் பகிர்',
@@ -323,7 +357,7 @@
     function updateOpenGraphTags(article) {
         var title = getLocalizedField(article, 'title') || 'EndLess News';
         var excerpt = getLocalizedField(article, 'excerpt') || '';
-        var image = article.image || 'https://via.placeholder.com/1200x630?text=EndLess+News';
+        var image = generateCloudinaryCard(article);
         var url = SHARE_CONFIG.brandUrl + '?article=' + article.id;
         var category = getLocalizedField(article, 'category') || 'News';
 
@@ -389,7 +423,7 @@
     function updateSharePreview(article) {
         var title = getLocalizedField(article, 'title') || 'EndLess News';
         var excerpt = getLocalizedField(article, 'excerpt') || '';
-        var image = article.image || 'https://via.placeholder.com/800x400?text=EndLess+News';
+        var image = generateCloudinaryCard(article);
         var url = SHARE_CONFIG.brandUrl + '?article=' + article.id;
         var date = formatShareDate(article.date);
         var category = getLocalizedField(article, 'category') || getShareText('news');
