@@ -101,6 +101,7 @@ const SHARE_I18N = {
             messenger: 'Messenger',
             telegram: 'Telegram',
             copy: 'Copy',
+            copy_image: 'Copy Image',
             copied: 'Copied!',
             link_copied: 'Link copied to clipboard!',
             copy_failed: 'Failed to copy',
@@ -177,6 +178,27 @@ const SHARE_I18N = {
         val = article[field + '_si'];
         if (val && String(val).trim()) return val;
         return article[field] || '';
+    }
+
+    // ── Cloudinary Branded Card Generator ──
+    function generateCloudinaryCard(article) {
+        var cfg = SHARE_CONFIG.cloudinary;
+        var imageUrl = article.image || 'https://via.placeholder.com/1200x630?text=EndLess+News';
+
+        if (!imageUrl || imageUrl.trim() === '') {
+            return 'https://via.placeholder.com/1200x630?text=EndLess+News';
+        }
+
+        try {
+            var baseUrl = 'https://res.cloudinary.com/' + cfg.cloudName + '/image/fetch/';
+            var transforms = 'w_' + cfg.cardWidth + ',h_' + cfg.cardHeight + ',c_fill,q_auto/';
+            transforms += 'l_text:Arial_48_bold:EndLess%20News,co_rgb:e11d48,g_south,y_30/';
+            var encodedImage = encodeURIComponent(imageUrl);
+            return baseUrl + transforms + encodedImage;
+        } catch (e) {
+            console.error('Cloudinary failed:', e);
+            return imageUrl;
+        }
     }
 
     function formatShareDate(dateStr) {
@@ -309,6 +331,10 @@ const SHARE_I18N = {
                     <button class="share-btn share-btn-copy" onclick="copyShareLink()">
                         <div class="share-btn-icon" id="copy-icon">${ICONS.copy}</div>
                         <span class="share-btn-label" id="copy-label" data-share-key="copy">Copy</span>
+                    </button>
+                    <button class="share-btn share-btn-copyimage" onclick="copyShareImage()" title="Copy branded share card image">
+                        <div class="share-btn-icon">ðŸ“¸</div>
+                        <span class="share-btn-label" data-share-key="copy_image">Copy Image</span>
                     </button>
                 </div>
 
@@ -538,21 +564,21 @@ const SHARE_I18N = {
             // WhatsApp supports *bold*, _italic_, ~strikethrough~, `monospace`
             var waText = '';
             if (lang === 'ta') {
-                waText = '🔴 *' + title + '*\n\n';
+                waText = '*🔴 ' + title + '*\n\n';
                 if (excerpt) waText += '📰 ' + excerpt + '\n\n';
                 waText += '✍️ ' + author + ' | 📅 ' + date + '\n';
                 waText += '🏷️ ' + category + '\n\n';
                 waText += '🔗 ' + url + '\n\n';
                 waText += '▶️ மேலும் படிக்க: ' + url;
             } else if (lang === 'si') {
-                waText = '🔴 *' + title + '*\n\n';
+                waText = '*🔴 ' + title + '*\n\n';
                 if (excerpt) waText += '📰 ' + excerpt + '\n\n';
                 waText += '✍️ ' + author + ' | 📅 ' + date + '\n';
                 waText += '🏷️ ' + category + '\n\n';
                 waText += '🔗 ' + url + '\n\n';
                 waText += '▶️ තවත් කියවන්න: ' + url;
             } else {
-                waText = '🔴 *' + title + '*\n\n';
+                waText = '*🔴 ' + title + '*\n\n';
                 if (excerpt) waText += '📰 ' + excerpt + '\n\n';
                 waText += '✍️ By ' + author + ' | 📅 ' + date + '\n';
                 waText += '🏷️ ' + category + '\n\n';
@@ -696,11 +722,17 @@ const SHARE_I18N = {
     window.shareToMessenger = function() {
         if (!currentShareArticle) return;
 
-        var url = encodeURIComponent(SHARE_CONFIG.brandUrl + '?article=' + currentShareArticle.id);
-        var text = encodeURIComponent(generateShareText(currentShareArticle, 'messenger'));
-        var shareUrl = 'https://www.facebook.com/dialog/send?link=' + url + '&app_id=363216005373&redirect_uri=' + encodeURIComponent(SHARE_CONFIG.brandUrl);
+        var url = SHARE_CONFIG.brandUrl + '?article=' + currentShareArticle.id;
 
-        openShareWindow(shareUrl, 'Share on Messenger');
+        // FIX: Try native Messenger app first (mobile), fallback to Facebook sharer
+        var appUrl = 'fb-messenger://share/?link=' + encodeURIComponent(url);
+        var webUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url) + 
+                     '&quote=' + encodeURIComponent(generateShareText(currentShareArticle, 'messenger'));
+
+        var newWindow = window.open(appUrl, '_blank');
+        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+            window.open(webUrl, 'Share on Facebook', 'width=600,height=600');
+        }
         showShareToast(getShareText('opening_messenger'), ICONS.messenger);
     };
 
@@ -735,6 +767,25 @@ const SHARE_I18N = {
             });
         } else {
             fallbackCopy(richText);
+        }
+    };
+
+    // ── Copy Share Card Image URL ──
+    window.copyShareImage = function() {
+        if (!currentShareArticle) return;
+
+        var cardUrl = generateCloudinaryCard(currentShareArticle);
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(cardUrl).then(function() {
+                showShareToast('ðŸ“¸ Share card image URL copied!', 'ðŸ“‹');
+            }).catch(function() {
+                fallbackCopy(cardUrl);
+                showShareToast('ðŸ“¸ Share card image URL copied!', 'ðŸ“‹');
+            });
+        } else {
+            fallbackCopy(cardUrl);
+            showShareToast('ðŸ“¸ Share card image URL copied!', 'ðŸ“‹');
         }
     };
 
