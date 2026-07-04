@@ -1,9 +1,9 @@
-/* ═══════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
    ENDLESS — RICH SOCIAL SHARE SYSTEM
    Open Graph / Instant Article Style Share Cards
    Supports: Facebook, X (Twitter), WhatsApp, Messenger, Telegram, Copy Link
    Multi-language: Tamil, English, Sinhala
-   ═══════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════════ */
 
 (function() {
     'use strict';
@@ -20,53 +20,13 @@
         maxExcerptLength: 160,
         cloudinary: {
             cloudName: 'df2pc8kd0',
-            logoPublicId: 'endless-logo',
             cardWidth: 1200,
             cardHeight: 630
         }
     };
 
     // ── Share Text Translations ──
-    
-    // ── Cloudinary Branded Card Generator ──
-    function generateCloudinaryCard(article) {
-        var cfg = SHARE_CONFIG.cloudinary;
-        var imageUrl = article.image || 'https://via.placeholder.com/1200x630?text=EndLess+News';
-
-        // Validate image URL
-        if (!imageUrl || imageUrl.trim() === '') {
-            console.warn('No image URL for article, using fallback');
-            return 'https://via.placeholder.com/1200x630?text=EndLess+News';
-        }
-
-        try {
-            // Build Cloudinary transformation URL
-            var baseUrl = 'https://res.cloudinary.com/' + cfg.cloudName + '/image/fetch/';
-
-            // Simple reliable transforms: resize + logo + text
-            // q_auto,f_auto for optimal format/quality
-            var transforms = 'w_' + cfg.cardWidth + ',h_' + cfg.cardHeight + ',c_fill,q_auto,f_auto/';
-
-            // Add EndLess logo overlay (top-left)
-            transforms += 'l_' + cfg.logoPublicId + ',w_120,g_north_west,x_20,y_20/';
-
-            // Add brand text at bottom
-            transforms += 'l_text:Arial_38_bold:EndLess%20News,co_rgb:e11d48,g_south,y_20/';
-
-            // Encode the source image URL
-            var encodedImage = encodeURIComponent(imageUrl);
-            var finalUrl = baseUrl + transforms + encodedImage;
-
-            console.log('Cloudinary card URL:', finalUrl);
-            return finalUrl;
-
-        } catch (e) {
-            console.error('Cloudinary URL build failed:', e);
-            return imageUrl; // Fallback to original image
-        }
-    }
-
-const SHARE_I18N = {
+    const SHARE_I18N = {
         ta: {
             share_article: 'பகிர்',
             share_this_article: 'இந்த கட்டுரையைப் பகிர்',
@@ -123,7 +83,7 @@ const SHARE_I18N = {
             facebook: 'ෆේස්බුක්',
             x: 'එක්ස්',
             whatsapp: 'වට්ස්ඇප්',
-            messenger: 'මැසෙන්ජර්',
+            messenger: 'මෙසෙන්ජර්',
             telegram: 'ටෙලිග්‍රෑම්',
             copy: 'පිටපත් කරන්න',
             copied: 'පිටපත් කරන ලදී!',
@@ -132,7 +92,7 @@ const SHARE_I18N = {
             opening_facebook: 'ෆේස්බුක් විවෘත කරමින්...',
             opening_x: 'එක්ස් විවෘත කරමින්...',
             opening_whatsapp: 'වට්ස්ඇප් විවෘත කරමින්...',
-            opening_messenger: 'මැසෙන්ජර් විවෘත කරමින්...',
+            opening_messenger: 'මෙසෙන්ජර් විවෘත කරමින්...',
             opening_telegram: 'ටෙලිග්‍රෑම් විවෘත කරමින්...',
             shared_from: 'වෙතින් බෙදාගත්තේ',
             read_more: 'තවත් කියවන්න:',
@@ -147,9 +107,9 @@ const SHARE_I18N = {
     // ── Current article being shared ──
     let currentShareArticle = null;
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // HELPERS
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     function getCurrentLang() {
         if (typeof currentLang !== 'undefined') return currentLang;
         return localStorage.getItem('gd_language') || 'ta';
@@ -180,13 +140,12 @@ const SHARE_I18N = {
     }
 
     // ── Professional Social Card Generator ──
-    // Creates: Image + Headline + Excerpt + "Read More" + URL + Logo
+    // Creates: Article Image + "EndLess News" branding text
+    // Note: Tamil/Sinhala text overlays don't work with Cloudinary's default fonts
+    // So we use English branding text only on the image
     function generateCloudinaryCard(article) {
         var cfg = SHARE_CONFIG.cloudinary;
         var imageUrl = article.image || 'https://via.placeholder.com/1200x630?text=EndLess+News';
-        var title = getLocalizedField(article, 'title') || 'EndLess News';
-        var excerpt = getLocalizedField(article, 'excerpt') || '';
-        var category = getLocalizedField(article, 'category') || 'News';
 
         if (!imageUrl || imageUrl.trim() === '') {
             return 'https://via.placeholder.com/1200x630?text=EndLess+News';
@@ -195,45 +154,15 @@ const SHARE_I18N = {
         try {
             var baseUrl = 'https://res.cloudinary.com/' + cfg.cloudName + '/image/fetch/';
 
-            // Step 1: Resize to 1200x630, fill crop, auto quality
-            var transforms = 'w_' + cfg.cardWidth + ',h_' + cfg.cardHeight + ',c_fill,q_auto/';
+            // Step 1: Resize to 1200x630, fill crop, auto quality/format
+            var transforms = 'w_' + cfg.cardWidth + ',h_' + cfg.cardHeight + ',c_fill,q_auto,f_auto/';
 
-            // Step 2: Dark gradient overlay from bottom (for text readability)
-            // This creates a dark fade from bottom 50% of the image
-            transforms += 'e_gradient_fade:symmetric_pad,y_0.6/';
+            // Step 2: Add dark background bar at bottom for text readability
+            transforms += 'b_rgb:000000/';
 
-            // Step 3: Add dark background bar at bottom for text
-            transforms += 'b_rgb:0a0a0a,o_70/';
-
-            // Step 4: Add EndLess logo (top-left corner, small)
-            transforms += 'l_endless-logo,w_80,g_north_west,x_20,y_20/';
-
-            // Step 5: Add category tag (top-right)
-            var safeCategory = encodeURIComponent(category).replace(/%20/g, '%2520');
-            transforms += 'l_text:Arial_24_bold:' + safeCategory + ',co_rgb:e11d48,g_north_east,x_20,y_20/';
-
-            // Step 6: Add headline (bold, white, bottom area)
-            // Truncate title if too long
-            var displayTitle = title.length > 80 ? title.substring(0, 77) + '...' : title;
-            var safeTitle = encodeURIComponent(displayTitle).replace(/%20/g, '%2520');
-            transforms += 'l_text:Arial_42_bold:' + safeTitle + ',co_white,g_south_west,x_30,y_140,w_1100,c_fit/';
-
-            // Step 7: Add excerpt (smaller, light gray)
-            var displayExcerpt = excerpt.length > 120 ? excerpt.substring(0, 117) + '...' : excerpt;
-            if (displayExcerpt) {
-                var safeExcerpt = encodeURIComponent(displayExcerpt).replace(/%20/g, '%2520');
-                transforms += 'l_text:Arial_22:' + safeExcerpt + ',co_rgb:cccccc,g_south_west,x_30,y_90,w_1100,c_fit/';
-            }
-
-            // Step 8: Add "Read More →" text
-            var lang = getCurrentLang();
-            var readMoreText = lang === 'ta' ? 'மேலும் படிக்க →' : lang === 'si' ? 'තවත් කියවන්න →' : 'Read More →';
-            var safeReadMore = encodeURIComponent(readMoreText).replace(/%20/g, '%2520');
-            transforms += 'l_text:Arial_20_bold:' + safeReadMore + ',co_rgb:e11d48,g_south_west,x_30,y_40/';
-
-            // Step 9: Add website URL at bottom-right
-            var safeUrl = encodeURIComponent('endless-news.pages.dev').replace(/%20/g, '%2520');
-            transforms += 'l_text:Arial_18:' + safeUrl + ',co_rgb:888888,g_south_east,x_30,y_40/';
+            // Step 3: Add "EndLess News" brand text at bottom
+            // Using co_rgb:E11D48 (brand red/pink color) - tested and working
+            transforms += 'l_text:Arial_42_bold:EndLess%20News,co_rgb:E11D48,g_south,y_25/';
 
             // Encode the source image URL
             var encodedImage = encodeURIComponent(imageUrl);
@@ -283,9 +212,9 @@ const SHARE_I18N = {
         trending: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>'
     };
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // CREATE SHARE OVERLAY HTML
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     function createShareOverlay() {
         if (document.getElementById('share-overlay')) return;
 
@@ -379,10 +308,6 @@ const SHARE_I18N = {
                         <div class="share-btn-icon" id="copy-icon">${ICONS.copy}</div>
                         <span class="share-btn-label" id="copy-label" data-share-key="copy">Copy</span>
                     </button>
-                    <button class="share-btn share-btn-copyimage" onclick="copyShareImage()" title="Copy branded share card image">
-                        <div class="share-btn-icon">ðŸ“¸</div>
-                        <span class="share-btn-label" data-share-key="copy_image">Copy Image</span>
-                    </button>
                 </div>
 
                 <div class="share-footer">
@@ -405,9 +330,9 @@ const SHARE_I18N = {
         });
     }
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // SHOW SHARE OVERLAY
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     window.openShareOverlay = function(articleId) {
         var article = findArticleById(articleId);
         if (!article) {
@@ -435,9 +360,9 @@ const SHARE_I18N = {
         });
     }
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // UPDATE OPEN GRAPH META TAGS
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     function updateOpenGraphTags(article) {
         var title = getLocalizedField(article, 'title') || 'EndLess News';
         var excerpt = getLocalizedField(article, 'excerpt') || '';
@@ -485,9 +410,9 @@ const SHARE_I18N = {
         document.title = title + ' | EndLess News';
     }
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // CLOSE SHARE OVERLAY
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     window.closeShareOverlay = function() {
         var overlay = document.getElementById('share-overlay');
         if (overlay) {
@@ -503,9 +428,9 @@ const SHARE_I18N = {
         if (copyLabel) copyLabel.textContent = getShareText('copy');
     };
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // UPDATE SHARE PREVIEW (Rich Card Style)
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     function updateSharePreview(article) {
         var title = getLocalizedField(article, 'title') || 'EndLess News';
         var excerpt = getLocalizedField(article, 'excerpt') || '';
@@ -537,16 +462,16 @@ const SHARE_I18N = {
         // Title
         var titleEl = document.getElementById('share-preview-title');
         if (titleEl) {
-            titleEl.textContent = title.length > SHARE_CONFIG.maxTitleLength 
-                ? title.substring(0, SHARE_CONFIG.maxTitleLength) + '...' 
+            titleEl.textContent = title.length > SHARE_CONFIG.maxTitleLength
+                ? title.substring(0, SHARE_CONFIG.maxTitleLength) + '...'
                 : title;
         }
 
         // Excerpt
         var excerptEl = document.getElementById('share-preview-excerpt');
         if (excerptEl) {
-            excerptEl.textContent = excerpt.length > SHARE_CONFIG.maxExcerptLength 
-                ? excerpt.substring(0, SHARE_CONFIG.maxExcerptLength) + '...' 
+            excerptEl.textContent = excerpt.length > SHARE_CONFIG.maxExcerptLength
+                ? excerpt.substring(0, SHARE_CONFIG.maxExcerptLength) + '...'
                 : excerpt;
         }
 
@@ -563,9 +488,9 @@ const SHARE_I18N = {
         if (urlEl) urlEl.textContent = url;
     }
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // FIND ARTICLE BY ID
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     function findArticleById(id) {
         if (id === null || id === undefined || id === '') return null;
 
@@ -590,9 +515,9 @@ const SHARE_I18N = {
         return null;
     }
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // GENERATE RICH SHARE TEXT
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     function generateShareText(article, platform) {
         var lang = getCurrentLang();
         var title = getLocalizedField(article, 'title') || 'EndLess News';
@@ -694,31 +619,52 @@ const SHARE_I18N = {
 
         if (platform === 'x') {
             var shortExcerpt = excerpt.substring(0, 100) + (excerpt.length > 100 ? '...' : '');
-            return title + '\n\n' + shortExcerpt + '\n\n🔗 ' + url + '\n\n' + via + ' @EndLessNews';
-        }
-
-        if (platform === 'whatsapp') {
-            return '*📰 ' + title + '*\n\n_' + excerpt + '_\n\n🏷️ *' + category + '* | EndLess News\n\n' + readMore + ' 👇\n' + url;
-        }
-
-        if (platform === 'messenger') {
-            return title + '\n\n' + excerpt + '\n\n🏷️ ' + category + ' | EndLess News\n\n' + readMore + ' ' + url;
-        }
-
-        if (platform === 'telegram') {
-            return '📰 <b>' + title + '</b>\n\n' + excerpt + '\n\n🏷️ ' + category + ' | EndLess News\n\n' + readMore + ' ' + url;
+            return '🔴 ' + title + '\n\n' + shortExcerpt + '\n\n🔗 ' + url + '\n\n' + via + ' @EndLessNews';
         }
 
         if (platform === 'copy') {
-            return '📰 ' + title + '\n\n' + excerpt + '\n\n🏷️ ' + category + ' | EndLess News\n📅 ' + formatShareDate(article.date) + '\n\n' + readMore + ' ' + url;
+            // Rich formatted text for clipboard
+            var copyText = '';
+            if (lang === 'ta') {
+                copyText = '═══════════════════════════════════════\n';
+                copyText += '🔴 ' + title + '\n';
+                copyText += '═══════════════════════════════════════\n\n';
+                if (excerpt) copyText += '📰 ' + excerpt + '\n\n';
+                copyText += '✍️ ' + author + ' | 📅 ' + date + '\n';
+                copyText += '🏷️ ' + category + '\n';
+                copyText += '📸 ' + imageUrl + '\n\n';
+                copyText += '▶️ மேலும் படிக்க: ' + url + '\n';
+                copyText += '📱 EndLess News - உலக செய்திகள்';
+            } else if (lang === 'si') {
+                copyText = '═══════════════════════════════════════\n';
+                copyText += '🔴 ' + title + '\n';
+                copyText += '═══════════════════════════════════════\n\n';
+                if (excerpt) copyText += '📰 ' + excerpt + '\n\n';
+                copyText += '✍️ ' + author + ' | 📅 ' + date + '\n';
+                copyText += '🏷️ ' + category + '\n';
+                copyText += '📸 ' + imageUrl + '\n\n';
+                copyText += '▶️ තවත් කියවන්න: ' + url + '\n';
+                copyText += '📱 EndLess News - ලෝක පුවත්';
+            } else {
+                copyText = '═══════════════════════════════════════\n';
+                copyText += '🔴 ' + title + '\n';
+                copyText += '═══════════════════════════════════════\n\n';
+                if (excerpt) copyText += '📰 ' + excerpt + '\n\n';
+                copyText += '✍️ By ' + author + ' | 📅 ' + date + '\n';
+                copyText += '🏷️ ' + category + '\n';
+                copyText += '📸 ' + imageUrl + '\n\n';
+                copyText += '▶️ Read more: ' + url + '\n';
+                copyText += '📱 EndLess News - World News & Analysis';
+            }
+            return copyText;
         }
 
         return title + ' — ' + url;
     }
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // SHARE TO FACEBOOK
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     window.shareToFacebook = function() {
         if (!currentShareArticle) return;
 
@@ -727,7 +673,7 @@ const SHARE_I18N = {
         var description = encodeURIComponent(getLocalizedField(currentShareArticle, 'excerpt') || '');
         var image = encodeURIComponent(currentShareArticle.image || '');
 
-        var shareUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + url + 
+        var shareUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + url +
             '&quote=' + encodeURIComponent(generateShareText(currentShareArticle, 'facebook')) +
             '&picture=' + image + '&title=' + title + '&description=' + description;
 
@@ -735,9 +681,9 @@ const SHARE_I18N = {
         showShareToast(getShareText('opening_facebook'), ICONS.facebook);
     };
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // SHARE TO X (TWITTER)
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     window.shareToX = function() {
         if (!currentShareArticle) return;
 
@@ -750,9 +696,9 @@ const SHARE_I18N = {
         showShareToast(getShareText('opening_x'), ICONS.x);
     };
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // SHARE TO WHATSAPP
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     window.shareToWhatsApp = function() {
         if (!currentShareArticle) return;
 
@@ -763,9 +709,9 @@ const SHARE_I18N = {
         showShareToast(getShareText('opening_whatsapp'), ICONS.whatsapp);
     };
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // SHARE TO MESSENGER
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     window.shareToMessenger = function() {
         if (!currentShareArticle) return;
 
@@ -773,7 +719,7 @@ const SHARE_I18N = {
 
         // FIX: Try native Messenger app first (mobile), fallback to Facebook sharer
         var appUrl = 'fb-messenger://share/?link=' + encodeURIComponent(url);
-        var webUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url) + 
+        var webUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url) +
                      '&quote=' + encodeURIComponent(generateShareText(currentShareArticle, 'messenger'));
 
         var newWindow = window.open(appUrl, '_blank');
@@ -783,9 +729,9 @@ const SHARE_I18N = {
         showShareToast(getShareText('opening_messenger'), ICONS.messenger);
     };
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // SHARE TO TELEGRAM
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     window.shareToTelegram = function() {
         if (!currentShareArticle) return;
 
@@ -798,9 +744,9 @@ const SHARE_I18N = {
         showShareToast(getShareText('opening_telegram'), ICONS.telegram);
     };
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // COPY SHARE LINK
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     window.copyShareLink = function() {
         if (!currentShareArticle) return;
 
@@ -814,25 +760,6 @@ const SHARE_I18N = {
             });
         } else {
             fallbackCopy(richText);
-        }
-    };
-
-    // ── Copy Share Card Image URL ──
-    window.copyShareImage = function() {
-        if (!currentShareArticle) return;
-
-        var cardUrl = generateCloudinaryCard(currentShareArticle);
-
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(cardUrl).then(function() {
-                showShareToast('ðŸ“¸ Share card image URL copied!', 'ðŸ“‹');
-            }).catch(function() {
-                fallbackCopy(cardUrl);
-                showShareToast('ðŸ“¸ Share card image URL copied!', 'ðŸ“‹');
-            });
-        } else {
-            fallbackCopy(cardUrl);
-            showShareToast('ðŸ“¸ Share card image URL copied!', 'ðŸ“‹');
         }
     };
 
@@ -874,9 +801,9 @@ const SHARE_I18N = {
         }, 2000);
     }
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // OPEN SHARE WINDOW
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     function openShareWindow(url, title) {
         var width = 600;
         var height = 600;
@@ -886,9 +813,9 @@ const SHARE_I18N = {
         window.open(url, title, 'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',scrollbars=yes,resizable=yes,status=yes');
     }
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // SHOW TOAST NOTIFICATION
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     function showShareToast(message, iconHtml) {
         var existing = document.getElementById('share-toast');
         if (existing) existing.remove();
@@ -916,9 +843,9 @@ const SHARE_I18N = {
         }, 2500);
     }
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // ADD SHARE BUTTONS TO ARTICLES
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     function addShareButtonsToArticles() {
         // Listen for clicks on article cards
         var newsGrid = document.getElementById('news-grid');
@@ -951,13 +878,13 @@ const SHARE_I18N = {
         }
     }
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // INJECT SHARE BUTTON INTO ARTICLE HTML
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     window.injectShareButton = function(articleId, container) {
         if (!container) return;
         if (container.querySelector('.article-share-btn')) return;
-            
+
         var shareBtn = document.createElement('button');
         shareBtn.className = 'article-share-btn';
         shareBtn.dataset.articleId = articleId;
@@ -966,9 +893,9 @@ const SHARE_I18N = {
         container.appendChild(shareBtn);
     };
 
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     // INIT
-    // ═══════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
     function init() {
         addShareButtonsToArticles();
         console.log('📤 EndLess Rich Share System initialized');
