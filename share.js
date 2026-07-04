@@ -101,7 +101,6 @@ const SHARE_I18N = {
             messenger: 'Messenger',
             telegram: 'Telegram',
             copy: 'Copy',
-            copy_image: 'Copy Image',
             copied: 'Copied!',
             link_copied: 'Link copied to clipboard!',
             copy_failed: 'Failed to copy',
@@ -180,10 +179,14 @@ const SHARE_I18N = {
         return article[field] || '';
     }
 
-    // ── Cloudinary Branded Card Generator ──
+    // ── Professional Social Card Generator ──
+    // Creates: Image + Headline + Excerpt + "Read More" + URL + Logo
     function generateCloudinaryCard(article) {
         var cfg = SHARE_CONFIG.cloudinary;
         var imageUrl = article.image || 'https://via.placeholder.com/1200x630?text=EndLess+News';
+        var title = getLocalizedField(article, 'title') || 'EndLess News';
+        var excerpt = getLocalizedField(article, 'excerpt') || '';
+        var category = getLocalizedField(article, 'category') || 'News';
 
         if (!imageUrl || imageUrl.trim() === '') {
             return 'https://via.placeholder.com/1200x630?text=EndLess+News';
@@ -191,12 +194,56 @@ const SHARE_I18N = {
 
         try {
             var baseUrl = 'https://res.cloudinary.com/' + cfg.cloudName + '/image/fetch/';
+
+            // Step 1: Resize to 1200x630, fill crop, auto quality
             var transforms = 'w_' + cfg.cardWidth + ',h_' + cfg.cardHeight + ',c_fill,q_auto/';
-            transforms += 'l_text:Arial_48_bold:EndLess%20News,co_rgb:e11d48,g_south,y_30/';
+
+            // Step 2: Dark gradient overlay from bottom (for text readability)
+            // This creates a dark fade from bottom 50% of the image
+            transforms += 'e_gradient_fade:symmetric_pad,y_0.6/';
+
+            // Step 3: Add dark background bar at bottom for text
+            transforms += 'b_rgb:0a0a0a,o_70/';
+
+            // Step 4: Add EndLess logo (top-left corner, small)
+            transforms += 'l_endless-logo,w_80,g_north_west,x_20,y_20/';
+
+            // Step 5: Add category tag (top-right)
+            var safeCategory = encodeURIComponent(category).replace(/%20/g, '%2520');
+            transforms += 'l_text:Arial_24_bold:' + safeCategory + ',co_rgb:e11d48,g_north_east,x_20,y_20/';
+
+            // Step 6: Add headline (bold, white, bottom area)
+            // Truncate title if too long
+            var displayTitle = title.length > 80 ? title.substring(0, 77) + '...' : title;
+            var safeTitle = encodeURIComponent(displayTitle).replace(/%20/g, '%2520');
+            transforms += 'l_text:Arial_42_bold:' + safeTitle + ',co_white,g_south_west,x_30,y_140,w_1100,c_fit/';
+
+            // Step 7: Add excerpt (smaller, light gray)
+            var displayExcerpt = excerpt.length > 120 ? excerpt.substring(0, 117) + '...' : excerpt;
+            if (displayExcerpt) {
+                var safeExcerpt = encodeURIComponent(displayExcerpt).replace(/%20/g, '%2520');
+                transforms += 'l_text:Arial_22:' + safeExcerpt + ',co_rgb:cccccc,g_south_west,x_30,y_90,w_1100,c_fit/';
+            }
+
+            // Step 8: Add "Read More →" text
+            var lang = getCurrentLang();
+            var readMoreText = lang === 'ta' ? 'மேலும் படிக்க →' : lang === 'si' ? 'තවත් කියවන්න →' : 'Read More →';
+            var safeReadMore = encodeURIComponent(readMoreText).replace(/%20/g, '%2520');
+            transforms += 'l_text:Arial_20_bold:' + safeReadMore + ',co_rgb:e11d48,g_south_west,x_30,y_40/';
+
+            // Step 9: Add website URL at bottom-right
+            var safeUrl = encodeURIComponent('endless-news.pages.dev').replace(/%20/g, '%2520');
+            transforms += 'l_text:Arial_18:' + safeUrl + ',co_rgb:888888,g_south_east,x_30,y_40/';
+
+            // Encode the source image URL
             var encodedImage = encodeURIComponent(imageUrl);
-            return baseUrl + transforms + encodedImage;
+            var finalUrl = baseUrl + transforms + encodedImage;
+
+            console.log('Cloudinary card URL:', finalUrl);
+            return finalUrl;
+
         } catch (e) {
-            console.error('Cloudinary failed:', e);
+            console.error('Cloudinary card generation failed:', e);
             return imageUrl;
         }
     }
