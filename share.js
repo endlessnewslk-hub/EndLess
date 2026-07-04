@@ -25,6 +25,12 @@
         }
     };
 
+    // ── Share Page URL Generator ──
+    // Points to static share pages with pre-set OG tags
+    function getSharePageUrl(articleId) {
+        return 'https://endless-news.pages.dev/share/' + articleId + '.html';
+    }
+
     // ── Share Text Translations ──
     const SHARE_I18N = {
         ta: {
@@ -367,7 +373,7 @@
         var title = getLocalizedField(article, 'title') || 'EndLess News';
         var excerpt = getLocalizedField(article, 'excerpt') || '';
         var image = generateCloudinaryCard(article);
-        var url = SHARE_CONFIG.brandUrl + '?article=' + article.id;
+        var url = getSharePageUrl(article.id);
         var category = getLocalizedField(article, 'category') || 'News';
 
         console.log('OG Image set to:', image);
@@ -435,7 +441,7 @@
         var title = getLocalizedField(article, 'title') || 'EndLess News';
         var excerpt = getLocalizedField(article, 'excerpt') || '';
         var image = generateCloudinaryCard(article);
-        var url = SHARE_CONFIG.brandUrl + '?article=' + article.id;
+        var url = getSharePageUrl(article.id);
         var date = formatShareDate(article.date);
         var category = getLocalizedField(article, 'category') || getShareText('news');
         var isTrending = article.trending || false;
@@ -522,7 +528,7 @@
     function generateShareText(article, platform) {
         var lang = getCurrentLang();
         var title = getLocalizedField(article, 'title') || 'EndLess News';
-        var url = SHARE_CONFIG.brandUrl + '?article=' + article.id;
+        var url = getSharePageUrl(article.id);
         var imageUrl = generateCloudinaryCard(article);
 
         // "Continue Reading" text based on language
@@ -593,18 +599,16 @@
 
     // ═══════════════════════════════════════════════════════════════════
     // SHARE TO FACEBOOK
+    // Uses share page URL for proper OG tag scraping
     // ═══════════════════════════════════════════════════════════════════
     window.shareToFacebook = function() {
         if (!currentShareArticle) return;
 
-        var url = encodeURIComponent(SHARE_CONFIG.brandUrl + '?article=' + currentShareArticle.id);
-        var title = encodeURIComponent(getLocalizedField(currentShareArticle, 'title') || '');
-        var description = encodeURIComponent(getLocalizedField(currentShareArticle, 'excerpt') || '');
-        var image = encodeURIComponent(currentShareArticle.image || '');
+        var sharePageUrl = encodeURIComponent(getSharePageUrl(currentShareArticle.id));
+        var quote = encodeURIComponent(generateShareText(currentShareArticle, 'facebook'));
 
-        var shareUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + url +
-            '&quote=' + encodeURIComponent(generateShareText(currentShareArticle, 'facebook')) +
-            '&picture=' + image + '&title=' + title + '&description=' + description;
+        var shareUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + sharePageUrl +
+            '&quote=' + quote;
 
         openShareWindow(shareUrl, 'Share on Facebook');
         showShareToast(getShareText('opening_facebook'), ICONS.facebook);
@@ -612,14 +616,15 @@
 
     // ═══════════════════════════════════════════════════════════════════
     // SHARE TO X (TWITTER)
+    // Uses share page URL for proper card display
     // ═══════════════════════════════════════════════════════════════════
     window.shareToX = function() {
         if (!currentShareArticle) return;
 
-        var url = encodeURIComponent(SHARE_CONFIG.brandUrl + '?article=' + currentShareArticle.id);
+        var sharePageUrl = encodeURIComponent(getSharePageUrl(currentShareArticle.id));
         var text = encodeURIComponent(generateShareText(currentShareArticle, 'x'));
 
-        var shareUrl = 'https://twitter.com/intent/tweet?text=' + text + '&url=' + url;
+        var shareUrl = 'https://twitter.com/intent/tweet?text=' + text + '&url=' + sharePageUrl;
 
         openShareWindow(shareUrl, 'Share on X');
         showShareToast(getShareText('opening_x'), ICONS.x);
@@ -627,11 +632,13 @@
 
     // ═══════════════════════════════════════════════════════════════════
     // SHARE TO WHATSAPP
+    // Uses share page URL for image preview
     // ═══════════════════════════════════════════════════════════════════
     window.shareToWhatsApp = function() {
         if (!currentShareArticle) return;
 
-        var text = encodeURIComponent(generateShareText(currentShareArticle, 'whatsapp'));
+        var sharePageUrl = getSharePageUrl(currentShareArticle.id);
+        var text = encodeURIComponent(generateShareText(currentShareArticle, 'whatsapp') + '\n\n' + sharePageUrl);
         var shareUrl = 'https://wa.me/?text=' + text;
 
         openShareWindow(shareUrl, 'Share on WhatsApp');
@@ -640,15 +647,16 @@
 
     // ═══════════════════════════════════════════════════════════════════
     // SHARE TO MESSENGER
+    // Uses share page URL for OG tag scraping
     // ═══════════════════════════════════════════════════════════════════
     window.shareToMessenger = function() {
         if (!currentShareArticle) return;
 
-        var url = SHARE_CONFIG.brandUrl + '?article=' + currentShareArticle.id;
+        var sharePageUrl = getSharePageUrl(currentShareArticle.id);
 
-        // FIX: Try native Messenger app first (mobile), fallback to Facebook sharer
-        var appUrl = 'fb-messenger://share/?link=' + encodeURIComponent(url);
-        var webUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url) +
+        // Try native Messenger app first (mobile), fallback to Facebook sharer
+        var appUrl = 'fb-messenger://share/?link=' + encodeURIComponent(sharePageUrl);
+        var webUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(sharePageUrl) +
                      '&quote=' + encodeURIComponent(generateShareText(currentShareArticle, 'messenger'));
 
         var newWindow = window.open(appUrl, '_blank');
@@ -660,14 +668,15 @@
 
     // ═══════════════════════════════════════════════════════════════════
     // SHARE TO TELEGRAM
+    // Uses share page URL for link preview
     // ═══════════════════════════════════════════════════════════════════
     window.shareToTelegram = function() {
         if (!currentShareArticle) return;
 
-        var url = encodeURIComponent(SHARE_CONFIG.brandUrl + '?article=' + currentShareArticle.id);
+        var sharePageUrl = encodeURIComponent(getSharePageUrl(currentShareArticle.id));
         var text = encodeURIComponent(generateShareText(currentShareArticle, 'telegram'));
 
-        var shareUrl = 'https://t.me/share/url?url=' + url + '&text=' + text;
+        var shareUrl = 'https://t.me/share/url?url=' + sharePageUrl + '&text=' + text;
 
         openShareWindow(shareUrl, 'Share on Telegram');
         showShareToast(getShareText('opening_telegram'), ICONS.telegram);
@@ -675,11 +684,13 @@
 
     // ═══════════════════════════════════════════════════════════════════
     // COPY SHARE LINK
+    // Copies share page URL for proper OG preview
     // ═══════════════════════════════════════════════════════════════════
     window.copyShareLink = function() {
         if (!currentShareArticle) return;
 
-        var richText = generateShareText(currentShareArticle, 'copy');
+        var sharePageUrl = getSharePageUrl(currentShareArticle.id);
+        var richText = generateShareText(currentShareArticle, 'copy') + '\n\n' + sharePageUrl;
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(richText).then(function() {

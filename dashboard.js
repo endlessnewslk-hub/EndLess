@@ -368,12 +368,87 @@ async function syncFromFirebase() {
     }
 }
 
-// ── Local Storage Save ──
-function saveNews() { 
-    localStorage.setItem('endless_news', JSON.stringify(adminNews)); 
+function saveNews() {
+    localStorage.setItem('endless_news', JSON.stringify(adminNews));
+    
+    // Generate share page for latest article
+    if (adminNews && adminNews.length > 0) {
+        var latestArticle = adminNews[adminNews.length - 1];
+        saveSharePage(latestArticle);
+    }
 }
+
 function saveAds() { localStorage.setItem('endless_ads', JSON.stringify(adminAds)); }
+
 function saveCats() { localStorage.setItem('endless_categories', JSON.stringify(adminCats)); }
+
+// ── Share Page Generator ──
+function generateSharePage(article) {
+    var lang = article.lang || 'ta';
+    var title = article.title || article.title_en || article.title_si || 'EndLess News';
+    var image = article.image || 'https://via.placeholder.com/1200x630?text=EndLess+News';
+    var articleUrl = 'https://endless-news.pages.dev/?article=' + article.id;
+    var shareUrl = 'https://endless-news.pages.dev/share/' + article.id + '.html';
+    
+    var readMore = lang === 'ta' ? 'மேலும் படிக்க' : lang === 'si' ? 'තවත් කියවන්න' : 'Continue Reading';
+    var redirectText = lang === 'ta' ? 'கட்டுரைக்கு திருப்பிவிடுகிறது' : lang === 'si' ? 'ලිපියට යොමු කරමින්' : 'Redirecting to article';
+    var clickHere = lang === 'ta' ? 'திருப்பிவிடவில்லை என்றால் இங்கே சொடுக்கவும்' : lang === 'si' ? 'යොමු නොවුණොත් මෙතැන ක්ලික් කරන්න' : 'Click here if not redirected';
+    
+    var description = (article.excerpt || article.excerpt_en || article.excerpt_si || title);
+    if (description.length > 200) description = description.substring(0, 197) + '...';
+    
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+    
+    return `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta property="og:locale" content="${lang === 'ta' ? 'ta_IN' : lang === 'si' ? 'si_LK' : 'en_US'}" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="${escapeHtml(title)}" />
+    <meta property="og:description" content="${escapeHtml(description)}" />
+    <meta property="og:url" content="${shareUrl}" />
+    <meta property="og:site_name" content="EndLess News" />
+    <meta property="og:image" content="${image}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="${escapeHtml(title)}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtml(title)}" />
+    <meta name="twitter:description" content="${escapeHtml(description)}" />
+    <meta name="twitter:image" content="${image}" />
+    <meta name="twitter:image:alt" content="${escapeHtml(title)}" />
+    <meta name="twitter:site" content="@EndLessNews" />
+    <meta name="description" content="${escapeHtml(description)}" />
+    <title>${escapeHtml(title)} - EndLess News</title>
+    <link rel="canonical" href="${articleUrl}" />
+    <meta http-equiv="refresh" content="3;url=${articleUrl}" />
+    <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}.share-card{max-width:600px;width:100%;background:#1a1a1a;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5)}.share-image{width:100%;height:340px;object-fit:cover;display:block}.share-content{padding:24px}.share-logo{display:flex;align-items:center;gap:8px;margin-bottom:16px}.share-logo-icon{width:32px;height:32px;background:#e11d48;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:18px}.share-logo-text{font-size:18px;font-weight:700}.share-logo-text span{color:#e11d48}.share-headline{font-size:22px;font-weight:700;line-height:1.4;margin-bottom:20px;color:#fff}.share-cta{display:inline-flex;align-items:center;gap:8px;background:#e11d48;color:#fff;padding:14px 28px;border-radius:12px;text-decoration:none;font-weight:600;font-size:16px;transition:transform .2s,box-shadow .2s}.share-cta:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(225,29,72,0.4)}.share-redirect{margin-top:20px;text-align:center;color:#888;font-size:14px}.share-redirect a{color:#e11d48;text-decoration:none}.share-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;margin-left:8px}@keyframes spin{to{transform:rotate(360deg)}}@media(max-width:480px){.share-headline{font-size:18px}.share-image{height:240px}}</style>
+</head>
+<body>
+    <div class="share-card">
+        <img class="share-image" src="${image}" alt="${escapeHtml(title)}" />
+        <div class="share-content">
+            <div class="share-logo"><div class="share-logo-icon">E</div><div class="share-logo-text">End<span>Less</span> News</div></div>
+            <h1 class="share-headline">${escapeHtml(title)}</h1>
+            <a class="share-cta" href="${articleUrl}">${readMore} →</a>
+            <div class="share-redirect">${redirectText} <span class="share-spinner"></span><br><a href="${articleUrl}">${clickHere}</a></div>
+        </div>
+    </div>
+    <script>setTimeout(function(){window.location.href='${articleUrl}'},3000)</script>
+</body>
+</html>`;
+}
+
+function saveSharePage(article) {
+    var html = generateSharePage(article);
+    localStorage.setItem('share_page_' + article.id, html);
+    console.log('✅ Share page saved for article:', article.id);
+}
 
 // ── Toast ──
 function showToast(msg, type) {
@@ -1000,6 +1075,9 @@ async function saveNewsItem() {
             console.warn('Firebase write failed:', err);
         }
     }
+
+    // Generate share page for this article
+    saveSharePage(newsItem);
 
     closeNewsModal();
     renderNewsTable();
