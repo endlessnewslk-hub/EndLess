@@ -516,145 +516,74 @@
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // GENERATE RICH SHARE TEXT
+    // GENERATE SIMPLE SHARE TEXT (Newswire.lk style)
+    // Only: Bold Headline + "Continue Reading" + Link
     // ═══════════════════════════════════════════════════════════════════
     function generateShareText(article, platform) {
         var lang = getCurrentLang();
         var title = getLocalizedField(article, 'title') || 'EndLess News';
-        var title_en = article.title_en || title;
-        var excerpt = getLocalizedField(article, 'excerpt') || '';
         var url = SHARE_CONFIG.brandUrl + '?article=' + article.id;
-        var category = getLocalizedField(article, 'category') || 'News';
-        var readMore = getShareText('read_more');
-        var via = getShareText('via');
         var imageUrl = generateCloudinaryCard(article);
-        var date = formatShareDate(article.date);
-        var author = getLocalizedField(article, 'author') || 'EndLess News';
 
-        // Build professional share text based on platform
+        // "Continue Reading" text based on language
+        var continueReading = '';
+        if (lang === 'ta') {
+            continueReading = 'மேலும் படிக்க →';
+        } else if (lang === 'si') {
+            continueReading = 'තවත් කියවන්න →';
+        } else {
+            continueReading = 'Continue Reading →';
+        }
+
+        // Simple format for ALL platforms
         if (platform === 'whatsapp') {
-            // WhatsApp supports *bold*, _italic_, ~strikethrough~, `monospace`
-            var waText = '';
-            if (lang === 'ta') {
-                waText = '*🔴 ' + title + '*\n\n';
-                if (excerpt) waText += '📰 ' + excerpt + '\n\n';
-                waText += '✍️ ' + author + ' | 📅 ' + date + '\n';
-                waText += '🏷️ ' + category + '\n\n';
-                waText += '🔗 ' + url + '\n\n';
-                waText += '▶️ மேலும் படிக்க: ' + url;
-            } else if (lang === 'si') {
-                waText = '*🔴 ' + title + '*\n\n';
-                if (excerpt) waText += '📰 ' + excerpt + '\n\n';
-                waText += '✍️ ' + author + ' | 📅 ' + date + '\n';
-                waText += '🏷️ ' + category + '\n\n';
-                waText += '🔗 ' + url + '\n\n';
-                waText += '▶️ තවත් කියවන්න: ' + url;
-            } else {
-                waText = '*🔴 ' + title + '*\n\n';
-                if (excerpt) waText += '📰 ' + excerpt + '\n\n';
-                waText += '✍️ By ' + author + ' | 📅 ' + date + '\n';
-                waText += '🏷️ ' + category + '\n\n';
-                waText += '🔗 ' + url + '\n\n';
-                waText += '▶️ Read more: ' + url;
-            }
-            return waText;
+            return '*🔴 ' + title + '*\n\n' +
+                   continueReading + '\n' +
+                   url;
         }
 
         if (platform === 'telegram') {
-            // Telegram supports *bold*, _italic_, `code`, [text](url)
-            var tgText = '';
-            if (lang === 'ta') {
-                tgText = '🔴 *' + title + '*\n\n';
-                if (excerpt) tgText += '📰 ' + excerpt + '\n\n';
-                tgText += '✍️ ' + author + ' | 📅 ' + date + '\n';
-                tgText += '🏷️ ' + category + '\n\n';
-                tgText += '▶️ [மேலும் படிக்க](' + url + ')\n\n';
-                tgText += '📱 *EndLess News* - உலக செய்திகள்';
-            } else if (lang === 'si') {
-                tgText = '🔴 *' + title + '*\n\n';
-                if (excerpt) tgText += '📰 ' + excerpt + '\n\n';
-                tgText += '✍️ ' + author + ' | 📅 ' + date + '\n';
-                tgText += '🏷️ ' + category + '\n\n';
-                tgText += '▶️ [තවත් කියවන්න](' + url + ')\n\n';
-                tgText += '📱 *EndLess News* - ලෝක පුවත්';
-            } else {
-                tgText = '🔴 *' + title + '*\n\n';
-                if (excerpt) tgText += '📰 ' + excerpt + '\n\n';
-                tgText += '✍️ By ' + author + ' | 📅 ' + date + '\n';
-                tgText += '🏷️ ' + category + '\n\n';
-                tgText += '▶️ [Read more](' + url + ')\n\n';
-                tgText += '📱 *EndLess News* - World News & Analysis';
-            }
-            return tgText;
+            return '🔴 *' + title + '*\n\n' +
+                   '[' + continueReading + '](' + url + ')';
         }
 
         if (platform === 'messenger') {
-            // Messenger uses Facebook OG tags for preview, but we send rich text too
-            var msText = '';
-            if (lang === 'ta') {
-                msText = title + '\n\n';
-                if (excerpt) msText += excerpt + '\n\n';
-                msText += '✍️ ' + author + ' | 📅 ' + date + ' | 🏷️ ' + category + '\n\n';
-                msText += '▶️ மேலும் படிக்க: ' + url + '\n';
-                msText += '📱 EndLess News - உலக செய்திகள்';
-            } else if (lang === 'si') {
-                msText = title + '\n\n';
-                if (excerpt) msText += excerpt + '\n\n';
-                msText += '✍️ ' + author + ' | 📅 ' + date + ' | 🏷️ ' + category + '\n\n';
-                msText += '▶️ තවත් කියවන්න: ' + url + '\n';
-                msText += '📱 EndLess News - ලෝක පුවත්';
-            } else {
-                msText = title + '\n\n';
-                if (excerpt) msText += excerpt + '\n\n';
-                msText += '✍️ By ' + author + ' | 📅 ' + date + ' | 🏷️ ' + category + '\n\n';
-                msText += '▶️ Read more: ' + url + '\n';
-                msText += '📱 EndLess News - World News & Analysis';
-            }
-            return msText;
+            return title + '\n\n' +
+                   continueReading + '\n' +
+                   url;
         }
 
         if (platform === 'facebook') {
-            return title + '\n\n' + excerpt + '\n\n🏷️ ' + category + '\n\n' + readMore + ' ' + url + '\n\n' + via + ' EndLess News 📰';
+            return title + '\n\n' +
+                   continueReading + '\n' +
+                   url;
         }
 
         if (platform === 'x') {
-            var shortExcerpt = excerpt.substring(0, 100) + (excerpt.length > 100 ? '...' : '');
-            return '🔴 ' + title + '\n\n' + shortExcerpt + '\n\n🔗 ' + url + '\n\n' + via + ' @EndLessNews';
+            return '🔴 ' + title + '\n\n' +
+                   url;
         }
 
         if (platform === 'copy') {
-            // Rich formatted text for clipboard
             var copyText = '';
             if (lang === 'ta') {
                 copyText = '═══════════════════════════════════════\n';
                 copyText += '🔴 ' + title + '\n';
                 copyText += '═══════════════════════════════════════\n\n';
-                if (excerpt) copyText += '📰 ' + excerpt + '\n\n';
-                copyText += '✍️ ' + author + ' | 📅 ' + date + '\n';
-                copyText += '🏷️ ' + category + '\n';
-                copyText += '📸 ' + imageUrl + '\n\n';
                 copyText += '▶️ மேலும் படிக்க: ' + url + '\n';
-                copyText += '📱 EndLess News - உலக செய்திகள்';
+                copyText += '📱 EndLess News';
             } else if (lang === 'si') {
                 copyText = '═══════════════════════════════════════\n';
                 copyText += '🔴 ' + title + '\n';
                 copyText += '═══════════════════════════════════════\n\n';
-                if (excerpt) copyText += '📰 ' + excerpt + '\n\n';
-                copyText += '✍️ ' + author + ' | 📅 ' + date + '\n';
-                copyText += '🏷️ ' + category + '\n';
-                copyText += '📸 ' + imageUrl + '\n\n';
                 copyText += '▶️ තවත් කියවන්න: ' + url + '\n';
-                copyText += '📱 EndLess News - ලෝක පුවත්';
+                copyText += '📱 EndLess News';
             } else {
                 copyText = '═══════════════════════════════════════\n';
                 copyText += '🔴 ' + title + '\n';
                 copyText += '═══════════════════════════════════════\n\n';
-                if (excerpt) copyText += '📰 ' + excerpt + '\n\n';
-                copyText += '✍️ By ' + author + ' | 📅 ' + date + '\n';
-                copyText += '🏷️ ' + category + '\n';
-                copyText += '📸 ' + imageUrl + '\n\n';
-                copyText += '▶️ Read more: ' + url + '\n';
-                copyText += '📱 EndLess News - World News & Analysis';
+                copyText += '▶️ Continue Reading: ' + url + '\n';
+                copyText += '📱 EndLess News';
             }
             return copyText;
         }
