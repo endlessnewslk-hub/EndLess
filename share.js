@@ -10,7 +10,7 @@
     const SHARE_CONFIG = {
         brandName: 'EndLess News',
         brandUrl: 'https://endless-news.pages.dev',
-        fallbackImage: 'https://via.placeholder.com/1200x630?text=EndLess+News'
+        fallbackImage: 'https://images.unsplash.com/photo-1611974765270-ca1258634369?w=1200&h=630&fit=crop'
     };
 
     // ── Share Page URL Generator ──
