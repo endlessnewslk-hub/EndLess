@@ -28,7 +28,14 @@
     // ── Share Page URL Generator ──
     // Points to static share pages with pre-set OG tags
    function getSharePageUrl(articleId) {
-    return 'https://endless-news.pages.dev/share-' + articleId + '.html';
+      // Map article IDs to share page numbers
+    var idMap = {
+        '1718764800001': '1',
+        '1718764800002': '2',
+        '1718764800003': '3'
+    };
+    var num = idMap[String(articleId)] || articleId;
+    return 'https://endless-news.pages.dev/share-' + num + '.html';
 }
 
     // ── Share Text Translations ──
