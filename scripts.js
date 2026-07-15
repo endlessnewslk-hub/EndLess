@@ -591,7 +591,7 @@ function shareArticle(id) {
     
     // 🔴 IMPORTANT: Replace with your ACTUAL Firebase Hosting URL
     // Example: https://endless-news.web.app or https://yourdomain.com
-    const BASE_URL = 'https://endless-news.web.app';  // ← INGA UNGA URL VECHUKKO
+    const BASE_URL = 'https://endlessnewslk-hub.github.io/EndLess/';  // ← INGA UNGA URL VECHUKKO
     
     // Cloud Function URL for OG image preview (WhatsApp/Facebook)
     const cloudUrl = BASE_URL + '/share?article=' + encodeURIComponent(id);
