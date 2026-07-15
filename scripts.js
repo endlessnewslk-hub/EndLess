@@ -49,19 +49,7 @@ const TRANSLATIONS = {
         no_results: "எந்த செய்தியும் கிடைக்கவில்லை",
         no_articles_yet: "இன்னும் செய்திகள் எதுவும் இல்லை. நிர்வாகி பேனலில் இருந்து கட்டுரைகளைப் பதிவு செய்யுங்கள்.",
         close: "மூடு", loading: "ஏற்றுகிறது...",
-        share_article: "பகிர்",
-        share_this_article: "இந்த கட்டுரையைப் பகிர்",
-        share_facebook: "பேஸ்புக்",
-        share_x: "எக்ஸ்",
-        share_whatsapp: "வாட்ஸ்அப்",
-        share_copy: "நகலெடு",
-        share_copied: "நகலெடுக்கப்பட்டது!",
-        share_link_copied: "இணைப்பு கிளிப்போர்டில் நகலெடுக்கப்பட்டது!",
-        share_failed: "நகலெடுக்க முடியவில்லை",
-        share_opening_facebook: "பேஸ்புக் திறக்கிறது...",
-        share_opening_x: "எக்ஸ் திறக்கிறது...",
-        share_opening_whatsapp: "வாட்ஸ்அப் திறக்கிறது...",
-        shared_from: "இதிலிருந்து பகிரப்பட்டது"
+        share_article: "பகிர்"
     },
     en: {
         nav_home: "Home", nav_world: "World", nav_tech: "Technology",
@@ -83,19 +71,7 @@ const TRANSLATIONS = {
         no_results: "No articles found",
         no_articles_yet: "No articles yet. Please publish from the admin panel.",
         close: "Close", loading: "Loading...",
-        share_article: "Share",
-        share_this_article: "Share this article",
-        share_facebook: "Facebook",
-        share_x: "X",
-        share_whatsapp: "WhatsApp",
-        share_copy: "Copy",
-        share_copied: "Copied!",
-        share_link_copied: "Link copied to clipboard!",
-        share_failed: "Failed to copy",
-        share_opening_facebook: "Opening Facebook...",
-        share_opening_x: "Opening X...",
-        share_opening_whatsapp: "Opening WhatsApp...",
-        shared_from: "Shared from"
+        share_article: "Share"
     },
     si: {
         nav_home: "මුල් පිටුව", nav_world: "ලෝකය", nav_tech: "තාක්ෂණය",
@@ -118,19 +94,7 @@ const TRANSLATIONS = {
         no_results: "ලිපි හමු නොවීය",
         no_articles_yet: "තවම ලිපි නැත. කරුණාකර පරිපාලක පැනලයෙන් ප්‍රකාශයට පත් කරන්න.",
         close: "වසන්න", loading: "පූරණය වෙමින්...",
-        share_article: "බෙදාගන්න",
-        share_this_article: "මෙම ලිපිය බෙදාගන්න",
-        share_facebook: "ෆේස්බුක්",
-        share_x: "එක්ස්",
-        share_whatsapp: "වට්ස්ඇප්",
-        share_copy: "පිටපත් කරන්න",
-        share_copied: "පිටපත් කරන ලදී!",
-        share_link_copied: "සබැඳිය පසුරුපුවරුවට පිටපත් කරන ලදී!",
-        share_failed: "පිටපත් කිරීමට අසමත් විය",
-        share_opening_facebook: "ෆේස්බුක් විවෘත කරමින්...",
-        share_opening_x: "එක්ස් විවෘත කරමින්...",
-        share_opening_whatsapp: "වට්ස්ඇප් විවෘත කරමින්...",
-        shared_from: "වෙතින් බෙදාගත්තේ"
+        share_article: "බෙදාගන්න"
     }
 };
 
@@ -422,10 +386,8 @@ function renderFeed() {
 
     if (toShow.length === 0) {
         if (!isDataLoaded) {
-            // Still loading
             return;
         }
-        // No articles message
         grid.innerHTML = `
             <div style="text-align:center; padding:3rem; grid-column:1/-1;">
                 <p style="font-size:1.1rem; color:var(--text-muted); margin-bottom:0.5rem;">📭</p>
@@ -446,18 +408,13 @@ function renderFeed() {
                 </div>
                 <h3>${escapeHtml(getLocalized(item, 'title'))}</h3>
                 <p>${escapeHtml(getLocalized(item, 'excerpt'))}</p>
+                <button onclick="event.stopPropagation(); shareArticle('${item.id}')" style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.4rem 0.875rem;background:linear-gradient(135deg, var(--primary, #e11d48), var(--primary-hover, #be123c));color:#fff;border:none;border-radius:999px;font-size:0.75rem;font-weight:700;cursor:pointer;margin-top:0.5rem;font-family:inherit;box-shadow:0 3px 12px rgba(225,29,72,0.25);">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                    ${TRANSLATIONS[currentLang].share_article || 'Share'}
+                </button>
             </div>
         </article>
     `).join('');
-
-    setTimeout(function() {
-        grid.querySelectorAll('.article-card').forEach(function(card) {
-            var articleId = card.dataset.articleId;
-            if (articleId) {
-                addShareToArticleCard(card, articleId);
-            }
-        });
-    }, 10);
 
     document.getElementById('load-more-wrap').style.display = filtered.length > displayedCount ? 'block' : 'none';
 }
@@ -579,6 +536,9 @@ function openArticle(id) {
         processedContent = paragraphs.map(p => `<p>${p.trim()}</p>`).join('');
     }
 
+    const shareLabel = TRANSLATIONS[currentLang].share_article || 'Share';
+    const articleId = String(article.id).replace(/'/g, "\\'");
+
     body.innerHTML = `
         <div class="modal-article">
             <img src="${escapeHtml(article.image)}" alt="${escapeHtml(getLocalized(article, 'title'))}" loading="eager">
@@ -590,7 +550,10 @@ function openArticle(id) {
                     <span>📅 ${new Date(article.date).toLocaleDateString()}</span>
                     <span>🏷️ ${escapeHtml(getLocalized(article, 'category'))}</span>
                 </div>
-                
+                <button onclick="shareArticle('${articleId}')" class="share-btn-modal">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                    ${shareLabel}
+                </button>
                 <div class="article-text">
                     ${processedContent}
                 </div>
@@ -601,10 +564,6 @@ function openArticle(id) {
 
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
-
-    setTimeout(function() {
-        addShareToModal(id);
-    }, 100);
 
     if (isTouchDevice) {
         modal.addEventListener('touchstart', handleTouchStart, { passive: true });
@@ -623,6 +582,80 @@ function closeModal() {
     modal.removeEventListener('touchend', handleTouchEnd);
 }
 
+function shareArticle(id) {
+    const article = findArticleById(id);
+    if (!article) {
+        alert('Article not found!');
+        return;
+    }
+    
+    const title = getLocalized(article, 'title') || 'EndLess News';
+    const url = window.location.origin + window.location.pathname + '?article=' + encodeURIComponent(id);
+    const text = title + '\n\n' + url;
+    
+    if (navigator.share) {
+        navigator.share({
+            title: title,
+            text: title,
+            url: url
+        }).catch(() => {});
+    } else {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Link copied! Paste it on Facebook/WhatsApp.');
+            }).catch(() => {
+                fallbackCopy(text);
+            });
+        } else {
+            fallbackCopy(text);
+        }
+    }
+}
+
+function fallbackCopy(text) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    alert('Link copied! Paste it on Facebook/WhatsApp.');
+}
+
+function shareArticle(id) {
+    const article = findArticleById(id);
+    if (!article) return;
+    
+    const title = getLocalized(article, 'title') || 'EndLess News';
+    const url = window.location.origin + window.location.pathname + '?article=' + id;
+    const text = title + '\n\n' + url;
+    
+    if (navigator.share) {
+        navigator.share({
+            title: title,
+            text: title,
+            url: url
+        }).catch(() => {});
+    } else {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Link copied! Paste it on Facebook/WhatsApp.');
+            });
+        } else {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert('Link copied! Paste it on Facebook/WhatsApp.');
+        }
+    }
+}
 
 function handleTouchStart(e) {
     touchStartY = e.changedTouches[0].screenY;
@@ -879,28 +912,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
 
     let scrollTicking = false;
-    window.addEventListener('scroll', () => {
-        if (!scrollTicking) {
-            requestAnimationFrame(() => {
+    window.addEventListener('scroll', () => {  if (!scrollTicking) {
+            window.requestAnimationFrame(() => {
                 handleHeaderScroll();
                 scrollTicking = false;
             });
             scrollTicking = true;
         }
-    }, { passive: true });
-
-    let resizeTimeout;
-    window.addEventListener('resize', () => {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(handleResize, 250);
     });
 
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
-    });
+    window.addEventListener('resize', debounce(handleResize, 250));
 
-    hideLoading();          
-    setLanguage(currentLang);
+    // Initial renders
     renderHero();
     renderFeed();
     renderTrending();
@@ -908,190 +931,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderAds();
     renderTicker();
 
-    setTimeout(initLazyLoading, 100);
-
-    window.addEventListener('storage', function(e) {
+    // Cross-tab sync (admin panel-la update pannumbodhu auto refresh)
+    window.addEventListener('storage', (e) => {
         if (e.key === 'endless_news') {
-            console.log('News updated from admin panel, syncing...');
             syncNewsFromStorage();
         } else if (e.key === 'endless_ads') {
-            console.log('Ads updated from admin panel, syncing...');
             syncAdsFromStorage();
         } else if (e.key === 'endless_categories') {
-            console.log('Categories updated from admin panel, syncing...');
             syncCategoriesFromStorage();
         }
     });
 
-    // Auto-refresh from Firebase every 10 seconds to catch new posts
-    setInterval(async function() {
-        if (db) {
-            try {
-                const snapshot = await db.collection('news').get({ source: 'server' });
-                let freshNews = [];
-                if (!snapshot.empty) {
-                    snapshot.docs.forEach(doc => {
-                        const data = doc.data();
-                        data.id = doc.id;
-                        if (!isGarbagePost(data)) freshNews.push(data);
-                    });
-                }
-                if (freshNews.length !== newsData.length) {
-                    console.log('Auto-refresh: New articles detected from Firebase');
-                    newsData = freshNews;
-                    renderHero();
-                    renderFeed();
-                    renderTrending();
-                    renderTicker();
-                }
-            } catch(e) {
-                // Silent fail on auto-refresh
-            }
-        }
+    // Periodic sync every 10 seconds
+    setInterval(() => {
+        syncNewsFromStorage();
+        syncAdsFromStorage();
+        syncCategoriesFromStorage();
     }, 10000);
+
+    initLazyLoading();
 });
 
-/* ─── DEBOUNCE UTILITY ─── */
 function debounce(func, wait) {
     let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
+    return function(...args) {
         clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
+        timeout = setTimeout(() => func.apply(this, args), wait);
     };
 }
-
-/* ─── PERFORMANCE: Preload critical resources ─── */
-if ('requestIdleCallback' in window) {
-    requestIdleCallback(() => {
-        const images = document.querySelectorAll('img[loading="lazy"]');
-        images.forEach((img, index) => {
-            if (index < 6) {
-                img.loading = 'eager';
-            }
-        });
-    });
-}
-
-/* ═══════════════════════════════════════════════════════
-   SOCIAL SHARE SYSTEM
-   ═══════════════════════════════════════════════════════ */
-
-function addShareToArticleCard(articleCard, articleId) {
-    if (!articleCard) return;
-    const cardBody = articleCard.querySelector('.card-body');
-    if (!cardBody) return;
-    if (cardBody.querySelector('.article-share-btn')) return;
-
-    const shareBtn = document.createElement('button');
-    shareBtn.className = 'article-share-btn';
-    shareBtn.style.cssText = `
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.4rem 0.875rem;
-        background: linear-gradient(135deg, var(--primary, #e11d48), var(--primary-hover, #be123c));
-        color: #fff;
-        border: none;
-        border-radius: 999px;
-        font-size: 0.75rem;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.3s;
-        box-shadow: 0 3px 12px rgba(225, 29, 72, 0.25);
-        margin-top: 0.5rem;
-        font-family: inherit;
-    `;
-
-    const shareText = TRANSLATIONS[currentLang].share_article || 'Share';
-
-    shareBtn.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;">
-            <circle cx="18" cy="5" r="3"/>
-            <circle cx="6" cy="12" r="3"/>
-            <circle cx="18" cy="19" r="3"/>
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-        </svg>
-        ${shareText}
-    `;
-    shareBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        if (typeof openShareOverlay === 'function') {
-            openShareOverlay(articleId);
-        }
-    });
-    cardBody.appendChild(shareBtn);
-}
-
-function addShareToModal(articleId) {
-    const modalBody = document.getElementById('modal-body');
-    if (!modalBody) return;
-    const modalArticleBody = modalBody.querySelector('.modal-article .modal-body');
-    if (!modalArticleBody) return;
-    if (modalArticleBody.querySelector('.modal-share-section')) return;
-
-    const shareText = TRANSLATIONS[currentLang].share_this_article || 'Share this article';
-    const btnText = TRANSLATIONS[currentLang].share_article || 'Share';
-
-    const shareSection = document.createElement('div');
-    shareSection.className = 'modal-share-section';
-    shareSection.style.cssText = `
-        margin-top: 1.5rem;
-        padding-top: 1.5rem;
-        border-top: 2px solid var(--border, #e5e7eb);
-        text-align: center;
-    `;
-    shareSection.innerHTML = `
-        <p style="font-size: 0.85rem; color: var(--text-muted, #6b7280); margin-bottom: 0.75rem; font-weight: 600;">
-            📢 ${shareText}
-        </p>
-        <button class="article-share-btn" style="
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.65rem 1.5rem;
-            background: linear-gradient(135deg, var(--primary, #e11d48), var(--primary-hover, #be123c));
-            color: #fff;
-            border: none;
-            border-radius: 999px;
-            font-size: 0.9rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(225, 29, 72, 0.3);
-            font-family: inherit;
-        ">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;">
-                <circle cx="18" cy="5" r="3"/>
-                <circle cx="6" cy="12" r="3"/>
-                <circle cx="18" cy="19" r="3"/>
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-            </svg>
-            ${btnText}
-        </button>
-    `;
-    const btn = shareSection.querySelector('.article-share-btn');
-    if (btn) {
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            if (typeof openShareOverlay === 'function') {
-                openShareOverlay(articleId);
-            }
-        });
-    }
-    modalArticleBody.appendChild(shareSection);
-}
-
-// Add CSS animation for spinner
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-`;
-document.head.appendChild(style);
