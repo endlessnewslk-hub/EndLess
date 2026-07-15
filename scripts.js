@@ -579,47 +579,6 @@ function closeModal() {
     modal.removeEventListener('touchend', handleTouchEnd);
 }
 
-function shareArticle(id) {
-    const article = findArticleById(id);
-    if (!article) {
-        alert('Article not found!');
-        return;
-    }
-    
-    const title = getLocalized(article, 'title') || 'EndLess News';
-    const url = window.location.origin + window.location.pathname + '?article=' + encodeURIComponent(id);
-    const text = title + '\n\n' + url;
-    
-    if (navigator.share) {
-        navigator.share({
-            title: title,
-            text: title,
-            url: url
-        }).catch(() => {});
-    } else {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(() => {
-                alert('Link copied! Paste it on Facebook/WhatsApp.');
-            }).catch(() => {
-                fallbackCopy(text);
-            });
-        } else {
-            fallbackCopy(text);
-        }
-    }
-}
-
-function fallbackCopy(text) {
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textarea);
-    alert('Link copied! Paste it on Facebook/WhatsApp.');
-}
 
 function shareArticle(id) {
     const article = findArticleById(id);
