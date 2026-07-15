@@ -536,9 +536,6 @@ function openArticle(id) {
         processedContent = paragraphs.map(p => `<p>${p.trim()}</p>`).join('');
     }
 
-    const shareLabel = TRANSLATIONS[currentLang].share_article || 'Share';
-    const articleId = String(article.id).replace(/'/g, "\\'");
-
     body.innerHTML = `
         <div class="modal-article">
             <img src="${escapeHtml(article.image)}" alt="${escapeHtml(getLocalized(article, 'title'))}" loading="eager">
@@ -550,9 +547,9 @@ function openArticle(id) {
                     <span>📅 ${new Date(article.date).toLocaleDateString()}</span>
                     <span>🏷️ ${escapeHtml(getLocalized(article, 'category'))}</span>
                 </div>
-                <button onclick="shareArticle('${articleId}')" class="share-btn-modal">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-                    ${shareLabel}
+                <button onclick="shareArticle('${article.id}')" style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.5rem;background:linear-gradient(135deg, var(--primary, #e11d48), var(--primary-hover, #be123c));color:#fff;border:none;border-radius:999px;font-size:0.9rem;font-weight:700;cursor:pointer;margin:1rem 0;font-family:inherit;box-shadow:0 4px 15px rgba(225,29,72,0.3);">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                    ${TRANSLATIONS[currentLang].share_article || 'Share'}
                 </button>
                 <div class="article-text">
                     ${processedContent}
@@ -626,33 +623,51 @@ function fallbackCopy(text) {
 
 function shareArticle(id) {
     const article = findArticleById(id);
-    if (!article) return;
+    if (!article) {
+        alert('Article not found!');
+        return;
+    }
     
     const title = getLocalized(article, 'title') || 'EndLess News';
-    const url = window.location.origin + window.location.pathname + '?article=' + id;
-    const text = title + '\n\n' + url;
     
+    // IMPORTANT: Cloud Function URL use pannu — ithu WhatsApp/Facebook-kku OG image vara vaikum
+    const cloudUrl = 'https://yourdomain.com/share?article=' + encodeURIComponent(id);
+    
+    // Fallback direct URL (for opening in browser)
+    const directUrl = window.location.origin + window.location.pathname + '?article=' + encodeURIComponent(id);
+    
+    const text = title + '\n\n' + cloudUrl;
+    
+    // Mobile native share (WhatsApp, Facebook, Messenger picker)
     if (navigator.share) {
         navigator.share({
             title: title,
             text: title,
-            url: url
+            url: cloudUrl
         }).catch(() => {});
     } else {
+        // Desktop: Clipboard-la copy
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(text).then(() => {
                 alert('Link copied! Paste it on Facebook/WhatsApp.');
+            }).catch(() => {
+                fallbackCopy(text);
             });
         } else {
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-            alert('Link copied! Paste it on Facebook/WhatsApp.');
+
+      function fallbackCopy(text) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    alert('Link copied! Paste it on Facebook/WhatsApp.');
+}
+
+            fallbackCopy(text);
         }
     }
 }
