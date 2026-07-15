@@ -630,12 +630,14 @@ function shareArticle(id) {
     
     const title = getLocalized(article, 'title') || 'EndLess News';
     
-    // IMPORTANT: Cloud Function URL use pannu — ithu WhatsApp/Facebook-kku OG image vara vaikum
-    const cloudUrl = 'https://yourdomain.com/share?article=' + encodeURIComponent(id);
+    // 🔴 IMPORTANT: Replace with your ACTUAL Firebase Hosting URL
+    // Example: https://endless-news.web.app or https://yourdomain.com
+    const BASE_URL = 'https://endless-news.web.app';  // ← INGA UNGA URL VECHUKKO
     
-    // Fallback direct URL (for opening in browser)
-    const directUrl = window.location.origin + window.location.pathname + '?article=' + encodeURIComponent(id);
+    // Cloud Function URL for OG image preview (WhatsApp/Facebook)
+    const cloudUrl = BASE_URL + '/share?article=' + encodeURIComponent(id);
     
+    // Share text
     const text = title + '\n\n' + cloudUrl;
     
     // Mobile native share (WhatsApp, Facebook, Messenger picker)
@@ -646,7 +648,7 @@ function shareArticle(id) {
             url: cloudUrl
         }).catch(() => {});
     } else {
-        // Desktop: Clipboard-la copy
+        // Desktop: Clipboard copy
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(text).then(() => {
                 alert('Link copied! Paste it on Facebook/WhatsApp.');
@@ -654,8 +656,12 @@ function shareArticle(id) {
                 fallbackCopy(text);
             });
         } else {
+            fallbackCopy(text);
+        }
+    }
+}
 
-      function fallbackCopy(text) {
+function fallbackCopy(text) {
     const textarea = document.createElement('textarea');
     textarea.value = text;
     textarea.style.position = 'fixed';
@@ -665,11 +671,6 @@ function shareArticle(id) {
     document.execCommand('copy');
     document.body.removeChild(textarea);
     alert('Link copied! Paste it on Facebook/WhatsApp.');
-}
-
-            fallbackCopy(text);
-        }
-    }
 }
 
 function handleTouchStart(e) {
