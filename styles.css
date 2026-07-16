@@ -2079,3 +2079,158 @@ button,
 .share-btn-modal svg {
     flex-shrink: 0;
 }
+
+/* ═══════════════════════════════════════
+   SHARE MODAL STYLES
+   ═══════════════════════════════════════ */
+
+.share-modal-content {
+    max-height: 55vh;
+    padding: 0;
+    overflow: hidden;
+}
+
+.share-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.share-modal-header h3 {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.share-modal-body {
+    padding: 1.5rem;
+}
+
+.share-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.875rem;
+    margin-bottom: 1.5rem;
+}
+
+.share-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 0.25rem;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    color: var(--text);
+    font-family: inherit;
+}
+
+.share-btn svg {
+    width: 26px;
+    height: 26px;
+    color: var(--primary);
+    transition: transform var(--transition-fast);
+}
+
+.share-btn span {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    transition: color var(--transition-fast);
+}
+
+.share-btn:hover {
+    border-color: var(--primary);
+    background: var(--primary-glow);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+}
+
+.share-btn:hover svg {
+    transform: scale(1.15);
+}
+
+.share-btn:hover span {
+    color: var(--primary);
+}
+
+.share-copy-section {
+    border-top: 1px solid var(--border);
+    padding-top: 1.25rem;
+}
+
+.share-copy-label {
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+}
+
+.share-copy-box {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.share-copy-box input {
+    flex: 1;
+    padding: 0.65rem 0.875rem;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.85rem;
+    font-family: inherit;
+    outline: none;
+}
+
+.btn-copy-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.65rem 1rem;
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+    font-family: inherit;
+}
+
+.btn-copy-link:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(225, 29, 72, 0.3);
+}
+
+.btn-copy-link svg {
+    width: 16px;
+    height: 16px;
+}
+
+@media (min-width: 640px) {
+    .share-modal-content {
+        max-width: 460px;
+        border-radius: var(--radius-xl);
+        max-height: none;
+    }
+
+    .share-btn svg {
+        width: 30px;
+        height: 30px;
+    }
+
+    .share-btn span {
+        font-size: 0.8rem;
+    }
+}

@@ -586,37 +586,136 @@ function shareArticle(id) {
         alert('Article not found!');
         return;
     }
-    
+
+    // Create share modal if not exists
+    let shareOverlay = document.getElementById('share-modal-overlay');
+    if (!shareOverlay) {
+        shareOverlay = document.createElement('div');
+        shareOverlay.id = 'share-modal-overlay';
+        shareOverlay.className = 'modal-overlay';
+        shareOverlay.innerHTML = `
+            <div class="modal-content share-modal-content" onclick="event.stopPropagation()">
+                <div class="share-modal-header">
+                    <h3>${TRANSLATIONS[currentLang].share_article || 'Share Article'}</h3>
+                    <button class="modal-close" onclick="closeShareModal()" aria-label="Close">&times;</button>
+                </div>
+                <div class="share-modal-body">
+                    <div class="share-grid">
+                        <button class="share-btn" data-platform="facebook" onclick="performShare('facebook')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
+                            <span>Facebook</span>
+                        </button>
+                        <button class="share-btn" data-platform="whatsapp" onclick="performShare('whatsapp')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                            <span>WhatsApp</span>
+                        </button>
+                        <button class="share-btn" data-platform="telegram" onclick="performShare('telegram')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            <span>Telegram</span>
+                        </button>
+                        <button class="share-btn" data-platform="x" onclick="performShare('x')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l11.733 16h4.267l-11.733 -16z"></path><path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772"></path></svg>
+                            <span>X</span>
+                        </button>
+                    </div>
+                    <div class="share-copy-section">
+                        <p class="share-copy-label">Or copy link</p>
+                        <div class="share-copy-box">
+                            <input type="text" id="share-link-input" readonly>
+                            <button class="btn-copy-link" onclick="copyShareLink()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                <span>Copy</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(shareOverlay);
+
+        // Close on overlay click
+        shareOverlay.addEventListener('click', (e) => {
+            if (e.target === shareOverlay) closeShareModal();
+        });
+    }
+
+    // Store current article id
+    shareOverlay.dataset.articleId = id;
+
+    // Update copy link input
     const title = getLocalized(article, 'title') || 'EndLess News';
-    
-    // 🔴 IMPORTANT: Replace with your ACTUAL Firebase Hosting URL
-    // Example: https://endless-news.web.app or https://yourdomain.com
-    const BASE_URL = 'https://endlessnewslk-hub.github.io/EndLess/';  // ← INGA UNGA URL VECHUKKO
-    
-    // Cloud Function URL for OG image preview (WhatsApp/Facebook)
-    const cloudUrl = BASE_URL + '/share?article=' + encodeURIComponent(id);
-    
-    // Share text
-    const text = title + '\n\n' + cloudUrl;
-    
-    // Mobile native share (WhatsApp, Facebook, Messenger picker)
-    if (navigator.share) {
-        navigator.share({
-            title: title,
-            text: title,
-            url: cloudUrl
-        }).catch(() => {});
+    const BASE_URL = 'https://endlessnewslk-hub.github.io/EndLess/';
+    const cloudUrl = BASE_URL + 'share?article=' + encodeURIComponent(id);
+    const linkInput = document.getElementById('share-link-input');
+    if (linkInput) linkInput.value = cloudUrl;
+
+    // Show modal
+    shareOverlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeShareModal() {
+    const shareOverlay = document.getElementById('share-modal-overlay');
+    if (shareOverlay) {
+        shareOverlay.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+}
+
+function performShare(platform) {
+    const shareOverlay = document.getElementById('share-modal-overlay');
+    const id = shareOverlay ? shareOverlay.dataset.articleId : null;
+    if (!id) return;
+
+    const article = findArticleById(id);
+    if (!article) return;
+
+    const title = getLocalized(article, 'title') || 'EndLess News';
+    const BASE_URL = 'https://endlessnewslk-hub.github.io/EndLess/';
+    const articleUrl = BASE_URL + 'share?article=' + encodeURIComponent(id);
+
+    let shareUrl = '';
+
+    switch(platform) {
+        case 'facebook':
+            shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(articleUrl)}&quote=${encodeURIComponent(title)}`;
+            break;
+        case 'whatsapp':
+            shareUrl = `https://wa.me/?text=${encodeURIComponent(title + '\n\n' + articleUrl)}`;
+            break;
+        case 'telegram':
+            shareUrl = `https://t.me/share/url?url=${encodeURIComponent(articleUrl)}&text=${encodeURIComponent(title)}`;
+            break;
+        case 'x':
+            shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(articleUrl)}`;
+            break;
+    }
+
+    if (shareUrl) {
+        window.open(shareUrl, '_blank', 'width=600,height=500,top=100,left=100');
+    }
+
+    closeShareModal();
+}
+
+function copyShareLink() {
+    const linkInput = document.getElementById('share-link-input');
+    if (!linkInput) return;
+
+    linkInput.select();
+    linkInput.setSelectionRange(0, 99999);
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(linkInput.value).then(() => {
+            const btn = document.querySelector('.btn-copy-link span');
+            if (btn) btn.textContent = 'Copied!';
+            setTimeout(() => { if (btn) btn.textContent = 'Copy'; }, 2000);
+        });
     } else {
-        // Desktop: Clipboard copy
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(() => {
-                alert('Link copied! Paste it on Facebook/WhatsApp.');
-            }).catch(() => {
-                fallbackCopy(text);
-            });
-        } else {
-            fallbackCopy(text);
-        }
+        document.execCommand('copy');
+        const btn = document.querySelector('.btn-copy-link span');
+        if (btn) btn.textContent = 'Copied!';
+        setTimeout(() => { if (btn) btn.textContent = 'Copy'; }, 2000);
     }
 }
 
