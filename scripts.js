@@ -92,7 +92,7 @@ const TRANSLATIONS = {
         published_on: "ප්‍රකාශිත දිනය", breaking_news: "අලුත්ම පුවත්",
         ad_label: "දැන්වීම", search_results: "සෙවුම් ප්‍රතිඵල",
         no_results: "ලිපි හමු නොවීය",
-        no_articles_yet: "තවම ලිපි නැත. කරුණාකර පරිපාලක පැනලයෙන් ප්‍රකාශයට පත් කරන්න.",
+        no_articles_yet: "තවම ලිපි නැත. කරුණාකර පරිපාலක පැනලයෙන් ප්‍රකාශයට පත් කරන්න.",
         close: "වසන්න", loading: "පූරණය වෙමින්...",
         share_article: "බෙදාගන්න"
     }
@@ -105,8 +105,6 @@ let isDataLoaded = false;
 
 const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
-// ─── NO DEFAULT NEWS SHOWN TO USERS ───
-// Only used as absolute fallback if admin never posted anything
 const DEFAULT_NEWS = [];
 
 const DEFAULT_ADS = [
@@ -163,7 +161,6 @@ function getNewsFromStorage() {
     return null;
 }
 
-// ─── CRITICAL: Start with EMPTY array, wait for Firebase ───
 var newsData = [];
 window.newsData = newsData;
 let adsData = JSON.parse(localStorage.getItem('endless_ads')) || DEFAULT_ADS;
@@ -172,9 +169,7 @@ let currentFilter = 'All';
 let searchQuery = '';
 let displayedCount = 4;
 
-/* ─── FIREBASE SYNC ─── */
 async function syncFromFirebase() {
-    // ALWAYS load localStorage first as base data
     var localNews = getNewsFromStorage();
     newsData = (localNews || []).filter(function(n) { return !isGarbagePost(n); });
 
@@ -199,7 +194,6 @@ async function syncFromFirebase() {
         }
 
         if (firebaseNews.length > 0) {
-            // Merge: Firebase articles + localStorage articles (avoid duplicates by ID)
             var existingIds = new Set(firebaseNews.map(n => String(n.id)));
             var merged = [...firebaseNews];
             if (localNews) {
@@ -211,13 +205,12 @@ async function syncFromFirebase() {
             }
             newsData = merged;
             localStorage.setItem('endless_news', JSON.stringify(newsData));
-            console.log('✅ Synced', newsData.length, 'articles (Firebase + localStorage merged)');
+            console.log('Synced', newsData.length, 'articles (Firebase + localStorage merged)');
         } else {
             console.log('Firebase empty, using localStorage:', newsData.length, 'articles');
         }
     } catch (error) {
-        console.error('❌ Firebase read error:', error);
-        // Keep localStorage data already loaded above
+        console.error('Firebase read error:', error);
         console.log('Using localStorage fallback:', newsData.length, 'articles');
     }
 }
@@ -227,7 +220,6 @@ async function loadAllNewsData() {
     isDataLoaded = true;
 }
 
-/* ─── HELPERS ─── */
 function getLocalized(item, field) {
     const suffix = currentLang === 'ta' ? '' : `_${currentLang}`;
     return item[`${field}${suffix}`] || item[field];
@@ -262,12 +254,18 @@ function findArticleById(id) {
     return newsData.find(n => String(n.id) === searchId);
 }
 
-/* ─── LANGUAGE SWITCHER ─── */
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
 function setLanguage(lang) {
     currentLang = lang;
     localStorage.setItem('gd_language', lang);
 
-    // Update all elements with data-key
     document.querySelectorAll('[data-key]').forEach(el => {
         const key = el.dataset.key;
         if (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) {
@@ -279,12 +277,10 @@ function setLanguage(lang) {
         }
     });
 
-    // Update lang buttons
     document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.lang === lang);
     });
 
-    // Re-render all content
     renderHero();
     renderFeed();
     renderTrending();
@@ -293,7 +289,6 @@ function setLanguage(lang) {
     renderTicker();
 }
 
-/* ─── LOADING SPINNER ─── */
 function showLoading() {
     const grid = document.getElementById('news-grid');
     const hero = document.getElementById('hero-section');
@@ -320,7 +315,6 @@ function hideLoading() {
     if (hero && hero.innerHTML.includes('animation:spin')) hero.innerHTML = '';
 }
 
-/* ─── RENDER FUNCTIONS ─── */
 function renderHero() {
     const featured = newsData.filter(n => n.featured && n.status === 'published' && !isGarbagePost(n)).slice(0, 3);
     const heroSection = document.getElementById('hero-section');
@@ -394,7 +388,8 @@ function renderFeed() {
                 <p style="color:var(--text-muted); font-size:0.95rem;">${TRANSLATIONS[currentLang].no_articles_yet}</p>
             </div>
         `;
-        document.getElementById('load-more-wrap').style.display = 'none';
+        const loadMoreWrap = document.getElementById('load-more-wrap');
+        if (loadMoreWrap) loadMoreWrap.style.display = 'none';
         return;
     }
 
@@ -416,7 +411,8 @@ function renderFeed() {
         </article>
     `).join('');
 
-    document.getElementById('load-more-wrap').style.display = filtered.length > displayedCount ? 'block' : 'none';
+    const loadMoreWrap = document.getElementById('load-more-wrap');
+    if (loadMoreWrap) loadMoreWrap.style.display = filtered.length > displayedCount ? 'block' : 'none';
 }
 
 function renderTrending() {
@@ -512,7 +508,6 @@ function renderTicker() {
     `).join('');
 }
 
-/* ─── ARTICLE MODAL ─── */
 function openArticle(id) {
     const article = findArticleById(id);
     if (!article || isGarbagePost(article)) return;
@@ -579,7 +574,6 @@ function closeModal() {
     modal.removeEventListener('touchend', handleTouchEnd);
 }
 
-
 function shareArticle(id) {
     const article = findArticleById(id);
     if (!article) {
@@ -587,7 +581,6 @@ function shareArticle(id) {
         return;
     }
 
-    // Create share modal if not exists
     let shareOverlay = document.getElementById('share-modal-overlay');
     if (!shareOverlay) {
         shareOverlay = document.createElement('div');
@@ -633,23 +626,19 @@ function shareArticle(id) {
         `;
         document.body.appendChild(shareOverlay);
 
-        // Close on overlay click
         shareOverlay.addEventListener('click', (e) => {
             if (e.target === shareOverlay) closeShareModal();
         });
     }
 
-    // Store current article id
     shareOverlay.dataset.articleId = id;
 
-    // Update copy link input
     const title = getLocalized(article, 'title') || 'EndLess News';
-    const BASE_URL = 'https://endlessnewslk-hub.github.io/EndLess/';
-    const cloudUrl = BASE_URL + 'share?article=' + encodeURIComponent(id);
+    const BASE_URL = 'https://endless-og.endlessnewslk.workers.dev/';
+    const cloudUrl = BASE_URL + '?article=' + encodeURIComponent(id);
     const linkInput = document.getElementById('share-link-input');
     if (linkInput) linkInput.value = cloudUrl;
 
-    // Show modal
     shareOverlay.classList.add('open');
     document.body.style.overflow = 'hidden';
 }
@@ -671,8 +660,8 @@ function performShare(platform) {
     if (!article) return;
 
     const title = getLocalized(article, 'title') || 'EndLess News';
-    const BASE_URL = 'https://endlessnewslk-hub.github.io/EndLess/';
-    const articleUrl = BASE_URL + 'share?article=' + encodeURIComponent(id);
+    const BASE_URL = 'https://endless-og.endlessnewslk.workers.dev/';
+    const articleUrl = BASE_URL + '?article=' + encodeURIComponent(id);
 
     let shareUrl = '';
 
@@ -747,7 +736,6 @@ function handleTouchEnd(e) {
     }
 }
 
-/* ─── FILTER & SEARCH ─── */
 function filterCategory(cat) {
     currentFilter = cat;
     displayedCount = isMobile ? 4 : 6;
@@ -773,7 +761,26 @@ function filterCategory(cat) {
     }
 }
 
-/* ─── MOBILE MENU ─── */
+function handleSearch(e) {
+    searchQuery = e.target.value.trim();
+    displayedCount = isMobile ? 4 : 6;
+    renderFeed();
+}
+
+function loadMore() {
+    displayedCount += isMobile ? 4 : 6;
+    renderFeed();
+}
+
+function handleNewsletter(e) {
+    e.preventDefault();
+    const email = document.getElementById('newsletter-email').value;
+    if (email) {
+        alert('Thank you for subscribing! 🎉');
+        document.getElementById('newsletter-email').value = '';
+    }
+}
+
 function openMobileMenu() {
     const mobileNav = document.getElementById('mobile-nav');
     const mobileOverlay = document.getElementById('mobile-overlay');
@@ -794,7 +801,6 @@ function closeMobileMenu() {
     }
 }
 
-/* ─── THEME MANAGEMENT ─── */
 function initTheme() {
     const savedTheme = localStorage.getItem('endless_theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -817,7 +823,6 @@ function toggleTheme() {
     }
 }
 
-/* ─── HEADER SCROLL EFFECT ─── */
 function handleHeaderScroll() {
     const header = document.querySelector('.main-header');
     if (header) {
@@ -829,7 +834,6 @@ function handleHeaderScroll() {
     }
 }
 
-/* ─── RESIZE HANDLER ─── */
 function handleResize() {
     const newIsMobile = window.innerWidth < 640;
     if (newIsMobile !== isMobile) {
@@ -840,10 +844,9 @@ function handleResize() {
     }
 }
 
-/* ─── LAZY LOADING OBSERVER ─── */
 function initLazyLoading() {
     if ('IntersectionObserver' in window) {
-        const imageObserver = new IntersectionObserver((entries) => {
+        const imgObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     const img = entry.target;
@@ -851,23 +854,28 @@ function initLazyLoading() {
                         img.src = img.dataset.src;
                         img.removeAttribute('data-src');
                     }
-                    imageObserver.unobserve(img);
+                    imgObserver.unobserve(img);
                 }
             });
-        }, {
-            rootMargin: '50px 0px',
-            threshold: 0.01
-        });
+        }, { rootMargin: '50px' });
 
-        document.querySelectorAll('img[data-src]').forEach(img => {
-            imageObserver.observe(img);
-        });
+        document.querySelectorAll('img[data-src]').forEach(img => imgObserver.observe(img));
     }
 }
 
-/* ═══════════════════════════════════════════════════════
-   REAL-TIME SYNC FROM ADMIN PANEL
-   ═══════════════════════════════════════════════════════ */
+function initTicker() {
+    const ticker = document.getElementById('ticker-content');
+    if (!ticker) return;
+
+    let scrollPos = 0;
+    setInterval(() => {
+        scrollPos += 1;
+        if (scrollPos > ticker.scrollWidth - ticker.clientWidth) {
+            scrollPos = 0;
+        }
+        ticker.style.transform = `translateX(-${scrollPos}px)`;
+    }, 30);
+}
 
 function syncNewsFromStorage() {
     var localNews = getNewsFromStorage();
@@ -876,7 +884,7 @@ function syncNewsFromStorage() {
         console.log('News synced from localStorage:', newsData.length, 'articles');
         renderHero();
         renderFeed();
-        renderTicker();
+        renderTrending();
     }
 }
 
@@ -900,15 +908,11 @@ function syncCategoriesFromStorage() {
     }
 }
 
-/* ─── INIT ─── */
 document.addEventListener('DOMContentLoaded', async () => {
-    // Show loading state immediately
     showLoading();
-
-    // Try Firebase first
     await loadAllNewsData();
+    hideLoading();
 
-    // If Firebase failed and we have no data, try one more time after 2 seconds
     if (newsData.length === 0) {
         console.log('No articles from Firebase, retrying in 2 seconds...');
         setTimeout(async function() {
@@ -932,6 +936,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     initTheme();
+    setLanguage(currentLang);
 
     document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
@@ -986,7 +991,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
 
     let scrollTicking = false;
-    window.addEventListener('scroll', () => {  if (!scrollTicking) {
+    window.addEventListener('scroll', () => {
+        if (!scrollTicking) {
             window.requestAnimationFrame(() => {
                 handleHeaderScroll();
                 scrollTicking = false;
@@ -997,15 +1003,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.addEventListener('resize', debounce(handleResize, 250));
 
-    // Initial renders
-    renderHero();
-    renderFeed();
-    renderTrending();
-    renderCategories();
-    renderAds();
-    renderTicker();
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedArticleId = urlParams.get('article');
+    if (sharedArticleId && !document.getElementById('article-modal')?.classList.contains('open')) {
+        setTimeout(() => openArticle(sharedArticleId), 800);
+    }
 
-    // Cross-tab sync (admin panel-la update pannumbodhu auto refresh)
     window.addEventListener('storage', (e) => {
         if (e.key === 'endless_news') {
             syncNewsFromStorage();
@@ -1016,7 +1019,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // Periodic sync every 10 seconds
     setInterval(() => {
         syncNewsFromStorage();
         syncAdsFromStorage();
@@ -1024,12 +1026,5 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 10000);
 
     initLazyLoading();
+    initTicker();
 });
-
-function debounce(func, wait) {
-    let timeout;
-    return function(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), wait);
-    };
-}

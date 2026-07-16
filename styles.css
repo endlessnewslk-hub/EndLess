@@ -2234,3 +2234,174 @@ button,
         font-size: 0.8rem;
     }
 }
+
+/* ═══════════════════════════════════════════════════════
+   SHARE MODAL STYLES
+   ═══════════════════════════════════════════════════════ */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 10000;
+}
+.modal-overlay.open {
+    opacity: 1;
+    visibility: visible;
+}
+.share-modal-content {
+    background: var(--card-bg, #13131f);
+    border: 1px solid var(--border, #1e293b);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 420px;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+}
+.modal-overlay.open .share-modal-content {
+    transform: translateY(0);
+}
+.share-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border, #1e293b);
+}
+.share-modal-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--text, #f1f5f9);
+}
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--text-muted, #94a3b8);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: background 0.2s, color 0.2s;
+}
+.modal-close:hover {
+    background: var(--border, #1e293b);
+    color: var(--text, #f1f5f9);
+}
+.share-modal-body {
+    padding: 1.5rem;
+}
+.share-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+.share-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 0.5rem;
+    background: var(--bg, #0a0a0f);
+    border: 1px solid var(--border, #1e293b);
+    border-radius: 12px;
+    color: var(--primary, #e11d48);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+.share-btn:hover {
+    transform: translateY(-3px);
+    border-color: var(--primary, #e11d48);
+    box-shadow: 0 8px 20px rgba(225,29,72,0.15);
+}
+.share-btn svg {
+    width: 24px;
+    height: 24px;
+}
+.share-btn span {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text, #f1f5f9);
+}
+.share-copy-section {
+    text-align: center;
+}
+.share-copy-label {
+    font-size: 0.8rem;
+    color: var(--text-muted, #94a3b8);
+    margin-bottom: 0.75rem;
+}
+.share-copy-box {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+.share-copy-box input {
+    flex: 1;
+    background: var(--bg, #0a0a0f);
+    border: 1px solid var(--border, #1e293b);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    color: var(--text, #f1f5f9);
+    font-size: 0.85rem;
+    font-family: inherit;
+    outline: none;
+}
+.share-copy-box input:focus {
+    border-color: var(--primary, #e11d48);
+}
+.btn-copy-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.65rem 1rem;
+    background: linear-gradient(135deg, var(--primary, #e11d48), var(--primary-hover, #be123c));
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: opacity 0.2s;
+}
+.btn-copy-link:hover {
+    opacity: 0.9;
+}
+
+@media (max-width: 480px) {
+    .modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+    }
+    .share-modal-content {
+        max-width: 100%;
+        border-radius: 20px 20px 0 0;
+        transform: translateY(100%);
+    }
+    .modal-overlay.open .share-modal-content {
+        transform: translateY(0);
+    }
+    .share-modal-body {
+        padding: 1.5rem 1.25rem 2rem;
+    }
+}

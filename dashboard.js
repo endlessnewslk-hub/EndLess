@@ -384,11 +384,8 @@ function saveCats() { localStorage.setItem('endless_categories', JSON.stringify(
 
 // ── Share Page Generator ──
 function generateSharePage(article) {
-    var lang = article.lang || 'ta';
-    var title = article.title || article.title_en || article.title_si || 'EndLess News';
-    var image = article.image || 'https://via.placeholder.com/1200x630?text=EndLess+News';
-    var articleUrl = 'https://endless-news.pages.dev/?article=' + article.id;
-    var shareUrl = 'https://endless-news.pages.dev/share/' + article.id + '.html';
+    var articleUrl = 'https://endlessnewslk-hub.github.io/EndLess/?article=' + article.id;
+    var shareUrl = 'https://endless-og.endlessnewslk.workers.dev/?article=' + article.id;
     
     var readMore = lang === 'ta' ? 'மேலும் படிக்க' : lang === 'si' ? 'තවත් කියවන්න' : 'Continue Reading';
     var redirectText = lang === 'ta' ? 'கட்டுரைக்கு திருப்பிவிடுகிறது' : lang === 'si' ? 'ලිපියට යොමු කරමින්' : 'Redirecting to article';

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- OG Meta Tags (generic fallback for social media crawlers) -->
+    <meta property="og:title" content="EndLess News">
+    <meta property="og:description" content="Read the latest news and updates on EndLess News.">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=1200&auto=format&fit=crop">
+    <meta property="og:url" content="https://endlessnewslk-hub.github.io/EndLess/">
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="EndLess News">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=1200&auto=format&fit=crop">
+
+    <title>EndLess News</title>
+    <link rel="icon" type="image/png" href="logo-og.png">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Tamil', sans-serif;
+            background: #0a0a0f;
+            color: #f1f5f9;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .share-card {
+            max-width: 600px;
+            width: 100%;
+            background: #13131f;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            border: 1px solid #1e293b;
+        }
+        .share-image {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            display: block;
+        }
+        .share-content {
+            padding: 24px;
+        }
+        .share-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .share-logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #e11d48, #be123c);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Georgia, serif;
+            font-size: 20px;
+            font-weight: 900;
+            color: #fff;
+        }
+        .share-logo-text {
+            font-family: Georgia, serif;
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .share-logo-text span { color: #e11d48; }
+        .share-headline {
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 1.4;
+            margin-bottom: 12px;
+            color: #fff;
+        }
+        .share-excerpt {
+            font-size: 15px;
+            color: #94a3b8;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        .share-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #e11d48, #be123c);
+            color: #fff;
+            padding: 14px 28px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 16px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .share-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(225,29,72,0.4);
+        }
+        .share-redirect {
+            margin-top: 20px;
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+        }
+        .share-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #94a3b8;
+        }
+        .error {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        .error-icon { font-size: 48px; margin-bottom: 16px; }
+        .error h2 { margin-bottom: 8px; }
+        .error p { color: #64748b; margin-bottom: 20px; }
+
+        @media (max-width: 480px) {
+            .share-headline { font-size: 18px; }
+            .share-image { height: 220px; }
+            .share-content { padding: 16px; }
+        }
+    </style>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<base target="_blank">
+</head>
+<body>
+    <div id="share-container">
+        <div class="loading">
+            <div class="share-spinner" style="width: 40px; height: 40px; margin: 0 auto 16px; display: block;"></div>
+            <p>Loading article...</p>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA",
+            authDomain: "endless-news.firebaseapp.com",
+            projectId: "endless-news",
+            storageBucket: "endless-news.firebasestorage.app",
+            messagingSenderId: "363216005373",
+            appId: "1:363216005373:web:143fb950fb04dfc1cb7694"
+        };
+
+        let db = null;
+        try {
+            if (typeof firebase !== 'undefined') {
+                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+            }
+        } catch(e) { console.warn('Firebase not available'); }
+
+        function getArticleId() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('article');
+        }
+
+        function getNewsFromStorage() {
+            try {
+                const data = localStorage.getItem('endless_news');
+                return data ? JSON.parse(data) : [];
+            } catch(e) { return []; }
+        }
+
+        function isGarbagePost(n) {
+            if (!n || typeof n !== 'object') return true;
+            const t = String(n.title || '').trim();
+            const t_en = String(n.title_en || '').trim();
+            const t_si = String(n.title_si || '').trim();
+            const hasTitle = t !== '' && t !== 'undefined' && t !== 'null' && t !== '[object Object]';
+            const hasTitleEn = t_en !== '' && t_en !== 'undefined' && t_en !== 'null';
+            const hasTitleSi = t_si !== '' && t_si !== 'undefined' && t_si !== 'null';
+            return (!hasTitle && !hasTitleEn && !hasTitleSi) || !n.id;
+        }
+
+        function getLocalized(item, field) {
+            return item[field] || item[field + '_en'] || item[field + '_si'] || '';
+        }
+
+        async function loadArticle() {
+            const id = getArticleId();
+            const container = document.getElementById('share-container');
+
+            if (!id) {
+                container.innerHTML = `
+                    <div class="share-card">
+                        <div class="share-content error">
+                            <div class="error-icon">📰</div>
+                            <h2>EndLess News</h2>
+                            <p>Visit our website to read the latest news articles.</p>
+                            <a href="index.html" class="share-cta">Go to Homepage →</a>
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            let article = null;
+
+            // Try localStorage first
+            const localNews = getNewsFromStorage();
+            article = localNews.find(n => String(n.id) === String(id) && !isGarbagePost(n));
+
+            // Try Firebase if not found
+            if (!article && db) {
+                try {
+                    const doc = await db.collection('news').doc(String(id)).get();
+                    if (doc.exists) {
+                        article = doc.data();
+                        article.id = doc.id;
+                    }
+                } catch(e) { console.warn('Firebase fetch failed'); }
+            }
+
+            const BASE_URL = 'https://endlessnewslk-hub.github.io/EndLess/';
+
+            if (!article || isGarbagePost(article)) {
+                container.innerHTML = `
+                    <div class="share-card">
+                        <div class="share-content error">
+                            <div class="error-icon">😕</div>
+                            <h2>Article Not Found</h2>
+                            <p>This article may have been removed or is unavailable.</p>
+                            <a href="index.html" class="share-cta">Go to Homepage →</a>
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            const title = getLocalized(article, 'title') || 'EndLess News';
+            let excerpt = getLocalized(article, 'excerpt');
+            if (!excerpt) {
+                const content = getLocalized(article, 'content') || '';
+                excerpt = content.replace(/<[^>]*>/g, '').substring(0, 150) + '...';
+            }
+            const image = article.image || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=1200&auto=format&fit=crop';
+            const articleUrl = BASE_URL + '?article=' + encodeURIComponent(id);
+
+            document.title = title + ' - EndLess News';
+
+            container.innerHTML = `
+                <div class="share-card">
+                    <img class="share-image" src="${image}" alt="${title.replace(/"/g, '&quot;')}" onerror="this.src='https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=1200&auto=format&fit=crop'">
+                    <div class="share-content">
+                        <div class="share-logo">
+                            <div class="share-logo-icon">E</div>
+                            <div class="share-logo-text">End<span>Less</span> News</div>
+                        </div>
+                        <h1 class="share-headline">${title}</h1>
+                        <p class="share-excerpt">${excerpt}</p>
+                        <a href="${articleUrl}" class="share-cta">மேலும் படிக்க / Read More →</a>
+                        <div class="share-redirect">
+                            Redirecting to article... <span class="share-spinner"></span>
+                            <br><a href="${articleUrl}" style="color:#e11d48;text-decoration:none;">Click here if not redirected</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            setTimeout(() => {
+                window.location.href = articleUrl;
+            }, 3000);
+        }
+
+        loadArticle();
+    </script>
+</body>
+</html>
