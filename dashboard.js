@@ -698,7 +698,8 @@ function renderNewsTable() {
         return;
     }
 
-    var searchInput = document.getElementById('news-search');
+      var searchInput = document.getElementById('news-search');
+    if (searchInput && searchInput.value && searchInput.value.indexOf('@') !== -1) searchInput.value = '';
     var search = searchInput ? searchInput.value.toLowerCase() : '';
 
     var filtered = adminNews.filter(function(n) {
