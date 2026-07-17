@@ -553,6 +553,10 @@ function switchNewsLang(lang) {
     document.querySelectorAll('.lang-excerpt').forEach(function(ex) {
         ex.style.display = ex.id.endsWith('-' + lang) ? 'block' : 'none';
     });
+    // Toggle content wrappers (English & Sinhala content areas)
+    document.querySelectorAll('.lang-content-wrapper').forEach(function(wrapper) {
+        wrapper.style.display = wrapper.dataset.lang === lang ? 'block' : 'none';
+    });
 }
 
 // ── HTML Escape ──
