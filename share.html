@@ -199,8 +199,11 @@
         }
 
         function getLocalized(item, field) {
-            return item[field] || item[field + '_en'] || item[field + '_si'] || '';
-        }
+    const lang = new URLSearchParams(window.location.search).get('lang') || 'ta';
+    if (lang === 'en') return item[field + '_en'] || item[field] || item[field + '_si'] || '';
+    if (lang === 'si') return item[field + '_si'] || item[field] || item[field + '_en'] || '';
+    return item[field] || item[field + '_en'] || item[field + '_si'] || '';
+}
 
         async function loadArticle() {
             const id = getArticleId();
