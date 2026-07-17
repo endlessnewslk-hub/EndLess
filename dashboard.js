@@ -387,6 +387,10 @@ function generateSharePage(article) {
     var articleUrl = 'https://endlessnewslk-hub.github.io/EndLess/?article=' + article.id;
     var shareUrl = 'https://endless-og.endlessnewslk.workers.dev/?article=' + article.id;
     
+    var title = article.title_en || article.title || article.title_si || 'EndLess News';
+    var lang = currentNewsLang || 'en';
+    var image = article.image || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=1200&auto=format&fit=crop';
+    
     var readMore = lang === 'ta' ? 'மேலும் படிக்க' : lang === 'si' ? 'තවත් කියවන්න' : 'Continue Reading';
     var redirectText = lang === 'ta' ? 'கட்டுரைக்கு திருப்பிவிடுகிறது' : lang === 'si' ? 'ලිපියට යොමු කරමින්' : 'Redirecting to article';
     var clickHere = lang === 'ta' ? 'திருப்பிவிடவில்லை என்றால் இங்கே சொடுக்கவும்' : lang === 'si' ? 'යොමු නොවුණොත් මෙතැන ක්ලික් කරන්න' : 'Click here if not redirected';
