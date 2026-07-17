@@ -553,7 +553,7 @@ function switchNewsLang(lang) {
     document.querySelectorAll('.lang-excerpt').forEach(function(ex) {
         ex.style.display = ex.id.endsWith('-' + lang) ? 'block' : 'none';
     });
-    // Toggle content wrappers (English & Sinhala content areas)
+    // Toggle content wrappers (English & Sinhala full content areas)
     document.querySelectorAll('.lang-content-wrapper').forEach(function(wrapper) {
         wrapper.style.display = wrapper.dataset.lang === lang ? 'block' : 'none';
     });
@@ -1465,7 +1465,7 @@ async function resetData() {
 // EVENT LISTENERS
 // ═══════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function() {
-    initData();
+    initData().then(function() {
 
     var headerMenuBtn = document.getElementById('header-menu-btn');
     var sidebarOverlay = document.getElementById('sidebar-overlay');
@@ -1594,5 +1594,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 showToast('Failed to copy content.', 'error');
             });
         });
+    });
+    }).catch(function(err) {
+        console.error('initData failed:', err);
+        // Ensure data is loaded even if initData fails
+        reloadAdminNewsFromStorage();
+        if (adminNews.length === 0) {
+            adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
+            saveNews();
+        }
+        renderDashboard();
+        if (currentPage === 'news') renderNewsTable();
     });
 });
