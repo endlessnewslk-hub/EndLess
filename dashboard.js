@@ -48,100 +48,11 @@ let dataInitialized = false;
 const ADMIN_PASSWORD = "6402@Faizan";
 
 // ── Default Data ──
-const DEFAULT_NEWS = [
-    {
-        id: 1718764800001,
-        title: "Global Markets Rally as Inflation Data Shows Unexpected Cooling",
-        title_en: "Global Markets Rally as Inflation Data Shows Unexpected Cooling",
-        title_si: "Global Markets Rally as Inflation Data Shows Unexpected Cooling",
-        excerpt: "Major indices hit record highs Thursday as consumer price reports suggest the worst of the economic squeeze may be over.",
-        excerpt_en: "Major indices hit record highs Thursday as consumer price reports suggest the worst of the economic squeeze may be over.",
-        excerpt_si: "Major indices hit record highs Thursday as consumer price reports suggest the worst of the economic squeeze may be over.",
-        content: "<p>Major indices hit record highs Thursday as consumer price reports suggest the worst of the economic squeeze may be over.</p>",
-        content_en: "<p>Major indices hit record highs Thursday as consumer price reports suggest the worst of the economic squeeze may be over.</p>",
-        content_si: "<p>Major indices hit record highs Thursday as consumer price reports suggest the worst of the economic squeeze may be over.</p>",
-        category: "Business", category_en: "Business", category_si: "Business",
-        author: "Elena Rostova", author_en: "Elena Rostova", author_si: "Elena Rostova",
-        date: new Date(Date.now() - 3600000 * 2).toISOString(),
-        image: "https://images.unsplash.com/photo-1611974765270-ca1258634369?w=800&auto=format&fit=crop",
-        video: "", featured: true, trending: true, status: "published"
-    },
-    {
-        id: 1718764800002,
-        title: "SpaceX Launches Next-Gen Satellite Constellation",
-        title_en: "SpaceX Launches Next-Gen Satellite Constellation",
-        title_si: "SpaceX Launches Next-Gen Satellite Constellation",
-        excerpt: "The Falcon Heavy carried 24 advanced communications satellites into orbit, promising global high-speed internet coverage.",
-        excerpt_en: "The Falcon Heavy carried 24 advanced communications satellites into orbit, promising global high-speed internet coverage.",
-        excerpt_si: "The Falcon Heavy carried 24 advanced communications satellites into orbit, promising global high-speed internet coverage.",
-        content: "<p>The Falcon Heavy carried 24 advanced communications satellites into orbit. Each satellite is equipped with laser interlinks.</p>",
-        content_en: "<p>The Falcon Heavy carried 24 advanced communications satellites into orbit. Each satellite is equipped with laser interlinks that allow data to travel at the speed of light.</p>",
-        content_si: "<p>The Falcon Heavy carried 24 advanced communications satellites into orbit. Each satellite is equipped with laser interlinks.</p>",
-        category: "Science", category_en: "Science", category_si: "Science",
-        author: "James Chen", author_en: "James Chen", author_si: "James Chen",
-        date: new Date(Date.now() - 3600000 * 5).toISOString(),
-        image: "https://images.unsplash.com/photo-1517976487492-5750f3195933?w=800&auto=format&fit=crop",
-        video: "", featured: true, trending: false, status: "published"
-    },
-    {
-        id: 1718764800003,
-        title: "AI Safety Pact Signed by Leading Tech Giants",
-        title_en: "AI Safety Pact Signed by Leading Tech Giants",
-        title_si: "AI Safety Pact Signed by Leading Tech Giants",
-        excerpt: "Microsoft, Google, and OpenAI agree to new transparency standards and third-party auditing for large language models.",
-        excerpt_en: "Microsoft, Google, and OpenAI agree to new transparency standards and third-party auditing for large language models.",
-        excerpt_si: "Microsoft, Google, and OpenAI agree to new transparency standards and third-party auditing for large language models.",
-        content: "<p>Microsoft, Google, and OpenAI agree to new transparency standards. The voluntary pact sets benchmarks for watermarking AI-generated content.</p>",
-        content_en: "<p>Microsoft, Google, and OpenAI agree to new transparency standards. The voluntary pact sets benchmarks for watermarking AI-generated content.</p>",
-        content_si: "<p>Microsoft, Google, and OpenAI agree to new transparency standards. The voluntary pact sets benchmarks for watermarking AI-generated content.</p>",
-        category: "Technology", category_en: "Technology", category_si: "Technology",
-        author: "Sarah Miller", author_en: "Sarah Miller", author_si: "Sarah Miller",
-        date: new Date(Date.now() - 3600000 * 8).toISOString(),
-        image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&auto=format&fit=crop",
-        video: "", featured: false, trending: true, status: "published"
-    },
-    {
-        id: 1718764800004,
-        title: "Historic Climate Agreement Reached at UN Summit",
-        title_en: "Historic Climate Agreement Reached at UN Summit",
-        title_si: "Historic Climate Agreement Reached at UN Summit",
-        excerpt: "Nations commit to binding carbon reduction targets for 2030, with a new fund for developing nations.",
-        excerpt_en: "Nations commit to binding carbon reduction targets for 2030, with a new fund for developing nations.",
-        excerpt_si: "Nations commit to binding carbon reduction targets for 2030, with a new fund for developing nations.",
-        content: "<p>Nations commit to binding carbon reduction targets for 2030. The $100 billion annual climate finance package will support renewable energy transitions in developing nations.</p>",
-        content_en: "<p>Nations commit to binding carbon reduction targets for 2030. The $100 billion annual climate finance package will support renewable energy transitions in developing nations.</p>",
-        content_si: "<p>Nations commit to binding carbon reduction targets for 2030. The $100 billion annual climate finance package will support renewable energy transitions in developing nations.</p>",
-        category: "World", category_en: "World", category_si: "World",
-        author: "David Okonkwo", author_en: "David Okonkwo", author_si: "David Okonkwo",
-        date: new Date(Date.now() - 3600000 * 12).toISOString(),
-        image: "https://images.unsplash.com/photo-1569163139599-0f4517e36f51?w=800&auto=format&fit=crop",
-        video: "", featured: false, trending: true, status: "published"
-    }
-];
+const DEFAULT_NEWS = [];
 
-const DEFAULT_ADS = [
-    {
-        id: 1, title: "EndLess Premium", title_en: "EndLess Premium", title_si: "EndLess Premium",
-        link: "https://example.com/premium",
-        image: "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=600&auto=format&fit=crop",
-        position: "header", active: true
-    },
-    {
-        id: 2, title: "Tech Gadgets Sale", title_en: "Tech Gadgets Sale", title_si: "Tech Gadgets Sale",
-        link: "https://example.com/gadgets",
-        image: "https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=400&auto=format&fit=crop",
-        position: "sidebar", active: true
-    }
-];
+const DEFAULT_ADS = [];
 
-const DEFAULT_CATEGORIES = [
-    { id: "world", name: "World", name_en: "World", name_si: "World", count: 2 },
-    { id: "technology", name: "Technology", name_en: "Technology", name_si: "Technology", count: 2 },
-    { id: "business", name: "Business", name_en: "Business", name_si: "Business", count: 2 },
-    { id: "science", name: "Science", name_en: "Science", name_si: "Science", count: 2 },
-    { id: "sports", name: "Sports", name_en: "Sports", name_si: "Sports", count: 2 },
-    { id: "health", name: "Health", name_en: "Health", name_si: "Health", count: 0 }
-];
+const DEFAULT_CATEGORIES = [];
 
 // ── Helper: Safe JSON Parse ──
 function safeJSONParse(key, fallback) {
