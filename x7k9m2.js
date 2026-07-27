@@ -914,3 +914,52 @@ document.addEventListener('DOMContentLoaded', () => {
 window.showSuccessModal = showSuccessModal;
 window.showErrorModal = showErrorModal;
 window.showLoading = showLoading;       
+
+// ═══════════════════════════════════════
+// PWA INSTALL PROMPT (Admin Panel)
+// ═══════════════════════════════════════
+let deferredPrompt;
+
+const installBtn = document.createElement('button');
+installBtn.id = 'pwa-install-btn';
+installBtn.innerHTML = '📲 Install Admin App';
+installBtn.style.cssText = `
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    padding: 14px 28px;
+    background: linear-gradient(135deg, #dc2626, #991b1b);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 0.95rem;
+    box-shadow: 0 10px 30px rgba(220,38,38,0.4);
+    display: none;
+    cursor: pointer;
+    font-family: inherit;
+`;
+document.body.appendChild(installBtn);
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = 'block';
+});
+
+installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+        installBtn.style.display = 'none';
+    }
+    deferredPrompt = null;
+});
+
+window.addEventListener('appinstalled', () => {
+    installBtn.style.display = 'none';
+    deferredPrompt = null;
+});

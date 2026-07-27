@@ -16,6 +16,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#dc2626">
+
     <style>
         /* Auth Loading Overlay - Shown before guard verifies */
         #auth-loading-overlay {
@@ -546,6 +549,16 @@
 
     <script src="guard.js"></script>
     <script src="dashboard.js"></script>
+
+    <script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('Admin SW registered'))
+      .catch(err => console.log('Admin SW error', err));
+  });
+}
+</script>
 
 
 </body>

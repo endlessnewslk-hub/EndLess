@@ -12,12 +12,16 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<base target="_blank">
+
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="logo-og.png">
     <link rel="shortcut icon" type="image/png" href="logo-og.png">
     <link rel="apple-touch-icon" href="logo-og.png">
 <base target="_blank">
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#dc2626">
+
 </head>
 <body>
     <!-- Background Particles Canvas -->
@@ -172,5 +176,16 @@
     </div>
 
     <script src="x7k9m2.js"></script>
+
+    <script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('Admin SW registered'))
+      .catch(err => console.log('Admin SW error', err));
+  });
+}
+</script>
+
 </body>
 </html>
