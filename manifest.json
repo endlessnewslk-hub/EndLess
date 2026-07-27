@@ -1,0 +1,22 @@
+{
+  "name": "EndLess Admin",
+  "short_name": "EndLess Admin",
+  "start_url": "/x7k9m2.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#dc2626",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "logo-og.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "logo-og.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+
