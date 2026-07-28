@@ -55,6 +55,24 @@
         #admin-dashboard.auth-verified {
             display: flex;
         }
+
+                .auth-progress-track {
+            width: 160px;
+            height: 3px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            margin-top: 0.75rem;
+            overflow: hidden;
+        }
+        .auth-progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #dc2626;
+            border-radius: 3px;
+            animation: authProgress 1.5s ease-in-out forwards;
+        }
+        @keyframes authProgress { to { width: 100%; } }
+
     </style>
 <base target="_blank">
 <base target="_blank">
@@ -68,9 +86,13 @@
 </head>
 <body>
     <!-- Auth Loading Overlay -->
-    <div id="auth-loading-overlay">
+        <div id="auth-loading-overlay">
         <div class="spinner"></div>
         <p>Verifying admin access...</p>
+        <div class="auth-progress-track">
+            <div class="auth-progress-fill"></div>
+        </div>
+        <p style="font-size:0.8rem; color:#6b6b8a; margin-top:0.5rem; opacity:0.7;">Secure session check</p>
     </div>
 
     <div id="admin-dashboard" class="admin-dashboard">

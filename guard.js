@@ -232,7 +232,7 @@ function checkAuthentication() {
         if (typeof initData === 'function' && !window.dataInitialized) {
             initData();
         }
-    }, 3000); // 3 second timeout
+        }, 1500); // 1.5 second timeout — faster feel
 
     if (guardAuth) {
         guardAuth.onAuthStateChanged(function(user) {

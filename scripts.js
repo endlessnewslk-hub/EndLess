@@ -295,17 +295,40 @@ function showLoading() {
     const trending = document.getElementById('trending-list');
     const ticker = document.getElementById('ticker-content');
 
-    const spinnerHTML = `
-        <div style="text-align:center; padding:3rem; grid-column:1/-1;">
-            <div style="display:inline-block; width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin 1s linear infinite;"></div>
-            <p style="margin-top:1rem; color:var(--text-muted); font-size:0.9rem;">${TRANSLATIONS[currentLang].loading}</p>
+    // Hero skeleton
+    const heroSkeleton = `
+        <div class="hero-grid">
+            <div class="skeleton skeleton-hero-main"></div>
+            <div class="skeleton-hero-side">
+                <div class="skeleton skeleton-hero-card"></div>
+                <div class="skeleton skeleton-hero-card"></div>
+            </div>
         </div>
     `;
 
-    if (grid) grid.innerHTML = spinnerHTML;
-    if (hero) hero.innerHTML = spinnerHTML;
-    if (trending) trending.innerHTML = `<div style="text-align:center; padding:1.5rem;">${TRANSLATIONS[currentLang].loading}</div>`;
-    if (ticker) ticker.innerHTML = `<span class="ticker-item">${TRANSLATIONS[currentLang].loading}</span>`;
+    // Article card skeleton (repeat 4 times)
+    const articleSkeleton = `
+        <div class="skeleton-article">
+            <div class="skeleton skeleton-img"></div>
+            <div class="skeleton-text">
+                <div class="skeleton skeleton-line short"></div>
+                <div class="skeleton skeleton-line title"></div>
+                <div class="skeleton skeleton-line" style="width:80%"></div>
+            </div>
+        </div>
+    `;
+
+    // Trending skeleton (3 items)
+    const trendingSkeleton = `
+        <div class="skeleton skeleton-trending"></div>
+        <div class="skeleton skeleton-trending"></div>
+        <div class="skeleton skeleton-trending"></div>
+    `;
+
+    if (hero) hero.innerHTML = heroSkeleton;
+    if (grid) grid.innerHTML = articleSkeleton.repeat(4);
+    if (trending) trending.innerHTML = trendingSkeleton;
+    if (ticker) ticker.innerHTML = `<span class="ticker-item">Loading latest news...</span>`;
 }
 
 function hideLoading() {
@@ -720,17 +743,24 @@ function fallbackCopy(text) {
     alert('Link copied! Paste it on Facebook/WhatsApp.');
 }
 
+let touchStartY = 0;
+let touchStartTime = 0;
+
 function handleTouchStart(e) {
     touchStartY = e.changedTouches[0].screenY;
+    touchStartTime = Date.now();
 }
 
 function handleTouchEnd(e) {
     const touchEndY = e.changedTouches[0].screenY;
     const diff = touchStartY - touchEndY;
-
-    if (diff < -80) {
+    const duration = Date.now() - touchStartTime;
+    
+    // Stricter: swipe down > 150px AND must take at least 200ms (not a fast flick)
+    if (diff < -150 && duration > 200) {
         const modalBody = document.querySelector('.modal-content');
-        if (modalBody && modalBody.scrollTop <= 10) {
+        // Must be exactly at top (scrollTop === 0), not just near top
+        if (modalBody && modalBody.scrollTop === 0) {
             closeModal();
         }
     }
@@ -950,14 +980,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    const searchInput = document.getElementById('search-input');
+        const searchInput = document.getElementById('search-input');
     if (searchInput) {
-        searchInput.addEventListener('input', debounce((e) => {
-            searchQuery = e.target.value;
-            displayedCount = isMobile ? 4 : 6;
-            renderFeed();
-        }, 300));
+        const feedTitle = document.getElementById('feed-title');
+        
+        searchInput.addEventListener('input', (e) => {
+            // 1. Immediate feedback — show "Searching..." instantly
+            if (feedTitle) {
+                if (!feedTitle.dataset.original) feedTitle.dataset.original = feedTitle.textContent;
+                feedTitle.innerHTML = `<span class="search-indicator">🔍 Searching<span>.</span><span>.</span><span>.</span></span>`;
+            }
+            // 2. Debounced actual search
+            debouncedSearch(e);
+        });
     }
+    
+    // Debounced search function
+    const debouncedSearch = debounce((e) => {
+        searchQuery = e.target.value.trim();
+        displayedCount = isMobile ? 4 : 6;
+        renderFeed();
+        
+        // 3. Update title with result count
+        const feedTitle = document.getElementById('feed-title');
+        if (feedTitle && feedTitle.dataset.original) {
+            if (!searchQuery) {
+                feedTitle.textContent = feedTitle.dataset.original;
+            } else {
+                const q = searchQuery.toLowerCase();
+                const count = newsData.filter(n => 
+                    n.status === 'published' && !isGarbagePost(n) && (
+                        (n.title && n.title.toLowerCase().includes(q)) ||
+                        (n.title_en && n.title_en.toLowerCase().includes(q)) ||
+                        (n.title_si && n.title_si.toLowerCase().includes(q)) ||
+                        (n.excerpt && n.excerpt.toLowerCase().includes(q)) ||
+                        (n.excerpt_en && n.excerpt_en.toLowerCase().includes(q))
+                    )
+                ).length;
+                feedTitle.textContent = `🔍 "${searchQuery}" — ${count} result${count !== 1 ? 's' : ''}`;
+            }
+        }
+    }, 300);
 
     const loadMoreBtn = document.getElementById('load-more-btn');
     if (loadMoreBtn) {
