@@ -1,14 +1,16 @@
 const CACHE_NAME = 'endless-admin-v3';
+const BASE_URL = 'https://endlessnewslk-hub.github.io/EndLess';
+
 const urlsToCache = [
-  './',
-  './x7k9m2.html',
-  './dashboard.html',
-  './x7k9m2.css',
-  './x7k9m2.js',
-  './guard.js',
-  './dashboard.js',
-  './logo-og.png',
-  './manifest.json'
+  BASE_URL + '/',
+  BASE_URL + '/x7k9m2.html',
+  BASE_URL + '/dashboard.html',
+  BASE_URL + '/x7k9m2.css',
+  BASE_URL + '/x7k9m2.js',
+  BASE_URL + '/guard.js',
+  BASE_URL + '/dashboard.js',
+  BASE_URL + '/logo-og.png',
+  BASE_URL + '/manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
@@ -18,7 +20,7 @@ self.addEventListener('install', (event) => {
         return Promise.all(
           urlsToCache.map(url => 
             cache.add(url).catch(err => {
-              console.warn('Failed to cache:', url, err);
+              console.warn('SW: Failed to cache:', url, err);
             })
           )
         );
