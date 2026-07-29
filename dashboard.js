@@ -231,9 +231,20 @@ async function syncFromFirebase() {
                 }
             });
         }
-        // Only update if Firebase has data, otherwise keep local data
+               // Only update if Firebase has data, otherwise keep local data
         if (firebaseNews.length > 0) {
             adminNews = firebaseNews;
+        } else if (adminNews.length > 0) {
+            // 🔥 FIREBASE EMPTY BUT LOCAL HAS DATA — PUSH TO FIREBASE
+            console.log('☁️ Firebase empty, uploading', adminNews.length, 'local articles...');
+            for (var i = 0; i < adminNews.length; i++) {
+                try {
+                    await db.collection('news').doc(String(adminNews[i].id)).set(adminNews[i]);
+                } catch (err) {
+                    console.warn('Upload failed for article', adminNews[i].id, err);
+                }
+            }
+            console.log('✅ All local articles uploaded to Firebase');
         }
         localStorage.setItem('endless_news', JSON.stringify(adminNews));
         console.log(`Synced ${adminNews.length} articles from Firebase.`);

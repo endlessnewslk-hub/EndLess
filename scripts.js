@@ -132,7 +132,10 @@ const DEFAULT_CATEGORIES = [
 ];
 
 function isGarbagePost(n) {
-    if (!n || typeof n !== 'object') return true;
+    if (!n || typeof n !== 'object') {
+        console.log('    isGarbagePost: not an object');
+        return true;
+    }
     var t = String(n.title || '').trim();
     var t_en = String(n.title_en || '').trim();
     var t_si = String(n.title_si || '').trim();
@@ -143,7 +146,12 @@ function isGarbagePost(n) {
                x === 'nan' || x === '[object object]';
     };
     var hasTitle = !isBad(t) || !isBad(t_en) || !isBad(t_si);
-    var hasId = n.id !== undefined && n.id !== null && n.id !== '';
+    var idStr = String(n.id || '').trim();
+    var hasId = idStr !== '' && idStr !== 'undefined' && idStr !== 'null' && idStr !== '0';
+    
+    if (!hasTitle) console.log('    isGarbagePost: no valid title found');
+    if (!hasId) console.log('    isGarbagePost: no valid id. id=', n.id);
+    
     return !hasTitle || !hasId;
 }
 
@@ -170,54 +178,73 @@ let searchQuery = '';
 let displayedCount = 4;
 
 async function syncFromFirebase() {
-    var localNews = getNewsFromStorage();
-    newsData = (localNews || []).filter(function(n) { return !isGarbagePost(n); });
+    // 🔥 FIREBASE IS THE ONLY SOURCE OF TRUTH
+    newsData = [];
 
     if (!db) {
-        console.log('No Firebase connection, using localStorage only:', newsData.length, 'articles');
+        console.log('⚠️ No Firebase connection');
         return;
     }
 
     try {
-        console.log('Fetching articles from Firebase...');
+        console.log('☁️ Fetching articles from Firebase...');
         const newsSnapshot = await db.collection('news').get({ source: 'server' });
         let firebaseNews = [];
+        let rejectedCount = 0;
+
+        console.log('📄 Firestore docs found:', newsSnapshot.size);
 
         if (!newsSnapshot.empty) {
             newsSnapshot.docs.forEach(doc => {
                 const data = doc.data();
+                const originalId = data.id;
                 data.id = doc.id;
-                if (!isGarbagePost(data)) {
+                
+                console.log('  → Checking doc:', doc.id, '| original id:', originalId, '| title:', (data.title || '').substring(0, 30));
+                
+                if (isGarbagePost(data)) {
+                    console.log('    ❌ REJECTED by isGarbagePost');
+                    rejectedCount++;
+                } else {
+                    console.log('    ✅ ACCEPTED');
                     firebaseNews.push(data);
                 }
             });
         }
 
-        if (firebaseNews.length > 0) {
-            var existingIds = new Set(firebaseNews.map(n => String(n.id)));
-            var merged = [...firebaseNews];
-            if (localNews) {
-                localNews.forEach(function(n) {
-                    if (!existingIds.has(String(n.id)) && !isGarbagePost(n)) {
-                        merged.push(n);
-                    }
-                });
-            }
-            newsData = merged;
+        newsData = firebaseNews;
+        console.log('✅ Final newsData:', newsData.length, 'articles (rejected:', rejectedCount, ')');
+        
+        if (newsData.length > 0) {
             localStorage.setItem('endless_news', JSON.stringify(newsData));
-            console.log('Synced', newsData.length, 'articles (Firebase + localStorage merged)');
-        } else {
-            console.log('Firebase empty, using localStorage:', newsData.length, 'articles');
         }
     } catch (error) {
-        console.error('Firebase read error:', error);
-        console.log('Using localStorage fallback:', newsData.length, 'articles');
+        console.error('❌ Firebase read error:', error);
+        newsData = [];
     }
 }
 
 async function loadAllNewsData() {
+    isDataLoaded = false;
+    
+    // Show loading state
+    showLoading();
+    
+    // Fetch from Firebase (source of truth)
     await syncFromFirebase();
+    
     isDataLoaded = true;
+    
+    // Hide loading
+    hideLoading();
+    
+    // 🔥 RENDER IMMEDIATELY after Firebase fetch
+    renderHero();
+    renderFeed();
+    renderTrending();
+    renderCategories();
+    renderAds();
+    renderTicker();
 }
 
 function getLocalized(item, field) {
@@ -334,8 +361,18 @@ function showLoading() {
 function hideLoading() {
     const grid = document.getElementById('news-grid');
     const hero = document.getElementById('hero-section');
-    if (grid && grid.innerHTML.includes('animation:spin')) grid.innerHTML = '';
-    if (hero && hero.innerHTML.includes('animation:spin')) hero.innerHTML = '';
+    const trending = document.getElementById('trending-list');
+    const ticker = document.getElementById('ticker-content');
+    
+    // Clear skeletons OR spinners
+    if (grid && (grid.querySelector('.skeleton') || grid.innerHTML.includes('animation:spin'))) {
+        grid.innerHTML = '';
+    }
+    if (hero && (hero.querySelector('.skeleton') || hero.innerHTML.includes('animation:spin'))) {
+        hero.innerHTML = '';
+    }
+    if (trending && trending.querySelector('.skeleton')) trending.innerHTML = '';
+    if (ticker && ticker.innerHTML.includes('Loading')) ticker.innerHTML = '';
 }
 
 function renderHero() {
@@ -939,23 +976,11 @@ function syncCategoriesFromStorage() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    showLoading();
     await loadAllNewsData();
-    hideLoading();
 
     if (newsData.length === 0) {
-        console.log('No articles from Firebase, retrying in 2 seconds...');
-        setTimeout(async function() {
-            await syncFromFirebase();
-            if (newsData.length > 0) {
-                renderHero();
-                renderFeed();
-                renderTrending();
-                renderTicker();
-            }
-        }, 2000);
+        console.log('ℹ️ No articles found in Firebase. Publish from admin panel.');
     }
-
     const yearEl = document.getElementById('year');
     if (yearEl) yearEl.textContent = new Date().getFullYear();
 
@@ -1082,11 +1107,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    setInterval(() => {
-        syncNewsFromStorage();
-        syncAdsFromStorage();
-        syncCategoriesFromStorage();
-    }, 10000);
+        // 🔥 Firebase-only: No periodic localStorage sync needed
+    // Website reads directly from Firebase on every load
+    console.log('✅ Firebase-only mode active. No localStorage polling.');
 
     initLazyLoading();
     initTicker();
