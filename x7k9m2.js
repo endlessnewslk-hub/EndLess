@@ -50,8 +50,8 @@ try {
 // STEP 3: DEFAULT CREDENTIALS (For First-Time Setup)
 // These are pre-filled for convenience - REMOVE IN PRODUCTION
 // ═══════════════════════════════════════════════════════
-const DEFAULT_EMAIL = "endlessnewslk@gmail.com";
-const DEFAULT_PASSWORD = "6402@Faizan";
+// SECURITY: No hardcoded credentials
+// User must enter their own Firebase Auth credentials
 
 // ═══════════════════════════════════════════════════════
 // STEP 4: SECURITY CONFIGURATION
@@ -785,8 +785,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Do NOT auto-redirect to dashboard even if session exists
     // User must explicitly login every time they visit this page
 
-    // STRICT: Clear any previously saved credentials on load
-    // This ensures no pre-filled data after logout
+    // SECURITY: Clear any previously saved credentials on load
     if (elements.email) {
         elements.email.value = '';
         elements.email.autocomplete = 'off';
@@ -795,16 +794,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.password.value = '';
         elements.password.autocomplete = 'off';
     }
-
-    // Clear browser's saved password prompt
     elements.loginForm?.setAttribute('autocomplete', 'off');
-
-    // STRICT: Clear any stored form data from browser
-    try {
-        document.querySelectorAll('input').forEach(input => {
-            input.value = '';
-        });
-    } catch(e) {}
 
     // Theme toggle
     elements.themeToggle?.addEventListener('click', toggleTheme);

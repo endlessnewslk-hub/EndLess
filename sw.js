@@ -2,7 +2,12 @@ const CACHE_NAME = 'endless-admin-v3';
 const BASE_URL = 'https://endlessnewslk-hub.github.io/EndLess';
 
 const urlsToCache = [
+  // Main Website
   BASE_URL + '/',
+  BASE_URL + '/index.html',
+  BASE_URL + '/styles.css',
+  BASE_URL + '/scripts.js',
+  // Admin Panel
   BASE_URL + '/x7k9m2.html',
   BASE_URL + '/dashboard.html',
   BASE_URL + '/x7k9m2.css',

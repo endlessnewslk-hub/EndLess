@@ -780,9 +780,6 @@ function fallbackCopy(text) {
     alert('Link copied! Paste it on Facebook/WhatsApp.');
 }
 
-let touchStartY = 0;
-let touchStartTime = 0;
-
 function handleTouchStart(e) {
     touchStartY = e.changedTouches[0].screenY;
     touchStartTime = Date.now();
@@ -1009,6 +1006,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (searchInput) {
         const feedTitle = document.getElementById('feed-title');
         
+        const debouncedSearch = debounce((e) => {
+            searchQuery = e.target.value.trim();
+            displayedCount = isMobile ? 4 : 6;
+            renderFeed();
+        
+            // 3. Update title with result count
+            const feedTitle = document.getElementById('feed-title');
+            if (feedTitle && feedTitle.dataset.original) {
+            if (!searchQuery) {
+            feedTitle.textContent = feedTitle.dataset.original;
+            } else {
+            const q = searchQuery.toLowerCase();
+            const count = newsData.filter(n => 
+            n.status === 'published' && !isGarbagePost(n) && (
+            (n.title && n.title.toLowerCase().includes(q)) ||
+            (n.title_en && n.title_en.toLowerCase().includes(q)) ||
+            (n.title_si && n.title_si.toLowerCase().includes(q)) ||
+            (n.excerpt && n.excerpt.toLowerCase().includes(q)) ||
+            (n.excerpt_en && n.excerpt_en.toLowerCase().includes(q))
+            )
+            ).length;
+            feedTitle.textContent = `🔍 "${searchQuery}" — ${count} result${count !== 1 ? 's' : ''}`;
+            }
+            }
+        }, 300);
         searchInput.addEventListener('input', (e) => {
             // 1. Immediate feedback — show "Searching..." instantly
             if (feedTitle) {
@@ -1021,31 +1043,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     // Debounced search function
-    const debouncedSearch = debounce((e) => {
-        searchQuery = e.target.value.trim();
-        displayedCount = isMobile ? 4 : 6;
-        renderFeed();
-        
-        // 3. Update title with result count
-        const feedTitle = document.getElementById('feed-title');
-        if (feedTitle && feedTitle.dataset.original) {
-            if (!searchQuery) {
-                feedTitle.textContent = feedTitle.dataset.original;
-            } else {
-                const q = searchQuery.toLowerCase();
-                const count = newsData.filter(n => 
-                    n.status === 'published' && !isGarbagePost(n) && (
-                        (n.title && n.title.toLowerCase().includes(q)) ||
-                        (n.title_en && n.title_en.toLowerCase().includes(q)) ||
-                        (n.title_si && n.title_si.toLowerCase().includes(q)) ||
-                        (n.excerpt && n.excerpt.toLowerCase().includes(q)) ||
-                        (n.excerpt_en && n.excerpt_en.toLowerCase().includes(q))
-                    )
-                ).length;
-                feedTitle.textContent = `🔍 "${searchQuery}" — ${count} result${count !== 1 ? 's' : ''}`;
-            }
-        }
-    }, 300);
 
     const loadMoreBtn = document.getElementById('load-more-btn');
     if (loadMoreBtn) {

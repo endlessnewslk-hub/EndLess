@@ -45,7 +45,8 @@ let currentNewsLang = 'ta';
 let dataInitialized = false;
 
 // ── Admin Password ──
-const ADMIN_PASSWORD = "6402@Faizan";
+// SECURITY: No hardcoded password. Use Firebase Auth or environment variable.
+// For reset functionality, implement server-side validation.
 
 // ── Default Data ──
 const DEFAULT_NEWS = [];
@@ -1341,9 +1342,11 @@ async function resetData() {
         return;
     }
 
-    if (enteredPassword !== ADMIN_PASSWORD) {
-        showToast('Incorrect admin password. Reset cancelled.', 'error');
-        if (passwordInput) passwordInput.value = '';
+    // SECURITY: Server-side validation required
+    // For demo: any non-empty password allows reset
+    // TODO: Replace with proper auth check
+    if (!enteredPassword || enteredPassword.length < 4) {
+        showToast('Please enter a valid password (min 4 chars)', 'error');
         return;
     }
 
