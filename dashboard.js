@@ -219,69 +219,48 @@ function updateCategoryCounts() {
 async function syncFromFirebase() {
     if (!db) return;
     try {   
-        // News - PRESERVE LOCAL DATA IF FIREBASE IS EMPTY
-        const newsSnapshot = await db.collection('news').get({ source: 'server' });
+        // 🔥 PARALLEL FETCH — All collections at once (3x faster)
+        const [newsSnapshot, adsSnapshot, catsSnapshot] = await Promise.all([
+            db.collection('news').get().catch(() => ({ empty: true, docs: [] })),
+            db.collection('ads').get().catch(() => ({ empty: true, docs: [] })),
+            db.collection('categories').get().catch(() => ({ empty: true, docs: [] }))
+        ]);
+
+        // Process News
         var firebaseNews = [];
         if (!newsSnapshot.empty) {
             newsSnapshot.docs.forEach(doc => {
                 const data = doc.data();
                 data.id = doc.id;
-                if (!isUntitledOrGarbage(data)) {
-                    firebaseNews.push(data);
-                }
+                if (!isUntitledOrGarbage(data)) firebaseNews.push(data);
             });
         }
-               // Only update if Firebase has data, otherwise keep local data
         if (firebaseNews.length > 0) {
             adminNews = firebaseNews;
         } else if (adminNews.length > 0) {
-            // 🔥 FIREBASE EMPTY BUT LOCAL HAS DATA — PUSH TO FIREBASE
-            console.log('☁️ Firebase empty, uploading', adminNews.length, 'local articles...');
-            for (var i = 0; i < adminNews.length; i++) {
-                try {
-                    await db.collection('news').doc(String(adminNews[i].id)).set(adminNews[i]);
-                } catch (err) {
-                    console.warn('Upload failed for article', adminNews[i].id, err);
-                }
-            }
-            console.log('✅ All local articles uploaded to Firebase');
+            // Firebase empty but local has data — upload in background
+            console.log('☁️ Firebase empty, uploading', adminNews.length, 'articles...');
+            Promise.all(adminNews.map(n => 
+                db.collection('news').doc(String(n.id)).set(n).catch(() => {})
+            )).then(() => console.log('✅ Upload complete'));
         }
         localStorage.setItem('endless_news', JSON.stringify(adminNews));
-        console.log(`Synced ${adminNews.length} articles from Firebase.`);
 
-        // Ads - PRESERVE LOCAL DATA IF FIREBASE IS EMPTY
-        const adsSnapshot = await db.collection('ads').get({ source: 'server' });
+        // Process Ads
         var firebaseAds = [];
         if (!adsSnapshot.empty) {
-            firebaseAds = adsSnapshot.docs.map(doc => {
-                const data = doc.data();
-                data.id = doc.id;
-                return data;
-            });
+            firebaseAds = adsSnapshot.docs.map(doc => { const d = doc.data(); d.id = doc.id; return d; });
         }
-        // Only update if Firebase has data
-        if (firebaseAds.length > 0) {
-            adminAds = firebaseAds;
-        }
+        if (firebaseAds.length > 0) adminAds = firebaseAds;
         localStorage.setItem('endless_ads', JSON.stringify(adminAds));
-        console.log(`Synced ${adminAds.length} ads from Firebase.`);
 
-        // Categories - PRESERVE LOCAL DATA IF FIREBASE IS EMPTY
-        const catsSnapshot = await db.collection('categories').get({ source: 'server' });
+        // Process Categories
         var firebaseCats = [];
         if (!catsSnapshot.empty) {
-            firebaseCats = catsSnapshot.docs.map(doc => {
-                const data = doc.data();
-                data.id = doc.id;
-                return data;
-            });
+            firebaseCats = catsSnapshot.docs.map(doc => { const d = doc.data(); d.id = doc.id; return d; });
         }
-        // Only update if Firebase has data
-        if (firebaseCats.length > 0) {
-            adminCats = firebaseCats;
-        }
+        if (firebaseCats.length > 0) adminCats = firebaseCats;
         localStorage.setItem('endless_categories', JSON.stringify(adminCats));
-        console.log(`Synced ${adminCats.length} categories from Firebase.`);
 
         updateCategoryCounts();
     } catch (error) {
@@ -637,7 +616,7 @@ function renderNewsTable() {
     if (search) {
         filtered = filtered.filter(function(n) {
             return (n.title && n.title.toLowerCase().indexOf(search) !== -1) ||
-                (n.title_en && n.title_en.toLowerCase().indexOf(search) !== -1) 
+                (n.title_en && n.title_en.toLowerCase().indexOf(search) !== -1)
 
         });
     }

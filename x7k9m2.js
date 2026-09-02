@@ -407,7 +407,7 @@ function redirectToAdmin() {
     showLoading(true);
     setTimeout(() => {
         window.location.href = 'dashboard.html';
-    }, 800);
+    }, 200);
 }
 
 // ═══════════════════════════════════════════════════════
