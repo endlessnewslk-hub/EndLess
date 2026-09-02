@@ -817,6 +817,18 @@ function openNewsModal(isEdit) {
         if (trending) trending.checked = false;
         if (status) status.checked = true;
 
+        // Set default date to now
+        var dateInput = document.getElementById('news-date');
+        if (dateInput) {
+            var now = new Date();
+            var yyyy = now.getFullYear();
+            var mm = String(now.getMonth() + 1).padStart(2, '0');
+            var dd = String(now.getDate()).padStart(2, '0');
+            var hh = String(now.getHours()).padStart(2, '0');
+            var min = String(now.getMinutes()).padStart(2, '0');
+            dateInput.value = yyyy + '-' + mm + '-' + dd + 'T' + hh + ':' + min;
+        }
+
         switchNewsLang('ta');
     }
 }
@@ -877,6 +889,18 @@ function editNews(id) {
         var placeholder = document.getElementById('photo-placeholder');
         if (wrap) wrap.style.display = 'block';
         if (placeholder) placeholder.style.display = 'none';
+    }
+
+    // Set date input
+    var dateInput = document.getElementById('news-date');
+    if (dateInput && news.date) {
+        var d = new Date(news.date);
+        var yyyy = d.getFullYear();
+        var mm = String(d.getMonth() + 1).padStart(2, '0');
+        var dd = String(d.getDate()).padStart(2, '0');
+        var hh = String(d.getHours()).padStart(2, '0');
+        var min = String(d.getMinutes()).padStart(2, '0');
+        dateInput.value = yyyy + '-' + mm + '-' + dd + 'T' + hh + ':' + min;
     }
     if (news.video && videoPreview) {
         videoPreview.src = news.video;
@@ -950,7 +974,9 @@ async function saveNewsItem() {
         author: author_ta,
         author_en: author_en || author_ta,
 
-        date: new Date().toISOString(),
+        date: (document.getElementById('news-date') && document.getElementById('news-date').value) 
+            ? new Date(document.getElementById('news-date').value).toISOString() 
+            : new Date().toISOString(),
         image: photoData || imageUrl || 'https://via.placeholder.com/800x400?text=EndLess+News',
         video: videoData,
         featured: featured,
