@@ -1627,6 +1627,161 @@ footer li:hover::before {
 .article-card:nth-child(5) { animation-delay: 0.15s; }
 .article-card:nth-child(6) { animation-delay: 0.18s; }
 
+
+/* ═══════════════════════════════════════
+   MOBILE ARTICLE CARD ENHANCEMENTS
+   ═══════════════════════════════════════ */
+@media (max-width: 640px) {
+    .article-card {
+        flex-direction: column !important;
+        border-radius: 16px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+    .article-card img {
+        width: 100% !important;
+        height: 200px !important;
+        min-height: 200px !important;
+        border-radius: 16px 16px 0 0 !important;
+    }
+    .article-card .card-body {
+        padding: 1rem !important;
+    }
+    .article-card h3 {
+        font-size: 1.1rem !important;
+        line-height: 1.35 !important;
+        -webkit-line-clamp: 3 !important;
+        line-clamp: 3 !important;
+        margin-bottom: 0.5rem !important;
+    }
+    .article-card p {
+        font-size: 0.9rem !important;
+        line-height: 1.6 !important;
+        -webkit-line-clamp: 3 !important;
+        line-clamp: 3 !important;
+        color: var(--text-muted) !important;
+    }
+    .article-card .meta {
+        font-size: 0.75rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Hero mobile */
+    .hero-main {
+        min-height: 320px !important;
+        border-radius: 16px !important;
+    }
+    .hero-content h2 {
+        font-size: 1.5rem !important;
+        line-height: 1.25 !important;
+    }
+    .hero-content p {
+        font-size: 0.95rem !important;
+        line-height: 1.5 !important;
+    }
+    .hero-card img {
+        height: 120px !important;
+    }
+
+    /* Modal mobile */
+    .modal-article img {
+        height: 260px !important;
+    }
+    .modal-article h1 {
+        font-size: 1.4rem !important;
+        line-height: 1.3 !important;
+    }
+    .modal-article .article-text {
+        font-size: 1.05rem !important;
+        line-height: 1.85 !important;
+    }
+    .modal-article .article-text p {
+        margin-bottom: 1rem !important;
+    }
+
+    /* Search box mobile */
+    .search-box input {
+        width: 160px !important;
+    }
+    .search-box input:focus {
+        width: 200px !important;
+    }
+
+    /* Ad slots mobile */
+    .ad-slot {
+        min-height: 100px;
+        margin: 1rem 0;
+    }
+    .ad-slot-header {
+        margin: 0.5rem 0;
+    }
+    .ad-slot-inline {
+        margin: 1.5rem 0;
+    }
+}
+
+/* ═══════════════════════════════════════
+   AD SLOT STYLES (AdSense Ready)
+   ═══════════════════════════════════════ */
+.ad-slot {
+    background: linear-gradient(135deg, var(--surface) 0%, var(--bg) 100%);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    text-align: center;
+    min-height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: all var(--transition);
+    width: 100%;
+}
+.ad-slot:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-glow);
+}
+.ad-slot-header {
+    min-height: 90px;
+    max-height: 120px;
+    margin-bottom: 1rem;
+}
+.ad-slot-sidebar {
+    min-height: 250px;
+    margin-bottom: 1.5rem;
+}
+.ad-slot-inline {
+    min-height: 100px;
+    margin: 2rem auto;
+    max-width: 100%;
+}
+.ad-slot-modal {
+    min-height: 250px;
+    margin: 1.5rem 0;
+    border-radius: var(--radius);
+}
+.ad-slot-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+    letter-spacing: 0.15em;
+    margin-bottom: 0.4rem;
+    text-align: center;
+    font-weight: 600;
+}
+.ad-slot-placeholder {
+    color: var(--text-subtle);
+    font-size: 0.8rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+}
+.ad-slot-placeholder span {
+    font-size: 1.5rem;
+}
+
 /* ═══════════════════════════════════════
    TABLET BREAKPOINT (min-width: 640px)
    ═══════════════════════════════════════ */

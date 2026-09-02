@@ -48,7 +48,15 @@
     </div>
 
     <!-- Header Ad Banner -->
-    <div class="container" id="header-ad-container" style="padding-top: 1rem;"></div>
+    <div class="container" id="header-ad-container" style="padding-top: 1rem;">
+        <div class="ad-slot-label">Advertisement</div>
+        <div class="ad-slot ad-slot-header" id="ad-slot-header">
+            <div class="ad-slot-placeholder">
+                <span>📢</span>
+                <span>Header Ad Space</span>
+            </div>
+        </div>
+    </div>
 
     <!-- Main Header -->
     <header class="main-header">
@@ -99,13 +107,25 @@
         <div class="main-content">
             <h2 class="section-title" id="feed-title" data-key="latest_news">சமீபத்திய செய்திகள்</h2>
             <div class="news-grid" id="news-grid"></div>
+            <!-- Inline Ad -->
+            <div class="ad-slot ad-slot-inline" id="ad-slot-inline">
+                <div class="ad-slot-placeholder">
+                    <span>📢</span>
+                    <span>In-Feed Ad Space</span>
+                </div>
+            </div>
             <div class="load-more" id="load-more-wrap">
                 <button class="btn" id="load-more-btn" data-key="load_more">மேலும் கட்டுரைகள் ↓</button>
             </div>
         </div>
 
         <aside class="sidebar">
-            <div class="ad-box" id="sidebar-ad-container" style="margin-bottom: 1.5rem;"></div>
+            <div class="ad-slot ad-slot-sidebar" id="ad-slot-sidebar">
+                <div class="ad-slot-placeholder">
+                    <span>📢</span>
+                    <span>Sidebar Ad Space</span>
+                </div>
+            </div>
             <div class="sidebar-box">
                 <h3 data-key="trending">🔥 பிரபலமானவை</h3>
                 <div id="trending-list"></div>
@@ -131,6 +151,13 @@
         <div class="modal-content">
             <button class="modal-close" id="modal-close">&times;</button>
             <div id="modal-body"></div>
+            <!-- Modal Ad Slot -->
+            <div class="ad-slot ad-slot-modal" id="ad-slot-modal">
+                <div class="ad-slot-placeholder">
+                    <span>📢</span>
+                    <span>Article Ad Space</span>
+                </div>
+            </div>
         </div>
     </div>
 

@@ -406,6 +406,7 @@ function renderFeed() {
             
             (n.excerpt && n.excerpt.toLowerCase().includes(q)) ||
             (n.excerpt_en && n.excerpt_en.toLowerCase().includes(q))
+            
         );
     }
 
@@ -486,10 +487,12 @@ function renderCategories() {
 function renderAds() {
     const activeAds = adsData.filter(a => a.active);
 
+    // Header Ad
     const headerAd = activeAds.find(a => a.position === 'header');
     const headerContainer = document.getElementById('header-ad-container');
+    const headerSlot = document.getElementById('ad-slot-header');
     if (headerContainer && headerAd) {
-        headerContainer.innerHTML = `
+        headerSlot.innerHTML = `
             <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
             <div class="ad-box">
                 <a href="${escapeHtml(headerAd.link)}" target="_blank" rel="noopener noreferrer">
@@ -499,25 +502,33 @@ function renderAds() {
         `;
     }
 
+    // Sidebar Ad
     const sidebarAd = activeAds.find(a => a.position === 'sidebar');
-    const sidebarContainer = document.getElementById('sidebar-ad-container');
-    if (sidebarContainer) {
+    const sidebarSlot = document.getElementById('ad-slot-sidebar');
+    if (sidebarSlot) {
         if (sidebarAd) {
-            sidebarContainer.innerHTML = `
+            sidebarSlot.innerHTML = `
                 <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
                 <a href="${escapeHtml(sidebarAd.link)}" target="_blank" rel="noopener noreferrer">
-                    <img src="${escapeHtml(sidebarAd.image)}" alt="${escapeHtml(getLocalized(sidebarAd, 'title'))}" loading="lazy" style="width:100%; max-height:200px; object-fit:cover;">
+                    <img src="${escapeHtml(sidebarAd.image)}" alt="${escapeHtml(getLocalized(sidebarAd, 'title'))}" loading="lazy" style="width:100%; max-height:250px; object-fit:cover;">
                 </a>
             `;
         } else {
-            sidebarContainer.innerHTML = '';
+            // Show placeholder for AdSense
+            sidebarSlot.innerHTML = `
+                <div class="ad-slot-placeholder">
+                    <span>📢</span>
+                    <span>Sidebar Ad Space</span>
+                </div>
+            `;
         }
     }
 
+    // Inline Ad (between articles)
     const inlineAd = activeAds.find(a => a.position === 'inline');
-    const inlineContainer = document.getElementById('inline-ad-container');
-    if (inlineContainer && inlineAd) {
-        inlineContainer.innerHTML = `
+    const inlineSlot = document.getElementById('ad-slot-inline');
+    if (inlineSlot && inlineAd) {
+        inlineSlot.innerHTML = `
             <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
             <div class="ad-box">
                 <a href="${escapeHtml(inlineAd.link)}" target="_blank" rel="noopener noreferrer">
@@ -526,6 +537,20 @@ function renderAds() {
             </div>
         `;
     }
+}
+
+// ── Initialize AdSense Slots (called after AdSense approve) ──
+function initAdSenseSlots() {
+    // Replace placeholder divs with actual AdSense code
+    // Call this after Google AdSense approval + code paste
+    const slots = ['ad-slot-header', 'ad-slot-sidebar', 'ad-slot-inline', 'ad-slot-modal'];
+    slots.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.querySelector('.ad-slot-placeholder')) {
+            // Slot is empty (no direct ad) → ready for AdSense
+            el.classList.add('adsense-ready');
+        }
+    });
 }
 
 function renderTicker() {
