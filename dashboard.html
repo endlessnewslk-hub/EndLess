@@ -84,6 +84,7 @@
     <link rel="apple-touch-icon" href="logo-og.png">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
     <!-- Auth Loading Overlay -->
@@ -376,14 +377,12 @@
                 <div class="lang-tabs">
                     <button type="button" class="lang-tab active" data-lang="ta">தமிழ்</button>
                     <button type="button" class="lang-tab" data-lang="en">English</button>  
-                    <button type="button" class="lang-tab" data-lang="si">සිංහල</button>
                 </div>
 
                                 <div class="form-group">
                     <label>Headline (Title) *</label>
                     <input type="text" id="news-title-ta" class="lang-input active" placeholder="தலைப்பை உள்ளிடவும்...">
                     <input type="text" id="news-title-en" class="lang-input" placeholder="Enter headline..." style="display:none;">
-                    <input type="text" id="news-title-si" class="lang-input" placeholder="මාතෘකාව ඇතුළත් කරන්න..." style="display:none;">
                 </div>
                 
                 <!-- NEW: Excerpt Field -->
@@ -391,7 +390,6 @@
                     <label>Short Excerpt / Summary *</label>
                     <textarea id="news-excerpt-ta" class="lang-excerpt active" rows="3" placeholder="செய்தியின் சுருக்கமான விளக்கத்தை இங்கே எழுதவும்... (2-3 வரிகள்)"></textarea>
                     <textarea id="news-excerpt-en" class="lang-excerpt" rows="3" placeholder="Write a short summary/excerpt here... (2-3 lines)" style="display:none;"></textarea>
-                    <textarea id="news-excerpt-si" class="lang-excerpt" rows="3" placeholder="කෙටි සාරාංශය මෙහි ලියන්න... (පේළි 2-3)" style="display:none;"></textarea>
                     <small style="color: #9ca3af; font-size: 0.8rem;">This short summary will appear on the homepage cards and social share previews.</small>
                 </div>
 
@@ -404,7 +402,6 @@
                         <label>Author *</label>
                         <input type="text" id="news-author-ta" class="lang-input active" placeholder="எழுத்தாளர் பெயர்">
                         <input type="text" id="news-author-en" class="lang-input" placeholder="Author name" style="display:none;">
-                        <input type="text" id="news-author-si" class="lang-input" placeholder="ලේඛකයාගේ නම" style="display:none;">
                     </div>
                 </div>
                 <div class="form-group">
@@ -418,12 +415,6 @@
                     <div class="lang-content-wrapper" data-lang="en" style="position: relative; display: none;">
                         <textarea id="news-content-en" class="lang-textarea" rows="10" placeholder="Write full news article here..."></textarea>
                         <button type="button" class="btn-copy" data-lang="en" title="Copy English Content" style="position: absolute; top: 5px; right: 5px; z-index: 10;">
-                            <i class="far fa-copy"></i>
-                        </button>
-                    </div>
-                    <div class="lang-content-wrapper" data-lang="si" style="position: relative; display: none;">
-                        <textarea id="news-content-si" class="lang-textarea" rows="10" placeholder="සම්පූර්ණ පුවත් ලිපිය මෙහි ලියන්න..."></textarea>
-                        <button type="button" class="btn-copy" data-lang="si" title="Copy Sinhala Content" style="position: absolute; top: 5px; right: 5px; z-index: 10;">
                             <i class="far fa-copy"></i>
                         </button>
                     </div>
@@ -495,10 +486,6 @@
                     <input type="text" id="ad-title-en" placeholder="Ad title">
                 </div>
                 <div class="form-group">
-                    <label>Ad Title (Sinhala)</label>
-                    <input type="text" id="ad-title-si" placeholder="දැන්වීම් මාතෘකාව">
-                </div>
-                <div class="form-group">
                     <label>Link URL</label>
                     <input type="text" id="ad-link" placeholder="https://example.com">
                 </div>
@@ -555,10 +542,6 @@
                 <div class="form-group">
                     <label>Category Name (English)</label>
                     <input type="text" id="cat-name-en" placeholder="e.g. World">
-                </div>
-                <div class="form-group">
-                    <label>Category Name (Sinhala)</label>
-                    <input type="text" id="cat-name-si" placeholder="e.g. ලෝකය">
                 </div>
             </div>
             <div class="modal-footer">

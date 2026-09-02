@@ -25,7 +25,7 @@ try {
 /* ═══════════════════════════════════════════════════════
    ENDLESS — MAIN WEBSITE LOGIC
    MOBILE-FIRST OPTIMIZED
-   3 LANGUAGE SUPPORT (Tamil/English/Sinhala)
+   2 LANGUAGE SUPPORT (Tamil/English)
    ═══════════════════════════════════════════════════════ */
 
 const TRANSLATIONS = {
@@ -73,29 +73,6 @@ const TRANSLATIONS = {
         close: "Close", loading: "Loading...",
         share_article: "Share"
     },
-    si: {
-        nav_home: "මුල් පිටුව", nav_world: "ලෝකය", nav_tech: "තාක්ෂණය",
-        nav_business: "ව්‍යාපාර", nav_science: "විද්‍යාව", nav_sports: "ක්‍රීඩා",
-        nav_health: "සෞඛ්‍යය", placeholder_search: "පුවත් සොයන්න...",
-        latest_news: "නවතම පුවත්", load_more: "තවත් ලිපි ↓",
-        trending: "🔥 ජනප්‍රියම", categories: "📂 කාණ්ඩ",
-        newsletter: "📬 දෛනික සාරාංශය",
-        newsletter_desc: "වැදගත්ම කතා ඔබගේ ඊමේල් වෙත එවන්න.",
-        subscribe: "දායක වන්න",
-        footer_desc: "ලෝකය පුරා ස්වාධීන මාධ්‍යවේදය. දිනපතා මිලියන ගණනකින් විශ්වාස කෙරේ.",
-        footer_sections: "කාණ්ඩ", footer_company: "සමාගම",
-        about_us: "අපි ගැන", careers: "රැකියා", ethics: "ආචාර ධර්ම",
-        contact: "සම්බන්ධතා", advertise: "ප්‍රචාරණ", follow_us: "අපව අනුගමනය කරන්න",
-        rights: "සියලු හිමිකම්ම ඇවිරිණි", privacy: "පුද්ගලිකත්ව ප්‍රතිපත්තිය",
-        terms: "සේවා කොන්දේසි", all_stories: "සියලුම කතා",
-        read_more: "තවත් කියවන්න", by_author: "ලිපිගත කළේ",
-        published_on: "ප්‍රකාශිත දිනය", breaking_news: "අලුත්ම පුවත්",
-        ad_label: "දැන්වීම", search_results: "සෙවුම් ප්‍රතිඵල",
-        no_results: "ලිපි හමු නොවීය",
-        no_articles_yet: "තවම ලිපි නැත. කරුණාකර පරිපාலක පැනලයෙන් ප්‍රකාශයට පත් කරන්න.",
-        close: "වසන්න", loading: "පූරණය වෙමින්...",
-        share_article: "බෙදාගන්න"
-    }
 };
 
 let currentLang = localStorage.getItem('gd_language') || 'ta';
@@ -109,13 +86,13 @@ const DEFAULT_NEWS = [];
 
 const DEFAULT_ADS = [
     {
-        id: 1, title: "EndLess பிரீமியம்", title_en: "EndLess Premium", title_si: "EndLess ප්‍රිමියම්",
+        id: 1, title: "EndLess பிரீமியம்", title_en: "EndLess Premium",
         link: "https://example.com/premium",
         image: "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=600&auto=format&fit=crop",
         position: "header", active: true
     },
     {
-        id: 2, title: "டெக் கேஜெட் விற்பனை", title_en: "Tech Gadgets Sale", title_si: "ටෙක් ගැජට් විකිණීම",
+        id: 2, title: "டெக் கேஜெட் விற்பனை", title_en: "Tech Gadgets Sale",
         link: "https://example.com/gadgets",
         image: "https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=400&auto=format&fit=crop",
         position: "sidebar", active: true
@@ -123,12 +100,12 @@ const DEFAULT_ADS = [
 ];
 
 const DEFAULT_CATEGORIES = [
-    { id: "world", name: "உலகம்", name_en: "World", name_si: "ලෝකය", count: 0 },
-    { id: "technology", name: "தொழில்நுட்பம்", name_en: "Technology", name_si: "තාක්ෂණය", count: 0 },
-    { id: "business", name: "வணிகம்", name_en: "Business", name_si: "ව්‍යාපාර", count: 0 },
-    { id: "science", name: "அறிவியல்", name_en: "Science", name_si: "විද්‍යාව", count: 0 },
-    { id: "sports", name: "விளையாட்டு", name_en: "Sports", name_si: "ක්‍රීඩා", count: 0 },
-    { id: "health", name: "சுகாதாரம்", name_en: "Health", name_si: "සෞඛ්‍යය", count: 0 }
+    { id: "world", name: "உலகம்", name_en: "World", count: 0 },
+    { id: "technology", name: "தொழில்நுட்பம்", name_en: "Technology", count: 0 },
+    { id: "business", name: "வணிகம்", name_en: "Business", count: 0 },
+    { id: "science", name: "அறிவியல்", name_en: "Science", count: 0 },
+    { id: "sports", name: "விளையாட்டு", name_en: "Sports", count: 0 },
+    { id: "health", name: "சுகாதாரம்", name_en: "Health", count: 0 }
 ];
 
 function isGarbagePost(n) {
@@ -138,14 +115,13 @@ function isGarbagePost(n) {
     }
     var t = String(n.title || '').trim();
     var t_en = String(n.title_en || '').trim();
-    var t_si = String(n.title_si || '').trim();
     var isBad = function(s) {
         if (!s) return true;
         var x = String(s).trim().toLowerCase();
         return x === '' || x === 'untitled' || x === 'undefined' || x === 'null' ||
                x === 'nan' || x === '[object object]';
     };
-    var hasTitle = !isBad(t) || !isBad(t_en) || !isBad(t_si);
+    var hasTitle = !isBad(t) || !isBad(t_en);
     var idStr = String(n.id || '').trim();
     var hasId = idStr !== '' && idStr !== 'undefined' && idStr !== 'null' && idStr !== '0';
     
@@ -260,13 +236,13 @@ function formatDate(dateStr) {
     if (diff < 60) return 'Just now';
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return date.toLocaleDateString(currentLang === 'ta' ? 'ta-IN' : currentLang === 'si' ? 'si-LK' : 'en-US', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString(currentLang === 'ta' ? 'ta-IN' : 'en-US', { month: 'short', day: 'numeric' });
 }
 
 function getCategoryName(catId) {
     const cat = categoriesData.find(c => c.id === catId || c.name === catId || c.name_en === catId);
     if (!cat) return catId;
-    return currentLang === 'ta' ? cat.name : currentLang === 'en' ? cat.name_en : cat.name_si;
+    return currentLang === 'ta' ? cat.name : cat.name_en;
 }
 
 function escapeHtml(text) {
@@ -418,7 +394,7 @@ function renderFeed() {
     if (currentFilter !== 'All') {
         const catNames = categoriesData.filter(c =>
             c.name_en === currentFilter || c.name === currentFilter
-        ).map(c => [c.name, c.name_en, c.name_si]).flat();
+        ).map(c => [c.name, c.name_en]).flat();
         filtered = filtered.filter(n => catNames.includes(n.category) || catNames.includes(n.category_en));
     }
 
@@ -427,10 +403,9 @@ function renderFeed() {
         filtered = filtered.filter(n =>
             (n.title && n.title.toLowerCase().includes(q)) ||
             (n.title_en && n.title_en.toLowerCase().includes(q)) ||
-            (n.title_si && n.title_si.toLowerCase().includes(q)) ||
+            
             (n.excerpt && n.excerpt.toLowerCase().includes(q)) ||
-            (n.excerpt_en && n.excerpt_en.toLowerCase().includes(q)) ||
-            (n.excerpt_si && n.excerpt_si.toLowerCase().includes(q))
+            (n.excerpt_en && n.excerpt_en.toLowerCase().includes(q))
         );
     }
 
@@ -502,7 +477,7 @@ function renderCategories() {
 
     list.innerHTML = categoriesData.map(cat => `
         <li onclick="filterCategory('${escapeHtml(cat.name_en)}')">
-            <span>${currentLang === 'ta' ? escapeHtml(cat.name) : currentLang === 'en' ? escapeHtml(cat.name_en) : escapeHtml(cat.name_si)}</span>
+            <span>${currentLang === 'ta' ? escapeHtml(cat.name) : escapeHtml(cat.name_en)}</span>
             <span class="count">${cat.count}</span>
         </li>
     `).join('');
@@ -813,7 +788,7 @@ function filterCategory(cat) {
         titleEl.textContent = TRANSLATIONS[currentLang].latest_news;
     } else {
         const catObj = categoriesData.find(c => c.name_en === cat);
-        titleEl.textContent = catObj ? (currentLang === 'ta' ? catObj.name : currentLang === 'en' ? catObj.name_en : catObj.name_si) : cat;
+        titleEl.textContent = catObj ? (currentLang === 'ta' ? catObj.name : catObj.name_en) : cat;
     }
 
     renderFeed();
@@ -1022,7 +997,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             n.status === 'published' && !isGarbagePost(n) && (
             (n.title && n.title.toLowerCase().includes(q)) ||
             (n.title_en && n.title_en.toLowerCase().includes(q)) ||
-            (n.title_si && n.title_si.toLowerCase().includes(q)) ||
+            
             (n.excerpt && n.excerpt.toLowerCase().includes(q)) ||
             (n.excerpt_en && n.excerpt_en.toLowerCase().includes(q))
             )

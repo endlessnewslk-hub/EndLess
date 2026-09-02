@@ -92,8 +92,7 @@ function isUntitledOrGarbage(n) {
     if (!n || typeof n !== 'object') return true;
     var hasId = n.id !== undefined && n.id !== null && n.id !== '';
     var hasTitle = (n.title && String(n.title).trim() !== '') ||
-                   (n.title_en && String(n.title_en).trim() !== '') ||
-                   (n.title_si && String(n.title_si).trim() !== '');
+                   (n.title_en && String(n.title_en).trim() !== '');
     return !hasId || !hasTitle;
 }
 
@@ -209,7 +208,7 @@ function updateCategoryCounts() {
     adminCats.forEach(function(cat) {
         var count = adminNews.filter(function(n) {
             return n.status === 'published' &&
-                (n.category === cat.name || n.category_en === cat.name_en || n.category_si === cat.name_si);
+                (n.category === cat.name || n.category_en === cat.name_en);
         }).length;
         cat.count = count;
     });
@@ -310,15 +309,15 @@ function generateSharePage(article) {
     var articleUrl = 'https://endlessnewslk-hub.github.io/EndLess/?article=' + article.id;
     var shareUrl = 'https://endless-og.endlessnewslk.workers.dev/?article=' + article.id;
     
-    var title = article.title_en || article.title || article.title_si || 'EndLess News';
+    var title = article.title_en || article.title || 'EndLess News';
     var lang = currentNewsLang || 'en';
     var image = article.image || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=1200&auto=format&fit=crop';
     
-    var readMore = lang === 'ta' ? 'மேலும் படிக்க' : lang === 'si' ? 'තවත් කියවන්න' : 'Continue Reading';
-    var redirectText = lang === 'ta' ? 'கட்டுரைக்கு திருப்பிவிடுகிறது' : lang === 'si' ? 'ලිපියට යොමු කරමින්' : 'Redirecting to article';
-    var clickHere = lang === 'ta' ? 'திருப்பிவிடவில்லை என்றால் இங்கே சொடுக்கவும்' : lang === 'si' ? 'යොමු නොවුණොත් මෙතැන ක්ලික් කරන්න' : 'Click here if not redirected';
+    var readMore = lang === 'ta' ? 'மேலும் படிக்க' : 'Continue Reading';
+    var redirectText = lang === 'ta' ? 'கட்டுரைக்கு திருப்பிவிடுகிறது' : 'Redirecting to article';
+    var clickHere = lang === 'ta' ? 'திருப்பிவிடவில்லை என்றால் இங்கே சொடுக்கவும்' : 'Click here if not redirected';
     
-    var description = (article.excerpt || article.excerpt_en || article.excerpt_si || title);
+    var description = (article.excerpt || article.excerpt_en || title);
     if (description.length > 200) description = description.substring(0, 197) + '...';
     
     function escapeHtml(text) {
@@ -480,7 +479,7 @@ function switchNewsLang(lang) {
     document.querySelectorAll('.lang-excerpt').forEach(function(ex) {
         ex.style.display = ex.id.endsWith('-' + lang) ? 'block' : 'none';
     });
-    // Toggle content wrappers (English & Sinhala full content areas)
+    // Toggle content wrappers (English full content area)
     document.querySelectorAll('.lang-content-wrapper').forEach(function(wrapper) {
         wrapper.style.display = wrapper.dataset.lang === lang ? 'block' : 'none';
     });
@@ -638,8 +637,8 @@ function renderNewsTable() {
     if (search) {
         filtered = filtered.filter(function(n) {
             return (n.title && n.title.toLowerCase().indexOf(search) !== -1) ||
-                (n.title_en && n.title_en.toLowerCase().indexOf(search) !== -1) ||
-                (n.title_si && n.title_si.toLowerCase().indexOf(search) !== -1);
+                (n.title_en && n.title_en.toLowerCase().indexOf(search) !== -1) 
+
         });
     }
 
@@ -657,7 +656,7 @@ function renderNewsTable() {
             var langs = [];
             if (n.title) langs.push('<span class="badge badge-lang">TA</span>');
             if (n.title_en) langs.push('<span class="badge badge-lang">EN</span>');
-            if (n.title_si) langs.push('<span class="badge badge-lang">SI</span>');
+
             var dateStr = n.date ? new Date(n.date).toLocaleDateString() : 'N/A';
             var imgSrc = escapeHtml(n.image || '');
             var placeholder = 'https://via.placeholder.com/60x40?text=No+Image';
@@ -759,7 +758,7 @@ function renderCategoriesTable() {
         tbody.innerHTML = adminCats.map(function(c) {
             var catId = escapeHtml(c.id || '');
             return '<tr><td><strong>' + escapeHtml(c.name_en || '') + '</strong><br><small style="color:#6b7280;">' +
-                escapeHtml(c.name || '') + ' / ' + escapeHtml(c.name_si || '') + '</small></td>' +
+                escapeHtml(c.name || '') + '</small></td>' +
                 '<td>' + c.count + '</td>' +
                 '<td><button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onclick="deleteCategory(\'' + catId + '\')" title="Delete">&#128465;&#65039;</button></td></tr>';
         }).join('');
@@ -774,7 +773,7 @@ function renderCategoriesTable() {
                 return '<div class="mobile-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin-bottom:1rem;">' +
                     '<div class="card-title" style="font-weight:600;margin-bottom:0.5rem;">' + escapeHtml(c.name_en || '') + '</div>' +
                     '<div class="card-meta" style="font-size:0.8rem;color:#6b7280;margin-bottom:0.75rem;">' +
-                    '<span>' + escapeHtml(c.name || '') + ' / ' + escapeHtml(c.name_si || '') + '</span> | ' +
+                    '<span>' + escapeHtml(c.name || '') + '</span> | ' +
                     '<span>' + c.count + ' articles</span></div>' +
                     '<div class="card-actions">' +
                     '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onclick="deleteCategory(\'' + catId + '\')" title="Delete">&#128465;&#65039;</button></div></div>';
@@ -806,7 +805,7 @@ function openNewsModal(isEdit) {
         var newsIdInput = document.getElementById('news-id');
         if (newsIdInput) newsIdInput.value = '';
 
-               ['ta', 'en', 'si'].forEach(function(lang) {
+               ['ta', 'en'].forEach(function(lang) {
             var titleInp = document.getElementById('news-title-' + lang);
             var excerptInp = document.getElementById('news-excerpt-' + lang);
             var authorInp = document.getElementById('news-author-' + lang);
@@ -863,10 +862,10 @@ function editNews(id) {
     if (catSelect) catSelect.value = news.category_en || news.category || '';
 
         var fields = {
-        'news-title': ['title', 'title_en', 'title_si'],
-        'news-excerpt': ['excerpt', 'excerpt_en', 'excerpt_si'],
-        'news-author': ['author', 'author_en', 'author_si'],
-        'news-content': ['content', 'content_en', 'content_si']
+        'news-title': ['title', 'title_en'],
+        'news-excerpt': ['excerpt', 'excerpt_en'],
+        'news-author': ['author', 'author_en'],
+        'news-content': ['content', 'content_en']
     };
 
     ['ta', 'en', 'si'].forEach(function(lang, idx) {
@@ -909,17 +908,13 @@ async function saveNewsItem() {
 
     var excerpt_ta_el = document.getElementById('news-excerpt-ta');
     var excerpt_en_el = document.getElementById('news-excerpt-en');
-    var excerpt_si_el = document.getElementById('news-excerpt-si');
 
     var title_ta_el = document.getElementById('news-title-ta');
     var title_en_el = document.getElementById('news-title-en');
-    var title_si_el = document.getElementById('news-title-si');
     var author_ta_el = document.getElementById('news-author-ta');
     var author_en_el = document.getElementById('news-author-en');
-    var author_si_el = document.getElementById('news-author-si');
     var content_ta_el = document.getElementById('news-content-ta');
     var content_en_el = document.getElementById('news-content-en');
-    var content_si_el = document.getElementById('news-content-si');
     var imageUrl_el = document.getElementById('news-image-url');
     var photoData_el = document.getElementById('news-photo-data');
     var videoData_el = document.getElementById('news-video-data');
@@ -929,13 +924,11 @@ async function saveNewsItem() {
 
     var title_ta = title_ta_el ? title_ta_el.value.trim() : '';
     var title_en = title_en_el ? title_en_el.value.trim() : '';
-    var title_si = title_si_el ? title_si_el.value.trim() : '';
+
     var author_ta = author_ta_el ? author_ta_el.value.trim() : '';
     var author_en = author_en_el ? author_en_el.value.trim() : '';
-    var author_si = author_si_el ? author_si_el.value.trim() : '';
     var content_ta = content_ta_el ? content_ta_el.value.trim() : '';
     var content_en = content_en_el ? content_en_el.value.trim() : '';
-    var content_si = content_si_el ? content_si_el.value.trim() : '';
     var imageUrl = imageUrl_el ? imageUrl_el.value.trim() : '';
     var photoData = photoData_el ? photoData_el.value : '';
     var videoData = videoData_el ? videoData_el.value : '';
@@ -945,7 +938,6 @@ async function saveNewsItem() {
 
     var excerpt_ta = excerpt_ta_el ? excerpt_ta_el.value.trim() : '';
     var excerpt_en = excerpt_en_el ? excerpt_en_el.value.trim() : '';
-    var excerpt_si = excerpt_si_el ? excerpt_si_el.value.trim() : '';
 
     if (!title_ta || !category || !author_ta || !content_ta) {
         showToast('Please fill all required Tamil fields', 'error');
@@ -957,21 +949,21 @@ async function saveNewsItem() {
         id: editingNewsId || Date.now(),
         title: title_ta,
         title_en: title_en || title_ta,
- title_si: title_si || title_ta,
+
 
         excerpt: excerpt_ta,
         excerpt_en: excerpt_en || excerpt_ta,
-        excerpt_si: excerpt_si || excerpt_ta,
+
 
         content: content_ta,
         content_en: content_en || content_ta,
-        content_si: content_si || content_ta,
+
         category: catObj ? catObj.name : category,
         category_en: catObj ? catObj.name_en : category,
-        category_si: catObj ? catObj.name_si : category,
+
         author: author_ta,
         author_en: author_en || author_ta,
-        author_si: author_si || author_ta,
+
         date: new Date().toISOString(),
         image: photoData || imageUrl || 'https://via.placeholder.com/800x400?text=EndLess+News',
         video: videoData,
@@ -1014,7 +1006,7 @@ async function saveNewsItem() {
 
     var missing = [];
     if (!title_en) missing.push('English');
-    if (!title_si) missing.push('Sinhala');
+
     if (missing.length > 0 && !editingNewsId) {
         showToast('Article saved! Note: Missing ' + missing.join(', ') + ' title - filled with Tamil');
     } else {
@@ -1060,8 +1052,7 @@ function openAdModal(isEdit) {
         var adId = document.getElementById('ad-id');
         var titleTa = document.getElementById('ad-title-ta');
         var titleEn = document.getElementById('ad-title-en');
-        var titleSi = document.getElementById('ad-title-si');
-        var link = document.getElementById('ad-link');
+            var link = document.getElementById('ad-link');
         var position = document.getElementById('ad-position');
         var image = document.getElementById('ad-image');
         var imagePreview = document.getElementById('ad-image-preview');
@@ -1098,7 +1089,6 @@ function editAd(id) {
     var adId = document.getElementById('ad-id');
     var titleTa = document.getElementById('ad-title-ta');
     var titleEn = document.getElementById('ad-title-en');
-    var titleSi = document.getElementById('ad-title-si');
     var link = document.getElementById('ad-link');
     var position = document.getElementById('ad-position');
     var image = document.getElementById('ad-image');
@@ -1108,7 +1098,7 @@ function editAd(id) {
     if (adId) adId.value = ad.id;
     if (titleTa) titleTa.value = ad.title || '';
     if (titleEn) titleEn.value = ad.title_en || '';
-    if (titleSi) titleSi.value = ad.title_si || '';
+
     if (link) link.value = ad.link || '';
     if (position) position.value = ad.position || 'header';
     if (image) image.value = ad.image || '';
@@ -1123,7 +1113,7 @@ function editAd(id) {
 async function saveAdItem() {
     var title_ta_el = document.getElementById('ad-title-ta');
     var title_en_el = document.getElementById('ad-title-en');
-    var title_si_el = document.getElementById('ad-title-si');
+
     var link_el = document.getElementById('ad-link');
     var position_el = document.getElementById('ad-position');
     var image_el = document.getElementById('ad-image');
@@ -1131,7 +1121,7 @@ async function saveAdItem() {
 
     var title_ta = title_ta_el ? title_ta_el.value.trim() : '';
     var title_en = title_en_el ? title_en_el.value.trim() : '';
-    var title_si = title_si_el ? title_si_el.value.trim() : '';
+
     var link = link_el ? link_el.value.trim() : '';
     var position = position_el ? position_el.value : 'header';
     var image = image_el ? image_el.value.trim() : 'https://via.placeholder.com/600x200?text=Ad';
@@ -1146,7 +1136,7 @@ async function saveAdItem() {
         id: editingAdId || Date.now(),
         title: title_ta,
         title_en: title_en || title_ta,
-        title_si: title_si || title_ta,
+       
         link: link,
         image: image,
         position: position,
@@ -1209,7 +1199,6 @@ function openCatModal() {
 
     var nameTa = document.getElementById('cat-name-ta');
     var nameEn = document.getElementById('cat-name-en');
-    var nameSi = document.getElementById('cat-name-si');
 
     if (nameTa) nameTa.value = '';
     if (nameEn) nameEn.value = '';
@@ -1224,11 +1213,11 @@ function closeCatModal() {
 async function saveCategory() {
     var name_ta_el = document.getElementById('cat-name-ta');
     var name_en_el = document.getElementById('cat-name-en');
-    var name_si_el = document.getElementById('cat-name-si');
+
 
     var name_ta = name_ta_el ? name_ta_el.value.trim() : '';
     var name_en = name_en_el ? name_en_el.value.trim() : '';
-    var name_si = name_si_el ? name_si_el.value.trim() : '';
+
 
     if (!name_en) {
         showToast('English category name is required', 'error');
@@ -1240,7 +1229,7 @@ async function saveCategory() {
         id: id,
         name: name_ta || name_en,
         name_en: name_en,
-        name_si: name_si || name_en,
+
         count: 0
     };
 
@@ -1517,7 +1506,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.btn-copy').forEach(button => {
         button.addEventListener('click', () => {
             const lang = button.dataset.lang;
-            const content = document.getElementById(`news-content-${lang}`).value;
+            const content = document.getElementById('news-content-' + lang).value;
             navigator.clipboard.writeText(content).then(() => {
                 showToast('Content copied!', 'success');
             }, () => {
