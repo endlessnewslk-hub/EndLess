@@ -423,12 +423,15 @@
                     <label>News Photo</label>
                     <div class="upload-area" id="photo-upload-area">
                         <input type="file" id="news-photo-file" accept="image/*" style="display: none;">
-                        <div class="upload-placeholder" onclick="document.getElementById('news-photo-file').click()">
+                        <div class="upload-placeholder" id="photo-placeholder" onclick="document.getElementById('news-photo-file').click()">
                             <span style="font-size: 2rem;">📷</span>
                             <p>Click to upload photo</p>
                             <small>or drag and drop image here</small>
                         </div>
-                        <img id="news-photo-preview" src="" alt="Photo Preview" style="max-height: 200px; display: none; border-radius: 6px; margin-top: 0.5rem; width: 100%; object-fit: cover;">
+                        <div id="photo-preview-wrap" style="display:none; position:relative; margin-top:0.5rem;">
+                            <img id="news-photo-preview" src="" alt="Photo Preview" style="max-height: 200px; border-radius: 6px; width: 100%; object-fit: cover;">
+                            <button type="button" id="btn-delete-photo" onclick="deleteUploadedPhoto()" title="Remove photo" style="position:absolute; top:8px; right:8px; width:32px; height:32px; border:none; border-radius:50%; background:#ef4444; color:#fff; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,0.3);">🗑️</button>
+                        </div>
                     </div>
                     <input type="hidden" id="news-photo-data">
                 </div>
@@ -447,7 +450,14 @@
                 </div>
                 <div class="form-group">
                     <label>Or Paste Image URL</label>
-                    <input type="text" id="news-image-url" placeholder="https://example.com/image.jpg">
+                    <div style="display:flex; gap:0.5rem;">
+                        <input type="text" id="news-image-url" placeholder="https://example.com/image.jpg" style="flex:1;">
+                        <button type="button" id="btn-view-url" onclick="viewImageUrl()" title="Preview image" style="padding:0 1rem; background:#3b82f6; color:#fff; border:none; border-radius:6px; font-size:0.85rem; font-weight:600; cursor:pointer;">👁️ View</button>
+                    </div>
+                    <div id="url-image-preview-wrap" style="display:none; margin-top:0.5rem; position:relative;">
+                        <img id="url-image-preview" src="" alt="URL Preview" style="max-height: 200px; border-radius: 6px; width: 100%; object-fit: cover; border:1px solid #e5e7eb;">
+                        <button type="button" onclick="document.getElementById('url-image-preview-wrap').style.display='none'" title="Close preview" style="position:absolute; top:8px; right:8px; width:28px; height:28px; border:none; border-radius:50%; background:rgba(0,0,0,0.6); color:#fff; font-size:12px; cursor:pointer;">✕</button>
+                    </div>
                 </div>
                 <div class="form-row" style="margin-top: 1rem;">
                     <div class="form-group">

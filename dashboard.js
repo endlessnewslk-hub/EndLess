@@ -807,7 +807,11 @@ function openNewsModal(isEdit) {
         if (imageUrl) imageUrl.value = '';
         if (photoData) photoData.value = '';
         if (videoData) videoData.value = '';
-        if (photoPreview) photoPreview.style.display = 'none';
+        if (photoPreview) photoPreview.src = '';
+        var photoWrap = document.getElementById('photo-preview-wrap');
+        var photoPlaceholder = document.getElementById('photo-placeholder');
+        if (photoWrap) photoWrap.style.display = 'none';
+        if (photoPlaceholder) photoPlaceholder.style.display = 'block';
         if (videoPreview) videoPreview.style.display = 'none';
         if (featured) featured.checked = false;
         if (trending) trending.checked = false;
@@ -869,7 +873,10 @@ function editNews(id) {
 
     if (news.image && photoPreview) {
         photoPreview.src = news.image;
-        photoPreview.style.display = 'block';
+        var wrap = document.getElementById('photo-preview-wrap');
+        var placeholder = document.getElementById('photo-placeholder');
+        if (wrap) wrap.style.display = 'block';
+        if (placeholder) placeholder.style.display = 'none';
     }
     if (news.video && videoPreview) {
         videoPreview.src = news.video;
@@ -1249,6 +1256,45 @@ async function deleteCategory(id) {
     showToast('Category deleted');
 }
 
+
+// ── Delete Uploaded Photo ──
+function deleteUploadedPhoto() {
+    var fileInput = document.getElementById('news-photo-file');
+    var photoData = document.getElementById('news-photo-data');
+    var previewWrap = document.getElementById('photo-preview-wrap');
+    var previewImg = document.getElementById('news-photo-preview');
+    var placeholder = document.getElementById('photo-placeholder');
+
+    if (fileInput) fileInput.value = '';
+    if (photoData) photoData.value = '';
+    if (previewImg) previewImg.src = '';
+    if (previewWrap) previewWrap.style.display = 'none';
+    if (placeholder) placeholder.style.display = 'block';
+    showToast('Photo removed', 'success');
+}
+
+// ── View Image from URL ──
+function viewImageUrl() {
+    var urlInput = document.getElementById('news-image-url');
+    var previewWrap = document.getElementById('url-image-preview-wrap');
+    var previewImg = document.getElementById('url-image-preview');
+    var url = urlInput ? urlInput.value.trim() : '';
+
+    if (!url) {
+        showToast('Please enter an image URL first', 'error');
+        return;
+    }
+
+    previewImg.src = url;
+    previewImg.onerror = function() {
+        previewWrap.style.display = 'none';
+        showToast('Failed to load image. Check the URL.', 'error');
+    };
+    previewImg.onload = function() {
+        previewWrap.style.display = 'block';
+    };
+}
+
 // ═══════════════════════════════════════
 // FILE UPLOAD HANDLERS
 // ═══════════════════════════════════════
@@ -1268,8 +1314,11 @@ function handleFileUpload(inputId, previewId, dataId, type) {
             if (dataInput) dataInput.value = event.target.result;
             if (preview) {
                 preview.src = event.target.result;
-                preview.style.display = 'block';
             }
+            var wrap = document.getElementById('photo-preview-wrap');
+            var placeholder = document.getElementById('photo-placeholder');
+            if (wrap) wrap.style.display = 'block';
+            if (placeholder) placeholder.style.display = 'none';
         };
         reader.onerror = function() {
             showToast('File read failed', 'error');
