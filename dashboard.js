@@ -891,7 +891,7 @@ function editNews(id) {
         if (placeholder) placeholder.style.display = 'none';
     }
 
-    // Set date input
+    // Set date input with original publish date
     var dateInput = document.getElementById('news-date');
     if (dateInput && news.date) {
         var d = new Date(news.date);
@@ -900,7 +900,9 @@ function editNews(id) {
         var dd = String(d.getDate()).padStart(2, '0');
         var hh = String(d.getHours()).padStart(2, '0');
         var min = String(d.getMinutes()).padStart(2, '0');
-        dateInput.value = yyyy + '-' + mm + '-' + dd + 'T' + hh + ':' + min;
+        var dateStr = yyyy + '-' + mm + '-' + dd + 'T' + hh + ':' + min;
+        dateInput.value = dateStr;
+        dateInput.dataset.originalDate = dateStr; // Store for comparison
     }
     if (news.video && videoPreview) {
         videoPreview.src = news.video;
@@ -974,9 +976,33 @@ async function saveNewsItem() {
         author: author_ta,
         author_en: author_en || author_ta,
 
-        date: (document.getElementById('news-date') && document.getElementById('news-date').value) 
-            ? new Date(document.getElementById('news-date').value).toISOString() 
-            : new Date().toISOString(),
+        date: (function() {
+            var dateInput = document.getElementById('news-date');
+            var inputVal = dateInput ? dateInput.value : '';
+
+            if (editingNewsId) {
+                // EDITING: Preserve original publish date unless user explicitly changed it
+                var original = adminNews.find(function(n) { return n.id == editingNewsId; });
+                if (original && original.date) {
+                    var origD = new Date(original.date);
+                    var origStr = origD.getFullYear() + '-' + 
+                        String(origD.getMonth() + 1).padStart(2, '0') + '-' + 
+                        String(origD.getDate()).padStart(2, '0') + 'T' + 
+                        String(origD.getHours()).padStart(2, '0') + ':' + 
+                        String(origD.getMinutes()).padStart(2, '0');
+                    // If input matches original or is empty, preserve original date
+                    if (!inputVal || inputVal === origStr) {
+                        return original.date;
+                    }
+                }
+                // User changed the date
+                return inputVal ? new Date(inputVal).toISOString() : new Date().toISOString();
+            } else {
+                // NEW ARTICLE: Use selected date or current date
+                return inputVal ? new Date(inputVal).toISOString() : new Date().toISOString();
+            }
+        })(),
+        lastModified: new Date().toISOString(),
         image: photoData || imageUrl || 'https://via.placeholder.com/800x400?text=EndLess+News',
         video: videoData,
         featured: featured,
