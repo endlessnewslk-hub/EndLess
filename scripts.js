@@ -695,7 +695,7 @@ function shareArticle(id) {
 
     const title = getLocalized(article, 'title') || 'EndLess News';
         const BASE_URL = 'https://endlessnews.lk/';
-    const cloudUrl = BASE_URL + '?article=' + encodeURIComponent(id) + '&lang=' + encodeURIComponent(currentLang);
+    const cloudUrl = BASE_URL + 'share.html?article=' + encodeURIComponent(id) + '&lang=' + encodeURIComponent(currentLang);
     const linkInput = document.getElementById('share-link-input');
     if (linkInput) linkInput.value = cloudUrl;
 
@@ -721,7 +721,7 @@ function performShare(platform) {
 
     const title = getLocalized(article, 'title') || 'EndLess News';
         const BASE_URL = 'https://endlessnews.lk/';
-    const articleUrl = BASE_URL + '?article=' + encodeURIComponent(id) + '&lang=' + encodeURIComponent(currentLang);
+    const articleUrl = BASE_URL + 'share.html?article=' + encodeURIComponent(id) + '&lang=' + encodeURIComponent(currentLang);
 
     let shareUrl = '';
 
