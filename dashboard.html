@@ -85,6 +85,7 @@
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
     <!-- Auth Loading Overlay -->
@@ -275,6 +276,12 @@
             <div id="page-ads" class="page-content hidden">
                 <div class="page-toolbar">
                     <button class="btn-primary" id="btn-add-ad">+ Add New Ad</button>
+                    <select id="ad-status-filter" class="search-input" style="width:auto;min-width:140px;">
+                        <option value="all">All Ads</option>
+                        <option value="active">🟢 Active</option>
+                        <option value="scheduled">🟡 Scheduled</option>
+                        <option value="expired">🔴 Expired</option>
+                    </select>
                 </div>
                 <div class="table-wrapper">
                     <div class="table-scroll">
@@ -284,7 +291,7 @@
                                     <th>Preview</th>
                                     <th>Title</th>
                                     <th>Position</th>
-                                    <th>Link</th>
+                                    <th>Duration</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
@@ -517,6 +524,27 @@
                     <div class="form-group">
                         <label>Image URL</label>
                         <input type="text" id="ad-image" placeholder="https://...">
+                    </div>
+                </div>
+
+                <!-- DURATION FIELDS -->
+                <div class="form-row duration-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-calendar-alt"></i> Start Date</label>
+                        <input type="datetime-local" id="ad-start-date" required>
+                        <small class="field-hint">When ad starts showing</small>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-calendar-times"></i> End Date</label>
+                        <input type="datetime-local" id="ad-end-date" required>
+                        <small class="field-hint">When ad stops (auto-expiry)</small>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-clock"></i> Duration Preview</label>
+                    <div class="duration-preview" id="duration-preview">
+                        <span class="duration-badge" id="duration-badge">Select dates to see duration</span>
                     </div>
                 </div>
                 <div class="form-group">

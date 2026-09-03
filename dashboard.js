@@ -680,39 +680,62 @@ function renderNewsTable() {
 function renderAdsTable() {
     var tbody = document.getElementById('ads-table-body');
     var mobileCards = document.getElementById('ads-mobile-cards');
+    var filter = document.getElementById('ad-status-filter');
     if (!tbody) return;
+
+    var filterValue = filter ? filter.value : 'all';
+
+    var displayAds = adminAds;
+    if (filterValue !== 'all') {
+        displayAds = adminAds.filter(function(a) {
+            return getAdStatus(a).status === filterValue;
+        });
+    }
 
     var btnEditStyle = 'display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:#3b82f6;color:#fff;cursor:pointer;font-size:16px;margin-right:6px;';
     var btnDeleteStyle = 'display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:#ef4444;color:#fff;cursor:pointer;font-size:16px;';
 
-    if (adminAds.length === 0) {
+    if (displayAds.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#6b7280;">No ads found. Click "+ Add New Ad" to create one.</td></tr>';
     } else {
-        tbody.innerHTML = adminAds.map(function(a) {
+        tbody.innerHTML = displayAds.map(function(a) {
+            var status = getAdStatus(a);
+            var start = a.startDate ? new Date(a.startDate) : null;
+            var end = a.endDate ? new Date(a.endDate) : null;
+            var startStr = start ? start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '-';
+            var endStr = end ? end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '-';
             var imgSrc = escapeHtml(a.image || '');
-            return '<tr><td><img src="' + imgSrc + '" alt="" style="width:80px;height:50px;object-fit:cover;border-radius:4px;" onerror="this.style.display=\'none\'"></td>' +
+
+            return '<tr class="ad-row ' + status.status + '"><td><img src="' + imgSrc + '" alt="" style="width:80px;height:50px;object-fit:cover;border-radius:4px;" onerror="this.style.display=&quot;none&quot;"></td>' +
                 '<td><strong>' + escapeHtml(a.title_en || a.title || '') + '</strong><br><small style="color:#6b7280;">' + escapeHtml(a.title || '') + '</small></td>' +
                 '<td>' + escapeHtml(a.position || '') + '</td>' +
-                '<td><a href="' + escapeHtml(a.link || '#') + '" target="_blank" style="color:#2563eb;">' + escapeHtml((a.link || '').substring(0, 30)) + '...</a></td>' +
-                '<td><span class="badge ' + (a.active ? 'badge-green' : 'badge-gray') + '">' + (a.active ? 'Active' : 'Inactive') + '</span></td>' +
+                '<td><div class="duration-cell"><span class="duration-start">&#9654; ' + startStr + '</span><span class="duration-arrow">&rarr;</span><span class="duration-end">&#9632; ' + endStr + '</span></div></td>' +
+                '<td><span class="badge ' + status.className + '">' + status.label + '</span></td>' +
                 '<td><button class="btn-icon btn-edit" style="' + btnEditStyle + '" onclick="editAd(' + a.id + ')" title="Edit">&#9999;&#65039;</button>' +
                 '<button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onclick="deleteAd(' + a.id + ')" title="Delete">&#128465;&#65039;</button></td></tr>';
         }).join('');
     }
 
     if (mobileCards) {
-        if (adminAds.length === 0) {
+        if (displayAds.length === 0) {
             mobileCards.innerHTML = '<div style="text-align:center;padding:2rem;color:#6b7280;">No ads found.</div>';
         } else {
-            mobileCards.innerHTML = adminAds.map(function(a) {
+            mobileCards.innerHTML = displayAds.map(function(a) {
+                var status = getAdStatus(a);
+                var start = a.startDate ? new Date(a.startDate) : null;
+                var end = a.endDate ? new Date(a.endDate) : null;
+                var startStr = start ? start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '-';
+                var endStr = end ? end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '-';
                 var imgSrc = escapeHtml(a.image || '');
+
                 return '<div class="mobile-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin-bottom:1rem;">' +
                     '<div class="card-header" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">' +
-                    '<img src="' + imgSrc + '" alt="" style="width:80px;height:50px;object-fit:cover;border-radius:4px;" onerror="this.style.display=\'none\'">' +
+                    '<img src="' + imgSrc + '" alt="" style="width:80px;height:50px;object-fit:cover;border-radius:4px;" onerror="this.style.display=&quot;none&quot;">' +
                     '<div class="card-title" style="font-weight:600;">' + escapeHtml(a.title_en || a.title || 'Untitled') + '</div></div>' +
                     '<div class="card-meta" style="font-size:0.8rem;color:#6b7280;margin-bottom:0.75rem;">' +
                     '<span>' + escapeHtml(a.position || 'Unknown') + '</span> | ' +
-                    '<span class="badge ' + (a.active ? 'badge-green' : 'badge-gray') + '">' + (a.active ? 'Active' : 'Inactive') + '</span></div>' +
+                    '<span>' + startStr + ' &rarr; ' + endStr + '</span> | ' +
+                    '<span class="badge ' + status.className + '">' + status.label + '</span></div>' +
                     '<div class="card-actions" style="display:flex;gap:0.5rem;">' +
                     '<button style="' + btnEditStyle + 'width:44px;height:44px;" onclick="editAd(' + a.id + ')" title="Edit">&#9999;&#65039;</button>' +
                     '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onclick="deleteAd(' + a.id + ')" title="Delete">&#128465;&#65039;</button></div></div>';
@@ -1074,6 +1097,81 @@ async function deleteNews(id) {
     showToast('Article deleted');
 }
 
+// ── Ad Duration Helpers ──
+function getAdStatus(ad) {
+    var now = new Date();
+    var start = ad.startDate ? new Date(ad.startDate) : null;
+    var end = ad.endDate ? new Date(ad.endDate) : null;
+
+    if (!start || !end) {
+        return { status: 'active', label: 'Active', className: 'badge-green' };
+    }
+
+    if (end < now) {
+        return { status: 'expired', label: 'Expired', className: 'badge-red' };
+    } else if (start > now) {
+        var daysUntil = Math.ceil((start - now) / (1000 * 60 * 60 * 24));
+        return { status: 'scheduled', label: 'In ' + daysUntil + 'd', className: 'badge-blue' };
+    } else {
+        var daysLeft = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+        return { status: 'active', label: daysLeft + 'd left', className: 'badge-green' };
+    }
+}
+
+function updateDurationPreview() {
+    var startInput = document.getElementById('ad-start-date');
+    var endInput = document.getElementById('ad-end-date');
+    var badge = document.getElementById('duration-badge');
+
+    if (!startInput || !endInput || !badge) return;
+
+    if (!startInput.value || !endInput.value) {
+        badge.textContent = 'Select dates to see duration';
+        badge.className = 'duration-badge';
+        return;
+    }
+
+    var start = new Date(startInput.value);
+    var end = new Date(endInput.value);
+    var now = new Date();
+
+    if (end <= start) {
+        badge.textContent = 'End date must be after start date!';
+        badge.className = 'duration-badge error';
+        return;
+    }
+
+    var diffMs = end - start;
+    var diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    var diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
+
+    var durationText = '';
+    if (diffDays >= 1) {
+        durationText = diffDays + ' day' + (diffDays > 1 ? 's' : '');
+    } else {
+        durationText = diffHours + ' hour' + (diffHours > 1 ? 's' : '');
+    }
+
+    var statusText = '';
+    var badgeClass = 'duration-badge';
+
+    if (end < now) {
+        statusText = ' (Will be EXPIRED)';
+        badgeClass += ' expired';
+    } else if (start > now) {
+        var daysUntil = Math.ceil((start - now) / (1000 * 60 * 60 * 24));
+        statusText = ' (Starts in ' + daysUntil + ' day' + (daysUntil > 1 ? 's' : '') + ')';
+        badgeClass += ' scheduled';
+    } else {
+        var daysLeft = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+        statusText = ' (' + daysLeft + ' day' + (daysLeft > 1 ? 's' : '') + ' left)';
+        badgeClass += ' active';
+    }
+
+    badge.textContent = 'Duration: ' + durationText + statusText;
+    badge.className = badgeClass;
+}
+
 // ═══════════════════════════════════════
 // AD MODAL
 // ═══════════════════════════════════════
@@ -1090,20 +1188,32 @@ function openAdModal(isEdit) {
         var adId = document.getElementById('ad-id');
         var titleTa = document.getElementById('ad-title-ta');
         var titleEn = document.getElementById('ad-title-en');
-            var link = document.getElementById('ad-link');
+        var link = document.getElementById('ad-link');
         var position = document.getElementById('ad-position');
         var image = document.getElementById('ad-image');
         var imagePreview = document.getElementById('ad-image-preview');
         var active = document.getElementById('ad-active');
+        var startDate = document.getElementById('ad-start-date');
+        var endDate = document.getElementById('ad-end-date');
 
         if (adId) adId.value = '';
         if (titleTa) titleTa.value = '';
         if (titleEn) titleEn.value = '';
-        if (titleSi) titleSi.value = '';    if (link) link.value = '';
+        if (link) link.value = '';
         if (position) position.value = 'header';
         if (image) image.value = '';
         if (imagePreview) imagePreview.style.display = 'none';
         if (active) active.checked = true;
+
+        // Set default dates: start = now, end = now + 7 days
+        var now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        var nextWeek = new Date(now);
+        nextWeek.setDate(nextWeek.getDate() + 7);
+
+        if (startDate) startDate.value = now.toISOString().slice(0, 16);
+        if (endDate) endDate.value = nextWeek.toISOString().slice(0, 16);
+        updateDurationPreview();
     }
 }
 
@@ -1132,15 +1242,29 @@ function editAd(id) {
     var image = document.getElementById('ad-image');
     var active = document.getElementById('ad-active');
     var imagePreview = document.getElementById('ad-image-preview');
+    var startDate = document.getElementById('ad-start-date');
+    var endDate = document.getElementById('ad-end-date');
 
     if (adId) adId.value = ad.id;
     if (titleTa) titleTa.value = ad.title || '';
     if (titleEn) titleEn.value = ad.title_en || '';
-
     if (link) link.value = ad.link || '';
     if (position) position.value = ad.position || 'header';
     if (image) image.value = ad.image || '';
     if (active) active.checked = !!ad.active;
+
+    // Populate duration fields
+    if (ad.startDate && startDate) {
+        var sd = new Date(ad.startDate);
+        sd.setMinutes(sd.getMinutes() - sd.getTimezoneOffset());
+        startDate.value = sd.toISOString().slice(0, 16);
+    }
+    if (ad.endDate && endDate) {
+        var ed = new Date(ad.endDate);
+        ed.setMinutes(ed.getMinutes() - ed.getTimezoneOffset());
+        endDate.value = ed.toISOString().slice(0, 16);
+    }
+    updateDurationPreview();
 
     if (ad.image && imagePreview) {
         imagePreview.src = ad.image;
@@ -1165,8 +1289,26 @@ async function saveAdItem() {
     var image = image_el ? image_el.value.trim() : 'https://via.placeholder.com/600x200?text=Ad';
     var active = active_el ? active_el.checked : false;
 
-    if (!title_ta || !link) {
+        if (!title_ta || !link) {
         showToast('Please fill Tamil title and link', 'error');
+        return;
+    }
+
+    var startDate_el = document.getElementById('ad-start-date');
+    var endDate_el = document.getElementById('ad-end-date');
+    var startDateVal = startDate_el ? startDate_el.value : '';
+    var endDateVal = endDate_el ? endDate_el.value : '';
+
+    if (!startDateVal || !endDateVal) {
+        showToast('Please select start and end dates', 'error');
+        return;
+    }
+
+    var startDateObj = new Date(startDateVal);
+    var endDateObj = new Date(endDateVal);
+
+    if (endDateObj <= startDateObj) {
+        showToast('End date must be after start date!', 'error');
         return;
     }
 
@@ -1174,11 +1316,12 @@ async function saveAdItem() {
         id: editingAdId || Date.now(),
         title: title_ta,
         title_en: title_en || title_ta,
-       
         link: link,
         image: image,
         position: position,
-        active: active
+        active: active,
+        startDate: startDateObj.toISOString(),
+        endDate: endDateObj.toISOString()
     };
 
     if (editingAdId) {
@@ -1504,11 +1647,25 @@ document.addEventListener('DOMContentLoaded', function() {
     var closeAdModalBtn = document.getElementById('close-ad-modal');
     var cancelAd = document.getElementById('cancel-ad');
     var saveAdBtn = document.getElementById('save-ad');
+    var adStartDate = document.getElementById('ad-start-date');
+    var adEndDate = document.getElementById('ad-end-date');
+    var adStatusFilter = document.getElementById('ad-status-filter');
 
     if (btnAddAd) btnAddAd.addEventListener('click', function() { openAdModal(); });
     if (closeAdModalBtn) closeAdModalBtn.addEventListener('click', closeAdModal);
     if (cancelAd) cancelAd.addEventListener('click', closeAdModal);
     if (saveAdBtn) saveAdBtn.addEventListener('click', saveAdItem);
+
+    var adStartDate = document.getElementById('ad-start-date');
+    var adEndDate = document.getElementById('ad-end-date');
+    var adStatusFilter = document.getElementById('ad-status-filter');
+
+    if (adStartDate) adStartDate.addEventListener('change', updateDurationPreview);
+    if (adEndDate) adEndDate.addEventListener('change', updateDurationPreview);
+    if (adStatusFilter) adStatusFilter.addEventListener('change', renderAdsTable);
+    if (adStartDate) adStartDate.addEventListener('change', updateDurationPreview);
+    if (adEndDate) adEndDate.addEventListener('change', updateDurationPreview);
+    if (adStatusFilter) adStatusFilter.addEventListener('change', renderAdsTable);
 
     var btnAddCat = document.getElementById('btn-add-cat');
     var closeCatModalBtn = document.getElementById('close-cat-modal');

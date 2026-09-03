@@ -5,29 +5,29 @@ admin.initializeApp();
 exports.shareArticle = functions.https.onRequest(async (req, res) => {
     // CORS headers
     res.set('Access-Control-Allow-Origin', '*');
-    
+
     const articleId = req.query.article;
-    
+
     // No article ID = redirect to normal index
     if (!articleId) {
         return res.redirect('/index.html');
     }
-    
+
     try {
         const doc = await admin.firestore().collection('news').doc(articleId).get();
-        
+
         if (!doc.exists) {
             return res.redirect('/index.html');
         }
-        
+
         const data = doc.data();
-        
+
         // Pick title based on available language (default Tamil)
         const title = data.title || data.title_en || data.title_si || 'EndLess News';
         const excerpt = data.excerpt || data.excerpt_en || data.excerpt_si || 'Latest news article';
-        const image = data.image || 'https://yourdomain.com/EndLess/logo-og.png';
-        const url = `https://yourdomain.com/EndLess/?article=${articleId}`;
-        
+        const image = data.image || 'https://endlessnews.lk/logo-og.png';
+        const url = `https://endlessnews.lk/?article=${articleId}`;
+
         // Send HTML with proper OG tags
         res.send(`<!DOCTYPE html>
 <html lang="ta">
@@ -47,7 +47,7 @@ exports.shareArticle = functions.https.onRequest(async (req, res) => {
     <p>Redirecting to article...</p>
 </body>
 </html>`);
-        
+
     } catch (error) {
         console.error('Error:', error);
         res.redirect('/index.html');

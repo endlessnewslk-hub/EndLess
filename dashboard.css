@@ -1012,3 +1012,148 @@ body {
 .lang-excerpt:not(.active) {
     display: none;
 }
+
+/* ═══════════════════════════════════════
+   AD DURATION STYLES
+   ═══════════════════════════════════════ */
+
+/* Duration Row in Form */
+.duration-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.duration-row input[type="datetime-local"] {
+    width: 100%;
+    padding: 0.65rem 0.875rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.2s;
+    min-height: 44px;
+}
+
+.duration-row input[type="datetime-local"]:focus {
+    border-color: var(--admin-primary);
+    outline: none;
+}
+
+.field-hint {
+    display: block;
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin-top: 4px;
+}
+
+/* Duration Preview Box */
+.duration-preview {
+    padding: 12px 16px;
+    background: #f3f4f6;
+    border-radius: 8px;
+    border-left: 4px solid #9ca3af;
+}
+
+.duration-badge {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.duration-badge.active {
+    color: #059669;
+}
+
+.duration-badge.scheduled {
+    color: #d97706;
+}
+
+.duration-badge.expired {
+    color: #dc2626;
+}
+
+.duration-badge.error {
+    color: #dc2626;
+}
+
+/* Ad Table Duration Cell */
+.duration-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.85rem;
+}
+
+.duration-start,
+.duration-end {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.duration-start {
+    color: #059669;
+}
+
+.duration-end {
+    color: #dc2626;
+}
+
+.duration-arrow {
+    color: #9ca3af;
+    font-size: 0.75rem;
+    padding-left: 4px;
+}
+
+/* Status Badges */
+.badge-red {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-blue {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+/* Ad Row Styling by Status */
+.ad-row.expired {
+    background: #f9fafb;
+    opacity: 0.6;
+}
+
+.ad-row.expired td {
+    color: #9ca3af;
+}
+
+.ad-row.scheduled {
+    background: #fffbeb;
+}
+
+/* Filter Box */
+#ad-status-filter {
+    padding: 0.65rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: white;
+    cursor: pointer;
+    min-height: 44px;
+}
+
+#ad-status-filter:focus {
+    border-color: var(--admin-primary);
+    outline: none;
+}
+
+/* Responsive Duration Row */
+@media (max-width: 768px) {
+    .duration-row {
+        grid-template-columns: 1fr;
+    }
+
+    .duration-cell {
+        font-size: 0.8rem;
+    }
+}

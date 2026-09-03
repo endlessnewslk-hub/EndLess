@@ -2,20 +2,20 @@
   "id": "endless-admin",
   "name": "EndLess Admin",
   "short_name": "EndLess",
-  "start_url": "https://endlessnewslk-hub.github.io/EndLess/x7k9m2.html",
+  "start_url": "https://endlessnews.lk/x7k9m2.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#dc2626",
-  "scope": "https://endlessnewslk-hub.github.io/EndLess/",
+  "scope": "https://endlessnews.lk/",
   "icons": [
     {
-      "src": "https://endlessnewslk-hub.github.io/EndLess/logo-og.png",
+      "src": "https://endlessnews.lk/logo-og.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://endlessnewslk-hub.github.io/EndLess/logo-og.png",
+      "src": "https://endlessnews.lk/logo-og.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
