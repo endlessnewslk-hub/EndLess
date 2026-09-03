@@ -1,4 +1,4 @@
-const CACHE_NAME = 'endless-admin-v3';
+const CACHE_NAME = 'endless-admin-v4';
 const BASE_URL = 'https://endlessnews.lk';
 
 const urlsToCache = [
