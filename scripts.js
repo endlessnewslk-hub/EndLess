@@ -695,7 +695,7 @@ function shareArticle(id) {
 
     const title = getLocalized(article, 'title') || 'EndLess News';
         const BASE_URL = 'https://endless-og.endlessnewslk.workers.dev/';
-    const cloudUrl = BASE_URL + '?article=' + encodeURIComponent(id) + '&lang=' + encodeURIComponent(currentLang);
+    const cloudUrl = BASE_URL + '?article=' + encodeURIComponent(id) + '&lang=' + encodeURIComponent(currentLang) + '&v=2026'; // cache-bust: force fresh OG crawl
     const linkInput = document.getElementById('share-link-input');
     if (linkInput) linkInput.value = cloudUrl;
 
@@ -720,8 +720,8 @@ function performShare(platform) {
     if (!article) return;
 
     const title = getLocalized(article, 'title') || 'EndLess News';
-        const BASE_URL = 'https://endless-og.endlessnewslk.workers.dev/';
-    const articleUrl = BASE_URL + '?article=' + encodeURIComponent(id) + '&lang=' + encodeURIComponent(currentLang);
+    const BASE_URL = 'https://endless-og.endlessnewslk.workers.dev/';
+    const cloudUrl = BASE_URL + '?article=' + encodeURIComponent(id) + '&lang=' + encodeURIComponent(currentLang) + '&v=2026'; // cache-bust: force fresh OG crawl
 
     let shareUrl = '';
 
