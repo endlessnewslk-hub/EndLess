@@ -718,23 +718,30 @@ function performShare(platform) {
     const article = findArticleById(id);
     if (!article) return;
 
-    const title = getLocalized(article, 'title') || 'EndLess News';
-    const cloudUrl = 'https://endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang) + '&v=2026'; // clean own-domain link
+    // 🔥 FIX: use localized title based on currently selected language (ta/en)
+    const title = getLocalized(article, 'title') || article.title_en || article.title || 'EndLess News';
+    // Clean own-domain link → routed to OG Worker (/news/ID?lang=xx)
+    const cloudUrl = 'https://endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang) + '&v=2026';
+
+    // Language-aware share text: Tamil selected → Tamil message, English → English
+    const shareText = currentLang === 'en'
+        ? (title + '\n\n📰 Read more on EndLess News:\n')
+        : (title + '\n\n📰 மேலும் படிக்க EndLess News:\n');
 
     let shareUrl = '';
 
     switch(platform) {
         case 'facebook':
-            shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(articleUrl)}&quote=${encodeURIComponent(title)}`;
+            shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(cloudUrl)}&quote=${encodeURIComponent(title)}`;
             break;
         case 'whatsapp':
-            shareUrl = `https://wa.me/?text=${encodeURIComponent(title + '\n\n' + articleUrl)}`;
+            shareUrl = `https://wa.me/?text=${encodeURIComponent(shareText + cloudUrl)}`;
             break;
         case 'telegram':
-            shareUrl = `https://t.me/share/url?url=${encodeURIComponent(articleUrl)}&text=${encodeURIComponent(title)}`;
+            shareUrl = `https://t.me/share/url?url=${encodeURIComponent(cloudUrl)}&text=${encodeURIComponent(title)}`;
             break;
         case 'x':
-            shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(articleUrl)}`;
+            shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(cloudUrl)}`;
             break;
     }
 
