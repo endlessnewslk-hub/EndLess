@@ -746,7 +746,9 @@ function performShare(platform) {
     }
 
     if (shareUrl) {
-        window.open(shareUrl, '_blank', 'width=600,height=500,top=100,left=100');
+        const win = window.open(shareUrl, '_blank', 'width=600,height=500,top=100,left=100');
+        // Popup blocked → navigate in same tab instead of failing silently
+        if (!win) window.location.href = shareUrl;
     }
 
     closeShareModal();
