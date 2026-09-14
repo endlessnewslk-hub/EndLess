@@ -720,8 +720,9 @@ function performShare(platform) {
 
     // 🔥 FIX: use localized title based on currently selected language (ta/en)
     const title = getLocalized(article, 'title') || article.title_en || article.title || 'EndLess News';
-    // Clean own-domain link → routed to OG Worker (/news/ID?lang=xx)
-    const cloudUrl = 'https://endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang) + '&v=2026';
+    // Professional share link via Worker Custom Domain — DNS-level direct to worker,
+    // no route matching needed. PROVEN working: share.endlessnews.lk ✅
+    const cloudUrl = 'https://share.endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang) + '&v=2026';
 
     // Language-aware share text: Tamil selected → Tamil message, English → English
     const shareText = currentLang === 'en'
