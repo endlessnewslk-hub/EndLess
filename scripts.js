@@ -694,7 +694,7 @@ function shareArticle(id) {
     shareOverlay.dataset.articleId = id;
 
     const title = getLocalized(article, 'title') || 'EndLess News';
-        const cloudUrl = 'https://endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang) + '&v=2026'; // clean own-domain link
+        const cloudUrl = 'https://share.endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang) + '&v=2026'; // Worker Custom Domain
     const linkInput = document.getElementById('share-link-input');
     if (linkInput) linkInput.value = cloudUrl;
 
