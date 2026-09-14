@@ -1,3 +1,56 @@
+// ═══════════════════════════════════════════════════════════════
+// 🔥 HOTFIX: Image auto-compression (Firestore 1MB limit fix)
+// ═══════════════════════════════════════════════════════════════
+(function() {
+    var _origHandleFileUpload = window.handleFileUpload;
+    window.handleFileUpload = function(inputId, previewId, dataId, type) {
+        type = type || 'image';
+        var input = document.getElementById(inputId);
+        var preview = document.getElementById(previewId);
+        var dataInput = document.getElementById(dataId);
+        if (!input) return;
+
+        input.addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+
+            if (type === 'image') {
+                var img = new Image();
+                var objUrl = URL.createObjectURL(file);
+                img.onload = function() {
+                    URL.revokeObjectURL(objUrl);
+                    var maxW = 900;
+                    var scale = Math.min(1, maxW / img.width);
+                    var canvas = document.createElement('canvas');
+                    canvas.width = Math.max(1, Math.round(img.width * scale));
+                    canvas.height = Math.max(1, Math.round(img.height * scale));
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    var compressed = canvas.toDataURL('image/jpeg', 0.72);
+                    if (dataInput) dataInput.value = compressed;
+                    if (preview) preview.src = compressed;
+                    var wrap = document.getElementById('photo-preview-wrap');
+                    var placeholder = document.getElementById('photo-placeholder');
+                    if (wrap) wrap.style.display = 'block';
+                    if (placeholder) placeholder.style.display = 'none';
+                    if (typeof showToast === 'function') showToast('Photo compressed & ready', 'success');
+                };
+                img.onerror = function() {
+                    URL.revokeObjectURL(objUrl);
+                    if (typeof showToast === 'function') showToast('Image read failed', 'error');
+                };
+                img.src = objUrl;
+                return;
+            }
+            if (_origHandleFileUpload) {
+                var clone = input.cloneNode(true);
+                input.parentNode.replaceChild(clone, input);
+                _origHandleFileUpload(inputId, previewId, dataId, type);
+            }
+        });
+    };
+})();
+
+
 /* ═══════════════════════════════════════
    ENDLESS — ADMIN PANEL LOGIC (Mobile Optimized)
    ═══════════════════════════════════════ */
