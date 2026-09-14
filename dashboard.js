@@ -1,4 +1,20 @@
 // ═══════════════════════════════════════════════════════════════
+// 🔥 HOTFIX v2: Strict auth guard — expired sessions block cloud saves
+// ═══════════════════════════════════════════════════════════════
+(function() {
+    firebase.auth().onAuthStateChanged(function(user) {
+        if (!user) {
+            // Token expired but guard.js let us in via session-trust — force re-login
+            sessionStorage.removeItem('endless_auth_session');
+            localStorage.removeItem('endless_auth_persistent');
+            alert('⏰ Session expired! Please login again to save articles to cloud.');
+            window.location.href = 'x7k9m2.html';
+        }
+    });
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
 // 🔥 HOTFIX: Image auto-compression (Firestore 1MB limit fix)
 // ═══════════════════════════════════════════════════════════════
 (function() {
@@ -1107,7 +1123,7 @@ async function saveNewsItem() {
             await db.collection('news').doc(String(newsItem.id)).set(newsItem);
             console.log('News item saved to Firebase:', newsItem.id);
         } catch (err) {
-            console.warn('Firebase write failed:', err);
+            console.warn('Firebase write failed:', err); showToast('⚠️ Cloud save FAILED — login again & republish!', 'error');
         }
     }
 
