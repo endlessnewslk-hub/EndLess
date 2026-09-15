@@ -694,7 +694,7 @@ function shareArticle(id) {
     shareOverlay.dataset.articleId = id;
 
     const title = getLocalized(article, 'title') || 'EndLess News';
-        const cloudUrl = 'https://share.endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang) + '&v=2026'; // Worker Custom Domain
+        const cloudUrl = 'https://endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang) + '&v=2026'; // Worker Custom Domain
     const linkInput = document.getElementById('share-link-input');
     if (linkInput) linkInput.value = cloudUrl;
 
@@ -721,8 +721,8 @@ function performShare(platform) {
     // 🔥 FIX: use localized title based on currently selected language (ta/en)
     const title = getLocalized(article, 'title') || article.title_en || article.title || 'EndLess News';
     // Professional share link via Worker Custom Domain — DNS-level direct to worker,
-    // no route matching needed. PROVEN working: share.endlessnews.lk ✅
-    const cloudUrl = 'https://share.endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang) + '&v=2026';
+    // no route matching needed. Dinamalar-style main domain ✅
+    const cloudUrl = 'https://endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang) + '&v=2026';
 
     // Language-aware share text: Tamil selected → Tamil message, English → English
     const shareText = currentLang === 'en'
