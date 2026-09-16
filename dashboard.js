@@ -306,6 +306,10 @@ async function syncFromFirebase() {
         }
         if (firebaseNews.length > 0) {
             adminNews = firebaseNews;
+            // 🔥 Newest first — Firebase order unpredictable, sort by date
+            adminNews.sort(function(a, b) {
+                return new Date(b.date || 0) - new Date(a.date || 0);
+            });
         } else if (adminNews.length > 0) {
             // Firebase empty but local has data — upload in background
             console.log('☁️ Firebase empty, uploading', adminNews.length, 'articles...');
