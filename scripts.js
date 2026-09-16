@@ -189,6 +189,10 @@ async function syncFromFirebase() {
         }
 
         newsData = firebaseNews;
+        // 🔥 Sort newest first — Firebase order unpredictable, date ensures latest on top
+        newsData.sort(function(a, b) {
+            return new Date(b.date || 0) - new Date(a.date || 0);
+        });
         console.log('✅ Final newsData:', newsData.length, 'articles (rejected:', rejectedCount, ')');
         
         if (newsData.length > 0) {
