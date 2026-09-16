@@ -272,6 +272,8 @@ function debounce(func, wait) {
 function setLanguage(lang) {
     currentLang = lang;
     localStorage.setItem('gd_language', lang);
+    // Ticker text length changes per language — re-measure speed after render
+    setTimeout(initTicker, 100);
 
     document.querySelectorAll('[data-key]').forEach(el => {
         const key = el.dataset.key;
@@ -1034,14 +1036,21 @@ function initTicker() {
     const ticker = document.getElementById('ticker-content');
     if (!ticker) return;
 
-    let scrollPos = 0;
-    setInterval(() => {
-        scrollPos += 1;
-        if (scrollPos > ticker.scrollWidth - ticker.clientWidth) {
-            scrollPos = 0;
-        }
-        ticker.style.transform = `translateX(-${scrollPos}px)`;
-    }, 30);
+    // 🔥 FIX: old JS transform FIGHT with CSS animation (CSS won → fixed slow 30s).
+    // Now: CSS animation only, with dynamic duration ≈ 90px/sec → fast & smooth.
+    // Re-measure after every render (setLanguage/feed changes headline lengths).
+    function setSpeed() {
+        requestAnimationFrame(function() {
+            var w = ticker.scrollWidth;
+            if (w > 100) {
+                var secs = Math.max(12, w / 90); // ~90px per second
+                ticker.style.animationDuration = secs.toFixed(1) + 's';
+            }
+        });
+    }
+    setSpeed();
+    // Also re-speed after images/fonts load (width may change)
+    window.addEventListener('load', setSpeed);
 }
 
 function syncNewsFromStorage() {
@@ -1074,6 +1083,19 @@ function syncCategoriesFromStorage() {
         renderFeed();
     }
 }
+
+// 🔥 FORCE SW UPDATE: stale service workers serve old files on mobile.
+// Check for a new SW on every load; reload ONCE when it takes control.
+(function forceSwUpdate() {
+    if (!('serviceWorker' in navigator)) return;
+    var reloaded = false;
+    navigator.serviceWorker.getRegistrations().then(function(regs) {
+        regs.forEach(function(reg) { reg.update(); });
+    });
+    navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (!reloaded) { reloaded = true; window.location.reload(); }
+    });
+})();
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadAllNewsData();
