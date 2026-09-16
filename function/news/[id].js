@@ -73,7 +73,10 @@ export async function onRequestGet(context) {
   const id = decodeURIComponent(params.id || '');
   const url = new URL(request.url);
   const lang = url.searchParams.get('lang') || 'ta';
-  const canonicalUrl = SITE_URL + '/news/' + encodeURIComponent(id);
+  // 🔥 CRITICAL: lang MUST be in og:url — FB canonicalizes by og:url.
+  // Without lang, FB merges ta+en into ONE cache entry and always shows
+  // whichever language was scraped FIRST!
+  const canonicalUrl = SITE_URL + '/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(lang);
   // Preserve language through the redirect — keeps the share-language chain intact
   const articleUrl = SITE_URL + '/?article=' + encodeURIComponent(id) + '&lang=' + encodeURIComponent(lang);
 
