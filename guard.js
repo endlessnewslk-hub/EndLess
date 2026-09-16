@@ -194,49 +194,11 @@ function getReasonMessage(reason) {
  * SYNCHRONOUS check first, then async Firebase verification
  */
 function checkAuthentication() {
-    // STEP 1: Check local session immediately (synchronous)
-    const session = verifySession();
-
-    if (!session) {
-        console.warn('🔒 Auth Guard: No valid session found');
-        showAccessDenied('session_expired');
-        return false;
-    }
-
-    // STEP 2: Check if email is authorized from session
-    if (!isAuthorized(session.email)) {
-        console.warn('🔒 Auth Guard: Unauthorized email in session', session.email);
-        clearAllSessions();
-        showAccessDenied('unauthorized');
-        return false;
-    }
-
-    // STEP 3: Set current user from session (temporary, until Firebase confirms)
-    currentUser = session;
-    updateUserUI(session);
-
-    // STEP 4: Async Firebase verification (in background)
-    // CRITICAL FIX: Set a timeout to show dashboard even if Firebase is slow/fails
-    let authTimeout = setTimeout(function() {
-        console.warn('🔒 Auth Guard: Firebase auth timeout - showing dashboard with session trust');
-        const dashboard = document.getElementById('admin-dashboard');
-        if (dashboard) {
-            dashboard.style.display = '';
-            dashboard.classList.add('auth-verified');
-        }
-        const loadingOverlay = document.getElementById('auth-loading-overlay');
-        if (loadingOverlay) {
-            loadingOverlay.style.display = 'none';
-        }
-        // Trigger initData if not already done
-        if (typeof initData === 'function' && !window.dataInitialized) {
-            initData();
-        }
-        }, 500); // 0.5 second timeout — instant feel
-
+    // 🔒 HARDENED: localStorage sessions are UX hints ONLY — never identity proof.
+    // The ONLY gate is Firebase Auth (server-verified by Security Rules too).
+    // STEP 1: Firebase Auth state — the single source of truth
     if (guardAuth) {
         guardAuth.onAuthStateChanged(function(user) {
-            clearTimeout(authTimeout); // Clear timeout if Firebase responds
 
             if (!user) {
                 console.warn('🔒 Auth Guard: Firebase user not found');
@@ -276,21 +238,10 @@ function checkAuthentication() {
             }
         });
     } else {
-        // Firebase not available - trust session for now but warn
-        console.warn('🔒 Auth Guard: Firebase not available, trusting session');
-        const dashboard = document.getElementById('admin-dashboard');
-        if (dashboard) {
-            dashboard.style.display = '';
-            dashboard.classList.add('auth-verified');
-        }
-        const loadingOverlay = document.getElementById('auth-loading-overlay');
-        if (loadingOverlay) {
-            loadingOverlay.style.display = 'none';
-        }
-        // Trigger initData if not already done
-        if (typeof initData === 'function' && !window.dataInitialized) {
-            initData();
-        }
+        // 🔒 HARDENED: Firebase unavailable → DENY. A forged localStorage
+        // session must NEVER open the admin panel.
+        console.error('🔒 Auth Guard: Firebase SDK unavailable — access denied');
+        showAccessDenied('auth_required');
     }
 
     return true;

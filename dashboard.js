@@ -1659,20 +1659,14 @@ function handleFileUpload(inputId, previewId, dataId, type) {
 // RESET DATA
 // ═══════════════════════════════════════
 async function resetData() {
-    var passwordInput = document.getElementById('reset-password');
-    var enteredPassword = passwordInput ? passwordInput.value.trim() : '';
-
-    if (!enteredPassword) {
-        showToast('Please enter admin password to reset data', 'error');
-        return;
-    }
-
-    // SECURITY: Server-side validation required
-    // For demo: any non-empty password allows reset
-    // TODO: Replace with proper auth check
-    if (!enteredPassword || enteredPassword.length < 4) {
-        showToast('Please enter a valid password (min 4 chars)', 'error');
-        return;
+    // 🔒 HARDENED: Real gate = Firebase Auth + Security Rules (server-side).
+    // Old fake password field removed — no client-side password to bypass.
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+        var _u = firebase.auth().currentUser;
+        if (!_u || _u.email !== 'endlessnewslk@gmail.com') {
+            showToast('⛔ Not authorized — login as admin first', 'error');
+            return;
+        }
     }
 
     if (!confirm('WARNING: This will erase all data and restore defaults. Continue?')) return;
