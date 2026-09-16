@@ -1097,6 +1097,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.addEventListener('resize', debounce(handleResize, 250));
 
     const urlParams = new URLSearchParams(window.location.search);
+    // 🔥 Share-language chain: ?lang=en/ta from shared links must set the site language
+    const urlLang = urlParams.get('lang');
+    if (urlLang && (urlLang === 'ta' || urlLang === 'en') && urlLang !== currentLang) {
+        setLanguage(urlLang);
+    }
     const sharedArticleId = urlParams.get('article');
     if (sharedArticleId && !document.getElementById('article-modal')?.classList.contains('open')) {
         setTimeout(() => openArticle(sharedArticleId), 800);

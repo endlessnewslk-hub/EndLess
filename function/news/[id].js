@@ -74,7 +74,8 @@ export async function onRequestGet(context) {
   const url = new URL(request.url);
   const lang = url.searchParams.get('lang') || 'ta';
   const canonicalUrl = SITE_URL + '/news/' + encodeURIComponent(id);
-  const articleUrl = SITE_URL + '/?article=' + encodeURIComponent(id);
+  // Preserve language through the redirect — keeps the share-language chain intact
+  const articleUrl = SITE_URL + '/?article=' + encodeURIComponent(id) + '&lang=' + encodeURIComponent(lang);
 
   if (!id) return Response.redirect(SITE_URL + '/', 302);
 
