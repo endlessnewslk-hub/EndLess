@@ -84,20 +84,8 @@ const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
 const DEFAULT_NEWS = [];
 
-const DEFAULT_ADS = [
-    {
-        id: 1, title: "EndLess பிரீமியம்", title_en: "EndLess Premium",
-        link: "https://example.com/premium",
-        image: "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=600&auto=format&fit=crop",
-        position: "header", active: true
-    },
-    {
-        id: 2, title: "டெக் கேஜெட் விற்பனை", title_en: "Tech Gadgets Sale",
-        link: "https://example.com/gadgets",
-        image: "https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=400&auto=format&fit=crop",
-        position: "sidebar", active: true
-    }
-];
+// 🔥 NO hardcoded ads — Firebase/admin panel is the ONLY source of truth.
+const DEFAULT_ADS = [];
 
 const DEFAULT_CATEGORIES = [
     { id: "world", name: "உலகம்", name_en: "World", count: 0 },
@@ -197,6 +185,23 @@ async function syncFromFirebase() {
         
         if (newsData.length > 0) {
             localStorage.setItem('endless_news', JSON.stringify(newsData));
+        }
+
+        // 🔥 ADS: Firebase is the ONLY source — overwrites stale localStorage test ads
+        try {
+            const adsSnap = await db.collection('ads').get({ source: 'server' });
+            if (!adsSnap.empty) {
+                adsData = adsSnap.docs.map(function(doc) {
+                    var a = doc.data(); a.id = doc.id; return a;
+                });
+                localStorage.setItem('endless_ads', JSON.stringify(adsData));
+                console.log('✅ Ads synced from Firebase:', adsData.length);
+            } else {
+                adsData = [];   // Firebase empty → show NOTHING
+                localStorage.setItem('endless_ads', '[]');
+            }
+        } catch (adErr) {
+            console.warn('Ads sync failed:', adErr);
         }
     } catch (error) {
         console.error('❌ Firebase read error:', error);
@@ -491,60 +496,65 @@ function renderCategories() {
 }
 
 function renderAds() {
-    const activeAds = adsData.filter(a => a.active);
+    // 🔥 Only ads that are (a) active AND (b) inside their start/end date window
+    var now = new Date();
+    const activeAds = adsData.filter(function(a) {
+        if (!a || !a.active) return false;
+        if (a.startDate && new Date(a.startDate) > now) return false;  // not started yet
+        if (a.endDate && new Date(a.endDate) < now) return false;      // expired
+        return true;
+    });
 
-    // Header Ad
+    // Header Ad — container fully HIDDEN when no active ad (no empty boxes)
     const headerAd = activeAds.find(a => a.position === 'header');
     const headerContainer = document.getElementById('header-ad-container');
     const headerSlot = document.getElementById('ad-slot-header');
-    if (headerContainer && headerAd) {
-        headerSlot.innerHTML = `
+    if (headerContainer) headerContainer.style.display = headerAd ? '' : 'none';
+    if (headerSlot) {
+        headerSlot.innerHTML = headerAd ? `
             <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
             <div class="ad-box">
                 <a href="${escapeHtml(headerAd.link)}" target="_blank" rel="noopener noreferrer">
                     <img src="${escapeHtml(headerAd.image)}" alt="${escapeHtml(getLocalized(headerAd, 'title'))}" loading="lazy" style="width:100%; max-height:100px; object-fit:cover;">
                 </a>
             </div>
-        `;
+        ` : '';
     }
 
-    // Sidebar Ad
+    // Sidebar Ad — NOTHING shown when no active ad
     const sidebarAd = activeAds.find(a => a.position === 'sidebar');
     const sidebarSlot = document.getElementById('ad-slot-sidebar');
     if (sidebarSlot) {
-        if (sidebarAd) {
-            sidebarSlot.innerHTML = `
-                <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
-                <a href="${escapeHtml(sidebarAd.link)}" target="_blank" rel="noopener noreferrer">
-                    <img src="${escapeHtml(sidebarAd.image)}" alt="${escapeHtml(getLocalized(sidebarAd, 'title'))}" loading="lazy" style="width:100%; max-height:250px; object-fit:cover;">
-                </a>
-            `;
-        } else {
-            // Show placeholder for AdSense
-            sidebarSlot.innerHTML = `
-                <div class="ad-slot-placeholder">
-                    <span>📢</span>
-                    <span>Sidebar Ad Space</span>
-                </div>
-            `;
-        }
+        sidebarSlot.innerHTML = sidebarAd ? `
+            <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
+            <a href="${escapeHtml(sidebarAd.link)}" target="_blank" rel="noopener noreferrer">
+                <img src="${escapeHtml(sidebarAd.image)}" alt="${escapeHtml(getLocalized(sidebarAd, 'title'))}" loading="lazy" style="width:100%; max-height:250px; object-fit:cover;">
+            </a>
+        ` : '';
+        sidebarSlot.style.display = sidebarAd ? '' : 'none';
     }
 
-    // Inline Ad (between articles)
+    // Modal Ad slot (inside article modal) — hide unless an inline ad exists
+    const modalSlot = document.getElementById('ad-slot-modal');
+    if (modalSlot) modalSlot.style.display = 'none';
+
+    // Inline Ad — NOTHING shown when no active ad
     const inlineAd = activeAds.find(a => a.position === 'inline');
     const inlineSlot = document.getElementById('ad-slot-inline');
-    if (inlineSlot && inlineAd) {
-        inlineSlot.innerHTML = `
+    if (inlineSlot) {
+        inlineSlot.innerHTML = inlineAd ? `
             <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
             <div class="ad-box">
                 <a href="${escapeHtml(inlineAd.link)}" target="_blank" rel="noopener noreferrer">
                     <img src="${escapeHtml(inlineAd.image)}" alt="${escapeHtml(getLocalized(inlineAd, 'title'))}" loading="lazy" style="width:100%; max-height:160px; object-fit:cover;">
                 </a>
             </div>
-        `;
+        ` : '';
+        inlineSlot.style.display = inlineAd ? '' : 'none';
     }
 }
 
+// ── AdSense placeholders removed: admin panel / Firebase is the ONLY ad source ──
 // ── Initialize AdSense Slots (called after AdSense approve) ──
 function initAdSenseSlots() {
     // Replace placeholder divs with actual AdSense code
