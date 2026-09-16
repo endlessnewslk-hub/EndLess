@@ -1111,7 +1111,7 @@ async function saveNewsItem() {
             adminNews[idx] = Object.assign({}, adminNews[idx], newsItem, { id: editingNewsId });
         }
     } else {
-        adminNews.unshift(newsItem);
+        adminNews.push(newsItem);
     }
 
     saveNews();
