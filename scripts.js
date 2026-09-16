@@ -902,6 +902,72 @@ function closeMobileMenu() {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// 🌤️ REAL-TIME WEATHER — free, no API key, no payment
+// Open-Meteo (weather) + ipwho.is (location) — both free forever
+// Falls back to GPS if visitor grants permission
+// ═══════════════════════════════════════════════════════════════
+function initWeather() {
+    var weatherEl = document.getElementById('weather');
+    if (!weatherEl) return;
+
+    function wEmoji(code) {
+        if (code === 0) return '☀️';
+        if (code <= 2) return '🌤️';
+        if (code === 3) return '☁️';
+        if (code === 45 || code === 48) return '🌫️';
+        if (code >= 51 && code <= 57) return '🌦️';
+        if (code >= 61 && code <= 67) return '🌧️';
+        if (code >= 71 && code <= 77) return '🌨️';
+        if (code >= 80 && code <= 82) return '🌦️';
+        if (code >= 85 && code <= 86) return '🌨️';
+        if (code >= 95) return '⛈️';
+        return '🌡️';
+    }
+
+    function show(lat, lon, city) {
+        fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat +
+              '&longitude=' + lon + '&current_weather=true')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (!d.current_weather) return;
+                var t = Math.round(d.current_weather.temperature);
+                var loc = city ? ' ' + city : '';
+                weatherEl.textContent = wEmoji(d.current_weather.weathercode) + ' ' + t + '°C' + loc;
+                try {
+                    localStorage.setItem('endless_weather', JSON.stringify({
+                        t: t, code: d.current_weather.weathercode, city: city, ts: Date.now()
+                    }));
+                } catch (e) {}
+            }).catch(function() {});
+    }
+
+    // Show cached value instantly (30 min cache — fewer API calls)
+    try {
+        var cached = JSON.parse(localStorage.getItem('endless_weather'));
+        if (cached && Date.now() - cached.ts < 1800000) {
+            weatherEl.textContent = wEmoji(cached.code) + ' ' + cached.t + '°C' +
+                (cached.city ? ' ' + cached.city : '');
+        }
+    } catch (e) {}
+
+    // IP-based location (no permission needed — automatic for every visitor)
+    fetch('https://ipwho.is/')
+        .then(function(r) { return r.json(); })
+        .then(function(ip) {
+            if (ip && ip.success && ip.latitude) {
+                show(ip.latitude, ip.longitude, ip.city || '');
+            }
+        }).catch(function() {});
+
+    // Refine with GPS if visitor allows (more accurate)
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            show(pos.coords.latitude, pos.coords.longitude, '');
+        }, function() { /* denied — IP location stays */ }, { timeout: 5000 });
+    }
+}
+
 function initTheme() {
     const savedTheme = localStorage.getItem('endless_theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -1023,6 +1089,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const dateOptions = { weekday: 'short', month: 'short', day: 'numeric' };
         dateEl.textContent = new Date().toLocaleDateString('en-US', dateOptions);
     }
+
+    initWeather(); // 🌤️ real-time weather by visitor location
 
     initTheme();
     setLanguage(currentLang);
