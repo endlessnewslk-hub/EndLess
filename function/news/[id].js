@@ -111,6 +111,11 @@ export async function onRequestGet(context) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <meta name="theme-color" content="#dc2626">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="EndLess News">
   <meta property="og:title" content="${title}">
@@ -120,6 +125,8 @@ export async function onRequestGet(context) {
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="${title}">
+  <meta property="og:logo" content="${SITE_URL}/logo-og.png">
+  <link rel="icon" type="image/png" href="${SITE_URL}/logo-og.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${title}">
   <meta name="twitter:description" content="${excerpt}">
