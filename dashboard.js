@@ -581,77 +581,117 @@ function renderDashboard() {
 }
 
 function renderAnalyticsPage() {
-    // 1. Update stat cards with dummy data
-    document.getElementById('stat-total-views').textContent = '14,384';
-    document.getElementById('stat-ad-clicks').textContent = '212';
-    document.getElementById('stat-mobile-users').textContent = '68%';
-    document.getElementById('stat-top-country').textContent = 'India';
+    // ═══════════════════════════════════════════════════════════
+    // REAL ANALYTICS — data from Firestore 'analytics' collection
+    // Tracks: article views, shares, daily totals
+    // ═══════════════════════════════════════════════════════════
+    var totalViewsEl = document.getElementById('stat-total-views');
+    var adClicksEl = document.getElementById('stat-ad-clicks');
+    var mobileEl = document.getElementById('stat-mobile-users');
+    var countryEl = document.getElementById('stat-top-country');
 
-    // 2. Render chart
-    const ctx = document.getElementById('analytics-chart');
-    if (!ctx) return;
+    // Fallback values while loading
+    if (totalViewsEl) totalViewsEl.textContent = '…';
+    if (adClicksEl) adClicksEl.textContent = '…';
+    if (mobileEl) mobileEl.textContent = '…';
+    if (countryEl) countryEl.textContent = '…';
 
-    // Destroy existing chart if it exists
-    if (analyticsChart) {
-        analyticsChart.destroy();
+    var ctx = document.getElementById('analytics-chart');
+    if (ctx && analyticsChart) { analyticsChart.destroy(); analyticsChart = null; }
+
+    if (!db) {
+        if (totalViewsEl) totalViewsEl.textContent = 'N/A';
+        if (adClicksEl) adClicksEl.textContent = 'N/A';
+        if (mobileEl) mobileEl.textContent = 'N/A';
+        if (countryEl) countryEl.textContent = 'No DB';
+        return;
     }
 
-    // Sample data for the chart
-    const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const data = {
-        labels: labels,
-        datasets: [{
-            label: 'Page Views',
-            data: [1500, 1800, 1600, 2100, 2000, 2400, 2800],
-            fill: true,
-            borderColor: '#ef4444',
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            tension: 0.4,
-            pointBackgroundColor: '#ef4444',
-            pointRadius: 5,
-            pointHoverRadius: 7
-        }]
-    };
+    db.collection('analytics').doc('totals').get().then(function(doc) {
+        var t = doc.exists ? doc.data() : {};
+        var views = (t.views || 0) + (t.localViews || 0);
+        var shares = (t.shares || 0) + (t.localShares || 0);
+        var mobile = t.mobile || 0, desktop = t.desktop || 0;
+        var totalDevices = mobile + desktop;
+        var mobilePct = totalDevices > 0 ? Math.round(mobile / totalDevices * 100) + '%' : '—';
 
-    // Chart configuration
-    const config = {
-        type: 'line',
-        data: data,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(200, 200, 200, 0.1)'
-                    },
-                    ticks: {
-                        color: '#a0a0b8'
-                    }
+        if (totalViewsEl) totalViewsEl.textContent = views.toLocaleString();
+        if (adClicksEl) adClicksEl.textContent = shares.toLocaleString();
+        if (mobileEl) mobileEl.textContent = mobilePct;
+        if (countryEl) countryEl.textContent = t.topCountry || '—';
+    }).catch(function() {
+        if (totalViewsEl) totalViewsEl.textContent = 'Error';
+    });
+
+    // Daily chart — last 7 days real data
+    var today = new Date();
+    var labels = [], keys = [];
+    for (var i = 6; i >= 0; i--) {
+        var dt = new Date(today); dt.setDate(dt.getDate() - i);
+        var key = dt.toISOString().slice(0, 10);
+        keys.push(key);
+        labels.push(dt.toLocaleDateString('en-GB', { weekday: 'short' }));
+    }
+
+    Promise.all(keys.map(function(k) {
+        return db.collection('analytics').doc('daily_' + k).get().catch(function() { return null; });
+    })).then(function(docs) {
+        var data = docs.map(function(doc) {
+            return (doc && doc.exists) ? (doc.data().views || 0) : 0;
+        });
+        if (!ctx) return;
+        if (analyticsChart) analyticsChart.destroy();
+        analyticsChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: labels, datasets: [{
+                label: 'Page Views',
+                data: data,
+                fill: true,
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.4,
+                pointBackgroundColor: '#ef4444',
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }]},
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(200,200,200,0.1)' }, ticks: { color: '#a0a0b8', precision: 0 } },
+                    x: { grid: { display: false }, ticks: { color: '#a0a0b8' } }
                 },
-                x: {
-                    grid: {
-                        display: false
-                    },
-                    ticks: {
-                        color: '#a0a0b8'
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                }
+                plugins: { legend: { display: false } }
             }
-        }
-    };
-
-    // Create the chart
-    analyticsChart = new Chart(ctx, config);
+        });
+    });
 }
 
-// ── News Table Renderer ──
+// ═══════════════════════════════════════════════════════════
+// TRACKING — called from main website (scripts.js)
+// ═══════════════════════════════════════════════════════════
+async function trackAnalyticsEvent(type, articleId) {
+    if (!db) return;
+    var today = new Date().toISOString().slice(0, 10);
+    var isMobile = window.innerWidth < 768;
+    try {
+        var totalsRef = db.collection('analytics').doc('totals');
+        var dailyRef = db.collection('analytics').doc('daily_' + today);
+        var totalsDoc = await totalsRef.get();
+        if (!totalsDoc.exists) {
+            await totalsRef.set({ views: 0, shares: 0, mobile: 0, desktop: 0 });
+        }
+        var upd = {};
+        upd[type === 'share' ? 'shares' : 'views'] = firebase.firestore.FieldValue.increment(1);
+        upd[isMobile ? 'mobile' : 'desktop'] = firebase.firestore.FieldValue.increment(1);
+        await totalsRef.update(upd);
+        var dailyDoc = await dailyRef.get();
+        if (!dailyDoc.exists) await dailyRef.set({ views: 0, shares: 0, date: today });
+        var dUpd = {};
+        dUpd[type === 'share' ? 'shares' : 'views'] = firebase.firestore.FieldValue.increment(1);
+        await dailyRef.update(dUpd);
+    } catch (e) { /* silent — don't break UX */ }
+}
 function renderNewsTable() {
     console.log('>>> renderNewsTable called. adminNews.length =', adminNews.length);
     

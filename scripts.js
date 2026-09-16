@@ -621,6 +621,19 @@ function openArticle(id) {
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
 
+    // 📊 Track article view (fire-and-forget — never blocks UX)
+    try {
+        var vw = new XMLHttpRequest();
+        vw.open('POST', 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents/analytics:commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA');
+        vw.setRequestHeader('Content-Type', 'application/json');
+        var todayKey = new Date().toISOString().slice(0, 10);
+        var mob = window.innerWidth < 768;
+        vw.send(JSON.stringify({ writes: [
+            { transform: { document: 'projects/endless-news/databases/(default)/documents/analytics/totals', fieldTransforms: [{ fieldPath: 'views', increment: { integerValue: 1 } }, { fieldPath: mob ? 'mobile' : 'desktop', increment: { integerValue: 1 } }] } },
+            { transform: { document: 'projects/endless-news/databases/(default)/documents/analytics/daily_' + todayKey, fieldTransforms: [{ fieldPath: 'views', increment: { integerValue: 1 } }] } }
+        ]}));
+    } catch (e) { /* silent */ }
+
     if (isTouchDevice) {
         modal.addEventListener('touchstart', handleTouchStart, { passive: true });
         modal.addEventListener('touchend', handleTouchEnd, { passive: true });
@@ -644,6 +657,18 @@ function shareArticle(id) {
         alert('Article not found!');
         return;
     }
+
+    // 📊 Track share (fire-and-forget)
+    try {
+        var sw = new XMLHttpRequest();
+        sw.open('POST', 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents/analytics:commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA');
+        sw.setRequestHeader('Content-Type', 'application/json');
+        var shareToday = new Date().toISOString().slice(0, 10);
+        sw.send(JSON.stringify({ writes: [
+            { transform: { document: 'projects/endless-news/databases/(default)/documents/analytics/totals', fieldTransforms: [{ fieldPath: 'shares', increment: { integerValue: 1 } }] } },
+            { transform: { document: 'projects/endless-news/databases/(default)/documents/analytics/daily_' + shareToday, fieldTransforms: [{ fieldPath: 'shares', increment: { integerValue: 1 } }] } }
+        ]}));
+    } catch (e) { /* silent */ }
 
     let shareOverlay = document.getElementById('share-modal-overlay');
     if (!shareOverlay) {
