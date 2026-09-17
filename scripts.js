@@ -1229,6 +1229,26 @@ function syncCategoriesFromStorage() {
     }
 }
 
+// 🔗 FOOTER LINKS — wire footer items to static pages (no index.html edit needed)
+(function wireFooterLinks() {
+    var map = {
+        about_us: 'about.html', careers: 'careers.html', ethics: 'ethics.html',
+        contact: 'contact.html', advertise: 'advertise.html',
+        privacy: 'privacy.html', terms: 'terms.html'
+    };
+    Object.keys(map).forEach(function(key) {
+        var li = document.querySelector('footer [data-key="' + key + '"]');
+        if (li && !li.querySelector('a')) {
+            var a = document.createElement('a');
+            a.href = map[key];
+            a.style.cssText = 'color:inherit;text-decoration:none;';
+            while (li.firstChild) a.appendChild(li.firstChild);
+            li.appendChild(a);
+        }
+    });
+})();
+wireFooterLinks();
+
 // 🔥 FORCE SW UPDATE: stale service workers serve old files on mobile.
 // Check for a new SW on every load; reload ONCE when it takes control.
 (function forceSwUpdate() {
