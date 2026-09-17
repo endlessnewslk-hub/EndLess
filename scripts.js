@@ -78,7 +78,11 @@ const TRANSLATIONS = {
     },
 };
 
-let currentLang = localStorage.getItem('gd_language') || 'ta';
+// 🌍 DEFAULT LANGUAGE: TAMIL for every new visitor worldwide.
+// English only when the USER explicitly toggles (saved in their device).
+var _savedLang = localStorage.getItem('gd_language');
+let currentLang = (_savedLang === 'ta' || _savedLang === 'en') ? _savedLang : 'ta';
+if (!_savedLang) localStorage.setItem('gd_language', 'ta');
 let isMobile = window.innerWidth < 640;
 let touchStartY = 0;
 let isDataLoaded = false;
