@@ -1477,6 +1477,16 @@ function updateDurationPreview() {
 // ═══════════════════════════════════════
 function openAdModal(isEdit) {
     isEdit = isEdit || false;
+    // 📐 Exact banner sizes guide (injected — updates the static info box)
+    var _sizeInfo = document.querySelector('.ad-size-info');
+    if (_sizeInfo) {
+        _sizeInfo.innerHTML =
+            '<strong>📐 Exact Banner Sizes (width × height, pixels):</strong><br>' +
+            '• <b>Header:</b> 1200 × 200<br>' +
+            '• <b>Sidebar:</b> 720 × 560 (add multiple — stacks with gap)<br>' +
+            '• <b>Inline:</b> 1200 × 240<br>' +
+            '• <b>Article View:</b> 1200 × 390';
+    }
     // 🎯 Position options — injected (includes Article View slot for sponsors)
     var _pos = document.getElementById('ad-position');
     if (_pos && !_pos.querySelector('option[value="modal"]')) {
