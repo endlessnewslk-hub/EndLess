@@ -45,6 +45,10 @@ async function getArticle(id, lang, attempts) {
       const doc = await res.json();
       const f = doc.fields || {};
       if (!f.title && !f.title_en) return null;
+      // 🔒 Draft guard: never expose unpublished articles via share links.
+      // (status missing = legacy article → treat as published)
+      const st = str(f.status);
+      if (st && st !== 'published') return null;
 
       const isEn = (lang === 'en');
       const rawTitle = isEn ? (str(f.title_en) || str(f.title)) : (str(f.title) || str(f.title_en));

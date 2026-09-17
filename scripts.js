@@ -16,11 +16,14 @@ try {
             firebase.initializeApp(firebaseConfig);
         }
         db = firebase.firestore();
-        console.log('Firebase connected');
+        dbg('Firebase connected');
     }
 } catch (err) {
     console.error('Firebase init error:', err);
 }
+
+const DEBUG = false; // 🔇 production: no debug logs in visitor console
+function dbg() { if (DEBUG) console.log.apply(console, arguments); }
 
 /* ═══════════════════════════════════════════════════════
    ENDLESS — MAIN WEBSITE LOGIC
@@ -113,8 +116,8 @@ function isGarbagePost(n) {
     var idStr = String(n.id || '').trim();
     var hasId = idStr !== '' && idStr !== 'undefined' && idStr !== 'null' && idStr !== '0';
     
-    if (!hasTitle) console.log('    isGarbagePost: no valid title found');
-    if (!hasId) console.log('    isGarbagePost: no valid id. id=', n.id);
+    if (!hasTitle)
+    if (!hasId)
     
     return !hasTitle || !hasId;
 }
@@ -124,7 +127,7 @@ function getNewsFromStorage() {
     if (data) {
         try {
             var parsed = JSON.parse(data);
-            console.log('Loaded', parsed.length, 'articles from localStorage');
+            dbg('Loaded', parsed.length, 'articles from localStorage');
             return parsed;
         } catch(e) {
             console.warn('Failed to parse news from localStorage');
@@ -146,17 +149,19 @@ async function syncFromFirebase() {
     newsData = [];
 
     if (!db) {
-        console.log('⚠️ No Firebase connection');
+        dbg('⚠️ No Firebase connection');
         return;
     }
 
     try {
-        console.log('☁️ Fetching articles from Firebase...');
-        const newsSnapshot = await db.collection('news').get({ source: 'server' });
+        dbg('☁️ Fetching articles from Firebase...');
+        // 🔒 Server-side filter: ONLY published articles are sent to the browser.
+        // Draft/unpublished news never leaves Firebase — invisible in visitor console/Network tab.
+        const newsSnapshot = await db.collection('news').where('status', '==', 'published').get({ source: 'server' });
         let firebaseNews = [];
         let rejectedCount = 0;
 
-        console.log('📄 Firestore docs found:', newsSnapshot.size);
+        dbg('📄 Firestore docs found:', newsSnapshot.size);
 
         if (!newsSnapshot.empty) {
             newsSnapshot.docs.forEach(doc => {
@@ -164,13 +169,9 @@ async function syncFromFirebase() {
                 const originalId = data.id;
                 data.id = doc.id;
                 
-                console.log('  → Checking doc:', doc.id, '| original id:', originalId, '| title:', (data.title || '').substring(0, 30));
-                
                 if (isGarbagePost(data)) {
-                    console.log('    ❌ REJECTED by isGarbagePost');
                     rejectedCount++;
                 } else {
-                    console.log('    ✅ ACCEPTED');
                     firebaseNews.push(data);
                 }
             });
@@ -181,7 +182,7 @@ async function syncFromFirebase() {
         newsData.sort(function(a, b) {
             return new Date(b.date || 0) - new Date(a.date || 0);
         });
-        console.log('✅ Final newsData:', newsData.length, 'articles (rejected:', rejectedCount, ')');
+        dbg('✅ Final newsData:', newsData.length, 'articles (rejected:', rejectedCount, ')');
         
         if (newsData.length > 0) {
             localStorage.setItem('endless_news', JSON.stringify(newsData));
@@ -195,13 +196,13 @@ async function syncFromFirebase() {
                     var a = doc.data(); a.id = doc.id; return a;
                 });
                 localStorage.setItem('endless_ads', JSON.stringify(adsData));
-                console.log('✅ Ads synced from Firebase:', adsData.length);
+                dbg('✅ Ads synced from Firebase:', adsData.length);
             } else {
                 adsData = [];   // Firebase empty → show NOTHING
                 localStorage.setItem('endless_ads', '[]');
             }
         } catch (adErr) {
-            console.warn('Ads sync failed:', adErr);
+            dbg('Ads sync failed:', adErr);
         }
     } catch (error) {
         console.error('❌ Firebase read error:', error);
@@ -1067,7 +1068,7 @@ function syncNewsFromStorage() {
     var localNews = getNewsFromStorage();
     if (localNews && localNews.length > 0) {
         newsData = (localNews || []).filter(function(n) { return !isGarbagePost(n); });
-        console.log('News synced from localStorage:', newsData.length, 'articles');
+        dbg('News synced from localStorage:', newsData.length, 'articles');
         renderHero();
         renderFeed();
         renderTrending();
@@ -1078,7 +1079,7 @@ function syncAdsFromStorage() {
     var localAds = JSON.parse(localStorage.getItem('endless_ads')) || DEFAULT_ADS;
     if (Array.isArray(localAds) && localAds.length > 0) {
         adsData = localAds;
-        console.log('Ads synced:', adsData.length, 'ads');
+        dbg('Ads synced:', adsData.length, 'ads');
         renderAds();
     }
 }
@@ -1087,7 +1088,7 @@ function syncCategoriesFromStorage() {
     var localCats = JSON.parse(localStorage.getItem('endless_categories')) || DEFAULT_CATEGORIES;
     if (Array.isArray(localCats) && localCats.length > 0) {
         categoriesData = localCats;
-        console.log('Categories synced:', categoriesData.length, 'categories');
+        dbg('Categories synced:', categoriesData.length, 'categories');
         renderCategories();
         renderTrending();
         renderFeed();
@@ -1111,7 +1112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadAllNewsData();
 
     if (newsData.length === 0) {
-        console.log('ℹ️ No articles found in Firebase. Publish from admin panel.');
+        dbg('ℹ️ No articles found in Firebase. Publish from admin panel.');
     }
     const yearEl = document.getElementById('year');
     if (yearEl) yearEl.textContent = new Date().getFullYear();
@@ -1248,7 +1249,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 🔥 Firebase-only: No periodic localStorage sync needed
     // Website reads directly from Firebase on every load
-    console.log('✅ Firebase-only mode active. No localStorage polling.');
+    dbg('✅ Firebase-only mode active. No localStorage polling.');
 
     initLazyLoading();
     initTicker();
