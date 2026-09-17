@@ -559,22 +559,44 @@ function renderAds() {
         ` : '';
     }
 
-    // Sidebar Ad — NOTHING shown when no active ad
-    const sidebarAd = activeAds.find(a => a.position === 'sidebar');
+    // Sidebar (desktop right rail) — ALL active sidebar ads STACKED with gaps.
+    // Admin panel-la 'Sidebar' position-la ethana ads venum naalum add pannunga —
+    // ellam inga gap-oda stack aagum. Clean card look — site design maraathu.
+    const sidebarAds = activeAds.filter(a => a.position === 'sidebar');
     const sidebarSlot = document.getElementById('ad-slot-sidebar');
     if (sidebarSlot) {
-        sidebarSlot.innerHTML = sidebarAd ? `
+        sidebarSlot.innerHTML = sidebarAds.length ? sidebarAds.map(function(a) {
+            return `
+        <div style="margin-bottom:1.5rem;">
             <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
-            <a href="${escapeHtml(sidebarAd.link)}" target="_blank" rel="noopener noreferrer">
-                <img src="${escapeHtml(sidebarAd.image)}" alt="${escapeHtml(getLocalized(sidebarAd, 'title'))}" loading="lazy" style="width:100%; max-height:250px; object-fit:cover;">
+            <a href="${escapeHtml(a.link)}" target="_blank" rel="noopener noreferrer" style="display:block; border-radius:10px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.12);">
+                <img src="${escapeHtml(a.image)}" alt="${escapeHtml(getLocalized(a, 'title'))}" loading="lazy" style="width:100%; max-height:280px; object-fit:cover; display:block;">
             </a>
-        ` : '';
-        sidebarSlot.style.display = sidebarAd ? '' : 'none';
+        </div>`;
+        }).join('') : '';
+        sidebarSlot.style.display = sidebarAds.length ? '' : 'none';
     }
 
-    // Modal Ad slot (inside article modal) — hide unless an inline ad exists
+    // 🎯 Article View ad — sponsors visible exactly where readers spend time.
+    // Admin panel-la 'Article View' position use pannunga.
+    const modalAd = activeAds.find(a => a.position === 'modal');
     const modalSlot = document.getElementById('ad-slot-modal');
-    if (modalSlot) modalSlot.style.display = 'none';
+    if (modalSlot) {
+        if (modalAd) {
+            modalSlot.innerHTML = `
+            <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
+            <a href="${escapeHtml(modalAd.link)}" target="_blank" rel="noopener noreferrer" style="display:block; border-radius:10px; overflow:hidden;">
+                <img src="${escapeHtml(modalAd.image)}" alt="${escapeHtml(getLocalized(modalAd, 'title'))}" loading="lazy" style="width:100%; max-height:250px; object-fit:cover; display:block;">
+            </a>`;
+            modalSlot.style.display = '';
+            modalSlot.style.border = 'none';
+            modalSlot.style.background = 'transparent';
+            modalSlot.style.minHeight = '0';
+        } else {
+            modalSlot.innerHTML = '';
+            modalSlot.style.display = 'none';
+        }
+    }
 
     // Inline Ad — NOTHING shown when no active ad
     const inlineAd = activeAds.find(a => a.position === 'inline');

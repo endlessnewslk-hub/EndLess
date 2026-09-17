@@ -1477,6 +1477,15 @@ function updateDurationPreview() {
 // ═══════════════════════════════════════
 function openAdModal(isEdit) {
     isEdit = isEdit || false;
+    // 🎯 Position options — injected (includes Article View slot for sponsors)
+    var _pos = document.getElementById('ad-position');
+    if (_pos && !_pos.querySelector('option[value="modal"]')) {
+        _pos.innerHTML =
+            '<option value="header">Header Banner (top of site)</option>' +
+            '<option value="sidebar">Sidebar — Right Rail (stacks multiple)</option>' +
+            '<option value="inline">Inline (between articles)</option>' +
+            '<option value="modal">Article View (inside article popup)</option>';
+    }
     var modal = document.getElementById('ad-modal');
     var modalTitle = document.getElementById('ad-modal-title');
 
