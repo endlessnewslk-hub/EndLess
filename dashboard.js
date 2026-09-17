@@ -95,13 +95,17 @@ try {
             ignoreUndefinedProperties: true
         });
 
-        console.log('Firebase connected successfully');
+        dbg('Firebase connected successfully');
     } else {
         console.warn('Firebase SDK not loaded - using localStorage only');
     }
 } catch (err) {
     console.error('Firebase init error:', err);
 }
+
+// 🔇 Production: no debug logs in console
+var DEBUG = false;
+function dbg() { if (DEBUG) console.log.apply(console, arguments); }
 
 // ── State Variables ──
 let adminNews = [];
@@ -168,19 +172,19 @@ function isUntitledOrGarbage(n) {
 // ── Data Initialization ──
 async function initData() {
     if (dataInitialized) {
-        console.log('initData: Already initialized, skipping');
+        dbg('initData: Already initialized, skipping');
         return Promise.resolve(); // CRITICAL FIX: Return resolved promise
     }
-    console.log('=== initData() starting ===');
+    dbg('=== initData() starting ===');
 
     reloadAdminNewsFromStorage();
     adminAds = safeJSONParse('endless_ads', []);
     adminCats = safeJSONParse('endless_categories', []);
 
-    console.log('Loaded from localStorage - News:', adminNews.length, 'Ads:', adminAds.length, 'Cats:', adminCats.length);
+    dbg('Loaded from localStorage - News:', adminNews.length, 'Ads:', adminAds.length, 'Cats:', adminCats.length);
 
     if (adminNews.length > 0) {
-        console.log('First news item:', JSON.stringify(adminNews[0]).substring(0, 200));
+        dbg('First news item:', JSON.stringify(adminNews[0]).substring(0, 200));
     }
 
     var beforeNewsCount = adminNews.length;
@@ -194,17 +198,17 @@ async function initData() {
     }
 
     if (adminNews.length === 0) {
-        console.log('Loaded DEFAULT news data');
+        dbg('Loaded DEFAULT news data');
         adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
         saveNews();
     }
     if (adminAds.length === 0) {
-        console.log('Loaded DEFAULT ads data');
+        dbg('Loaded DEFAULT ads data');
         adminAds = JSON.parse(JSON.stringify(DEFAULT_ADS));
         saveAds();
     }
     if (adminCats.length === 0) {
-        console.log('Loaded DEFAULT categories data');
+        dbg('Loaded DEFAULT categories data');
         adminCats = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
         saveCats();
     }
@@ -218,12 +222,12 @@ async function initData() {
             console.warn('Firebase sync failed, using localStorage:', err);
         }
     } else {
-        console.log('No Firebase connection, using localStorage only');
+        dbg('No Firebase connection, using localStorage only');
     }
 
     // CRITICAL: After Firebase sync, check again if data is empty and restore defaults
     if (adminNews.length === 0) {
-        console.log('After Firebase sync, adminNews is empty. Restoring DEFAULT_NEWS');
+        dbg('After Firebase sync, adminNews is empty. Restoring DEFAULT_NEWS');
         adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
         saveNews();
     }
@@ -234,8 +238,8 @@ async function initData() {
     var authLoading = document.getElementById('auth-loading-overlay');
     if (authLoading) authLoading.style.display = 'none';
 
-    console.log('Final data - News:', adminNews.length, 'Ads:', adminAds.length, 'Cats:', adminCats.length);
-    console.log('=== initData() complete ===');
+    dbg('Final data - News:', adminNews.length, 'Ads:', adminAds.length, 'Cats:', adminCats.length);
+    dbg('=== initData() complete ===');
 
     // CRITICAL FIX: Set dataInitialized ONLY after data is fully loaded
     dataInitialized = true;
@@ -248,7 +252,7 @@ async function initData() {
     if (currentPage === 'news') {
         setTimeout(function() {
             renderNewsTable();
-            console.log('Forced news table re-render after init');
+            dbg('Forced news table re-render after init');
         }, 100);
     }
 
@@ -338,7 +342,7 @@ async function syncFromFirebase() {
         updateCategoryCounts();
     } catch (error) {
         console.error('Firebase read error:', error);
-        console.log('Keeping local data since Firebase sync failed');
+        dbg('Keeping local data since Firebase sync failed');
     }
 }
 
@@ -693,18 +697,18 @@ async function trackAnalyticsEvent(type, articleId) {
     } catch (e) { /* silent — don't break UX */ }
 }
 function renderNewsTable() {
-    console.log('>>> renderNewsTable called. adminNews.length =', adminNews.length);
+    dbg('>>> renderNewsTable called. adminNews.length =', adminNews.length);
     
     // CRITICAL FIX: Reload admin news from storage before rendering
     reloadAdminNewsFromStorage();
 
     if (adminNews.length > 0) {
-        console.log('>>> First item id:', adminNews[0].id, 'title:', (adminNews[0].title || '').substring(0, 30));
+        dbg('>>> First item id:', adminNews[0].id, 'title:', (adminNews[0].title || '').substring(0, 30));
     }
 
     // If admin news was empty, ensure default data is always loaded.
     if (adminNews.length === 0) {
-        console.log('>>> adminNews is empty after localStorage load, restoring DEFAULT_NEWS');
+        dbg('>>> adminNews is empty after localStorage load, restoring DEFAULT_NEWS');
         adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
         saveNews();
     }
@@ -724,7 +728,7 @@ function renderNewsTable() {
         return !isUntitledOrGarbage(n);
     });
 
-    console.log('>>> After filter, filtered.length =', filtered.length);
+    dbg('>>> After filter, filtered.length =', filtered.length);
 
     if (search) {
         filtered = filtered.filter(function(n) {
@@ -1165,7 +1169,7 @@ async function saveNewsItem() {
         try {
             // Save the news item to Firebase FIRST before syncing
             await db.collection('news').doc(String(newsItem.id)).set(newsItem);
-            console.log('News item saved to Firebase:', newsItem.id);
+            dbg('News item saved to Firebase:', newsItem.id);
         } catch (err) {
             console.warn('Firebase write failed:', err); showToast('⚠️ Cloud save FAILED — login again & republish!', 'error');
         }
