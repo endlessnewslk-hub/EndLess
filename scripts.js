@@ -38,6 +38,8 @@ try {
 .gal-count{position:absolute;bottom:12px;right:12px;background:rgba(0,0,0,0.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:999px;z-index:5;border:1px solid rgba(255,255,255,0.2);}
 .gal-img-fade{animation:galFade 0.3s ease;}
 @keyframes galFade{from{opacity:0.3;}to{opacity:1;}}
+.vid-wrap{position:relative;width:100%;padding-top:56.25%;margin-top:1rem;border-radius:8px;overflow:hidden;background:#000;}
+.vid-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;}
 `;
     document.head.appendChild(st);
 })();
@@ -620,6 +622,43 @@ function renderTicker() {
     `).join('');
 }
 
+// 🎬 VIDEO — detect link type & render proper player
+function getVideoInfo(url) {
+    if (!url) return null;
+    var m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{6,})/);
+    if (m) return { type: 'youtube', id: m[1] };
+    m = url.match(/vimeo\.com\/(\d+)/);
+    if (m) return { type: 'vimeo', id: m[1] };
+    if (/facebook\.com|fb\.watch/.test(url)) return { type: 'fb' };
+    if (/\.(mp4|webm|ogg|mov)(\?|#|$)/i.test(url)) return { type: 'direct' };
+    return { type: 'link' };
+}
+
+function videoBlockHtml(article) {
+    var vl = article.videoLink;
+    var poster = escapeHtml(article.image || '');
+    if (vl) {
+        var info = getVideoInfo(vl);
+        if (info && info.type === 'youtube') {
+            return `<div class="vid-wrap"><iframe src="https://www.youtube-nocookie.com/embed/${info.id}" title="Video" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+        }
+        if (info && info.type === 'vimeo') {
+            return `<div class="vid-wrap"><iframe src="https://player.vimeo.com/video/${info.id}" title="Video" loading="lazy" allowfullscreen></iframe></div>`;
+        }
+        if (info && info.type === 'fb') {
+            return `<div class="vid-wrap"><iframe src="https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(vl)}&show_text=false" title="Video" loading="lazy" allowfullscreen style="border:none;overflow:hidden"></iframe></div>`;
+        }
+        if (info && info.type === 'direct') {
+            return `<video controls playsinline poster="${poster}" style="width:100%;margin-top:1rem;border-radius:8px;" preload="metadata"><source src="${escapeHtml(vl)}"></video>`;
+        }
+        return `<p style="margin-top:1rem;"><a href="${escapeHtml(vl)}" target="_blank" rel="noopener" style="color:#e11d48;font-weight:700;">▶️ Watch video</a></p>`;
+    }
+    if (article.video) {
+        return `<video controls playsinline poster="${poster}" style="width:100%;margin-top:1rem;border-radius:8px;" preload="none"><source src="${escapeHtml(article.video)}"></video>`;
+    }
+    return '';
+}
+
 // 🖼️ Gallery navigation (glassy arrows + swipe)
 function galNav(dir) {
     var g = window._gal;
@@ -687,7 +726,7 @@ function openArticle(id) {
                 <div class="article-text">
                     ${processedContent}
                 </div>
-                ${article.video ? `<video controls style="width:100%; margin-top:1rem; border-radius:8px;" preload="none"><source src="${escapeHtml(article.video)}"></video>` : ''}
+                ${videoBlockHtml(article)}
             </div>
         </div>
     `;

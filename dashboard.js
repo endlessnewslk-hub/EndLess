@@ -904,6 +904,71 @@ function renderCategoriesTable() {
 // ═══════════════════════════════════════
 // NEWS MODAL
 // ═══════════════════════════════════════
+// 🎬 VIDEO LINK — YT/FB/Vimeo/Cloudinary/MP4 + auto-thumbnail
+function videoInfoFor(url) {
+    if (!url) return null;
+    var m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{6,})/);
+    if (m) return { type: 'youtube', id: m[1], thumb: 'https://i.ytimg.com/vi/' + m[1] + '/hqdefault.jpg', embed: 'https://www.youtube-nocookie.com/embed/' + m[1] };
+    m = url.match(/vimeo\.com\/(\d+)/);
+    if (m) return { type: 'vimeo', id: m[1], thumb: null, embed: 'https://player.vimeo.com/video/' + m[1] };
+    m = url.match(/dailymotion\.com\/video\/([\w]+)/);
+    if (m) return { type: 'dm', id: m[1], thumb: 'https://www.dailymotion.com/thumbnail/video/' + m[1] };
+    if (/facebook\.com|fb\.watch/.test(url)) return { type: 'fb', thumb: null };
+    // ☁️ Cloudinary video → poster frame auto-derive (so_0 = first frame as jpg)
+    if (/res\.cloudinary\.com\/.*\/video\/upload\//.test(url)) {
+        var t = url.replace('/video/upload/', '/video/upload/so_0/').replace(/\.(mp4|webm|mov|ogg)(\?.*)?$/i, '.jpg');
+        return { type: 'direct', thumb: t };
+    }
+    if (/\.(mp4|webm|ogg|mov)(\?|#|$)/i.test(url)) return { type: 'direct', thumb: null };
+    return { type: 'link', thumb: null };
+}
+
+function fillThumbFromVideo(thumbUrl) {
+    if (!thumbUrl) return;
+    var imgUrl = document.getElementById('news-image-url');
+    var photoData = document.getElementById('news-photo-data');
+    var hasUploaded = photoData && photoData.value;
+    if (imgUrl && !imgUrl.value.trim() && !hasUploaded) {
+        imgUrl.value = thumbUrl;
+        if (typeof viewImageUrl === 'function') viewImageUrl();
+        showToast('🎬 Thumbnail auto-set from video!', 'success');
+    }
+}
+
+function ensureVideoLinkUI() {
+    if (document.getElementById('news-video-link')) return;
+    var anchor = document.getElementById('news-video-data');
+    if (!anchor) return;
+    var group = anchor.closest('.form-group');
+    if (!group || !group.parentNode) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'form-group';
+    wrap.innerHTML =
+        '<label>🎬 Video Link (optional — YouTube / Facebook / Cloudinary / MP4)</label>' +
+        '<input type="text" id="news-video-link" placeholder="https://youtube.com/watch?v=... or https://res.cloudinary.com/.../video.mp4" ' +
+        'style="width:100%;padding:0.65rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-size:1rem;">' +
+        '<small style="display:block;color:#9ca3af;font-size:0.78rem;margin-top:4px;">Paste a video link — the player embeds in the article and the thumbnail auto-fills the main image.</small>';
+    group.parentNode.insertBefore(wrap, group.nextSibling);
+    var input = document.getElementById('news-video-link');
+    var timer = null;
+    input.addEventListener('input', function() {
+        clearTimeout(timer);
+        timer = setTimeout(function() {
+            var info = videoInfoFor(input.value.trim());
+            if (!info) return;
+            if (info.thumb) {
+                fillThumbFromVideo(info.thumb);
+            } else if (info.type === 'vimeo') {
+                // Vimeo thumbnail via public oEmbed
+                fetch('https://vimeo.com/api/oembed.json?url=' + encodeURIComponent(input.value.trim()))
+                    .then(function(r) { return r.json(); })
+                    .then(function(j) { if (j && j.thumbnail_url) fillThumbFromVideo(j.thumbnail_url); })
+                    .catch(function() {});
+            }
+        }, 500);
+    });
+}
+
 // 🖼️ GALLERY — multi-image support for articles
 function ensureGalleryUI() {
     if (document.getElementById('gallery-rows')) return;
@@ -1026,9 +1091,13 @@ function openNewsModal(isEdit) {
 
         clearGalleryRows();
         ensureGalleryUI(); // gallery UI inject (first open)
+        ensureVideoLinkUI();
+        var vlink = document.getElementById('news-video-link');
+        if (vlink) vlink.value = '';
         switchNewsLang('ta');
     } else {
         ensureGalleryUI();
+        ensureVideoLinkUI();
     }
 }
 
@@ -1108,7 +1177,10 @@ function editNews(id) {
         videoPreview.style.display = 'block';
     }
     ensureGalleryUI();
+    ensureVideoLinkUI();
     loadGalleryRows(news);
+    var _vl = document.getElementById('news-video-link');
+    if (_vl) _vl.value = news.videoLink || '';
     switchNewsLang('ta');
 }
 
@@ -1145,6 +1217,8 @@ async function saveNewsItem() {
     var imageUrl = imageUrl_el ? imageUrl_el.value.trim() : '';
     var photoData = photoData_el ? photoData_el.value : '';
     var videoData = videoData_el ? videoData_el.value : '';
+    var _vlEl = document.getElementById('news-video-link');
+    var videoLinkVal = _vlEl ? _vlEl.value.trim() : '';
     var featured = featured_el ? featured_el.checked : false;
     var trending = trending_el ? trending_el.checked : false;
     var status = status_el ? (status_el.checked ? 'published' : 'draft') : 'draft';
@@ -1205,7 +1279,14 @@ async function saveNewsItem() {
         })(),
         lastModified: new Date().toISOString(),
         images: getGalleryUrls(), // 🖼️ gallery slideshow images
-        image: photoData || imageUrl || (function(){ var g = getGalleryUrls(); return g.length ? g[0] : 'https://via.placeholder.com/800x400?text=EndLess+News'; })(),
+        videoLink: videoLinkVal,  // 🎬 external video (YT/FB/Vimeo/MP4)
+        image: photoData || imageUrl || (function(){
+            var g = getGalleryUrls();
+            if (g.length) return g[0];
+            var vi = videoInfoFor(videoLinkVal);   // 🎬 video-thumb fallback
+            if (vi && vi.thumb) return vi.thumb;
+            return 'https://via.placeholder.com/800x400?text=EndLess+News';
+        })(),
         video: videoData,
         featured: featured,
         trending: trending,

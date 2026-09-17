@@ -58,7 +58,19 @@ async function getArticle(id, lang, attempts) {
       if (excerpt.length > 160) excerpt = excerpt.slice(0, 157) + '...';
       if (!excerpt) excerpt = isEn ? 'Read the full article on EndLess News.' : 'முழுக் கட்டுரையையும் EndLess News-ல் படிக்கவும்.';
 
-      const img = str(f.image);
+      // 🎬 Image illana video link-la irundhu thumbnail derive (share card-ku)
+      let img = str(f.image);
+      if (!img) {
+        const vl = str(f.videoLink);
+        const yt = vl && vl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,})/);
+        if (yt) {
+          img = 'https://i.ytimg.com/vi/' + yt[1] + '/hqdefault.jpg';
+        } else if (/res\.cloudinary\.com\/.*\/video\/upload\//.test(vl)) {
+          img = vl.replace('/video/upload/', '/video/upload/so_0/').replace(/\.(mp4|webm|mov|ogg)(\?.*)?$/i, '.jpg');
+        } else if (/dailymotion\.com\/video\/([\w]+)/.test(vl)) {
+          img = 'https://www.dailymotion.com/thumbnail/video/' + vl.match(/dailymotion\.com\/video\/([\w]+)/)[1];
+        }
+      }
       // Base64 images → served via our image proxy path
       const ogImage = (!img || img.indexOf('data:') === 0 || img.indexOf('blob:') === 0)
         ? SITE_URL + '/news-img/' + encodeURIComponent(id)
