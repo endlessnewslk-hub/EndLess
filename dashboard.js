@@ -904,6 +904,61 @@ function renderCategoriesTable() {
 // ═══════════════════════════════════════
 // NEWS MODAL
 // ═══════════════════════════════════════
+// 🖼️ GALLERY — multi-image support for articles
+function ensureGalleryUI() {
+    if (document.getElementById('gallery-rows')) return;
+    var anchor = document.getElementById('news-image-url');
+    if (!anchor) return;
+    var group = anchor.closest('.form-group');
+    if (!group || !group.parentNode) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'form-group';
+    wrap.innerHTML =
+        '<label>🖼️ Gallery Images (optional — slideshow inside article)</label>' +
+        '<div id="gallery-rows"></div>' +
+        '<button type="button" id="btn-add-gallery" style="padding:0.5rem 1rem;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;font-weight:600;font-size:0.85rem;cursor:pointer;">＋ Add Image URL</button>' +
+        '<small style="display:block;color:#9ca3af;font-size:0.78rem;margin-top:4px;">Add extra images — readers swipe/click through them in the article.</small>';
+    group.parentNode.insertBefore(wrap, group.nextSibling);
+    document.getElementById('btn-add-gallery').addEventListener('click', function() { addGalleryRow(); });
+}
+
+function addGalleryRow(url) {
+    var rows = document.getElementById('gallery-rows');
+    if (!rows) return;
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center;';
+    row.innerHTML =
+        '<input type="text" class="gal-url" placeholder="https://example.com/image2.jpg" ' +
+        'style="flex:1;padding:0.6rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;min-width:0;">' +
+        '<button type="button" class="gal-del" title="Remove" ' +
+        'style="width:38px;height:38px;flex-shrink:0;border:none;border-radius:6px;background:#fee2e2;color:#991b1b;font-size:16px;cursor:pointer;">✕</button>';
+    row.querySelector('.gal-url').value = url || '';
+    row.querySelector('.gal-del').addEventListener('click', function() { row.remove(); });
+    rows.appendChild(row);
+}
+
+function clearGalleryRows() {
+    var rows = document.getElementById('gallery-rows');
+    if (rows) rows.innerHTML = '';
+}
+
+function getGalleryUrls() {
+    var out = [];
+    var inputs = document.querySelectorAll('#gallery-rows .gal-url');
+    for (var i = 0; i < inputs.length; i++) {
+        var v = inputs[i].value.trim();
+        if (v) out.push(v);
+    }
+    return out;
+}
+
+function loadGalleryRows(news) {
+    clearGalleryRows();
+    if (news && Array.isArray(news.images)) {
+        news.images.forEach(function(u) { if (u) addGalleryRow(u); });
+    }
+}
+
 function openNewsModal(isEdit) {
     isEdit = isEdit || false;
     var modal = document.getElementById('news-modal');
@@ -969,7 +1024,11 @@ function openNewsModal(isEdit) {
             dateInput.value = yyyy + '-' + mm + '-' + dd + 'T' + hh + ':' + min;
         }
 
+        clearGalleryRows();
+        ensureGalleryUI(); // gallery UI inject (first open)
         switchNewsLang('ta');
+    } else {
+        ensureGalleryUI();
     }
 }
 
@@ -1048,6 +1107,8 @@ function editNews(id) {
         videoPreview.src = news.video;
         videoPreview.style.display = 'block';
     }
+    ensureGalleryUI();
+    loadGalleryRows(news);
     switchNewsLang('ta');
 }
 
@@ -1143,7 +1204,8 @@ async function saveNewsItem() {
             }
         })(),
         lastModified: new Date().toISOString(),
-        image: photoData || imageUrl || 'https://via.placeholder.com/800x400?text=EndLess+News',
+        images: getGalleryUrls(), // 🖼️ gallery slideshow images
+        image: photoData || imageUrl || (function(){ var g = getGalleryUrls(); return g.length ? g[0] : 'https://via.placeholder.com/800x400?text=EndLess+News'; })(),
         video: videoData,
         featured: featured,
         trending: trending,
