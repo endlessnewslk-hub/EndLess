@@ -275,11 +275,22 @@ function debounce(func, wait) {
     };
 }
 
+// 📅 Language-aware date — ta → தமிழ் date, en → English date
+function renderDate() {
+    const dateEl = document.getElementById('current-date');
+    if (!dateEl) return;
+    const dateOptions = { weekday: 'short', month: 'short', day: 'numeric' };
+    dateEl.textContent = new Date().toLocaleDateString(
+        currentLang === 'ta' ? 'ta-IN' : 'en-US', dateOptions
+    );
+}
+
 function setLanguage(lang) {
     currentLang = lang;
     localStorage.setItem('gd_language', lang);
     // Ticker text length changes per language — re-measure speed after render
     setTimeout(initTicker, 100);
+    renderDate(); // 📅 date-um language-ku eatha maariyum
 
     document.querySelectorAll('[data-key]').forEach(el => {
         const key = el.dataset.key;
@@ -1117,11 +1128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const yearEl = document.getElementById('year');
     if (yearEl) yearEl.textContent = new Date().getFullYear();
 
-    const dateEl = document.getElementById('current-date');
-    if (dateEl) {
-        const dateOptions = { weekday: 'short', month: 'short', day: 'numeric' };
-        dateEl.textContent = new Date().toLocaleDateString('en-US', dateOptions);
-    }
+    renderDate(); // 📅 respects saved language (ta/en)
 
     initWeather(); // 🌤️ real-time weather by visitor location
 
