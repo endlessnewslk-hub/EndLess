@@ -1298,6 +1298,19 @@ function syncCategoriesFromStorage() {
     }
 }
 
+// ⚙️ FOOTER VISIBILITY — EASY TOGGLE: true = show, false = hide.
+// Neenga hide pannirukkura items-a future-la show pannanum na,
+// false → true nu maathunga mattum podhum! (Upload after change.)
+const FOOTER_VISIBILITY = {
+    about_us: true,
+    careers: false,      // 🔒 HIDDEN — future-la true pannunga
+    ethics: false,       // 🔒 HIDDEN — future-la true pannunga
+    contact: true,
+    advertise: true,
+    privacy: true,
+    terms: true
+};
+
 // 🔗 FOOTER LINKS — wire footer items to static pages (no index.html edit needed)
 function wireFooterLinks() {
     var map = {
@@ -1307,7 +1320,14 @@ function wireFooterLinks() {
     };
     Object.keys(map).forEach(function(key) {
         var li = document.querySelector('footer [data-key="' + key + '"]');
-        if (li && !li.querySelector('a')) {
+        if (!li) return;
+        // ⚙️ Toggle: hidden items are removed from footer
+        if (FOOTER_VISIBILITY[key] === false) {
+            li.style.display = 'none';
+            return;
+        }
+        li.style.display = '';
+        if (!li.querySelector('a')) {
             var a = document.createElement('a');
             a.href = map[key];
             a.style.cssText = 'color:inherit;text-decoration:none;';
