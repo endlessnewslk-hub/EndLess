@@ -127,7 +127,7 @@ const DEFAULT_CATEGORIES = [
 
 function isGarbagePost(n) {
     if (!n || typeof n !== 'object') {
-        console.log('    isGarbagePost: not an object');
+        dbg('isGarbagePost: not an object');
         return true;
     }
     var t = String(n.title || '').trim();
@@ -142,9 +142,7 @@ function isGarbagePost(n) {
     var idStr = String(n.id || '').trim();
     var hasId = idStr !== '' && idStr !== 'undefined' && idStr !== 'null' && idStr !== '0';
     
-    if (!hasTitle)
-    if (!hasId)
-    
+    // (debug logs removed — logic intact)
     return !hasTitle || !hasId;
 }
 
@@ -217,8 +215,12 @@ async function syncFromFirebase() {
         });
         dbg('✅ Final newsData:', newsData.length, 'articles (rejected:', rejectedCount, ')');
         
-        if (newsData.length > 0) {
-            localStorage.setItem('endless_news', JSON.stringify(newsData));
+        // 💾 Cache is OPTIONAL — a full localStorage (base64 photos!) must NEVER
+        // wipe the articles we just fetched. Isolated try/catch.
+        try {
+            if (newsData.length > 0) localStorage.setItem('endless_news', JSON.stringify(newsData));
+        } catch (cacheErr) {
+            console.warn('localStorage cache skipped (quota):', cacheErr && cacheErr.message);
         }
 
         // 🔥 ADS: Firebase is the ONLY source — overwrites stale localStorage test ads
