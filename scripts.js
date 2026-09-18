@@ -22,6 +22,27 @@ try {
     console.error('Firebase init error:', err);
 }
 
+// 🔤 BRAND FONT — same "EndLess" look on EVERY device.
+// Georgia exists on Windows/Mac but NOT on Android → logo looked different on phones.
+// Playfair Display (Google Fonts) = premium Georgia-style serif, loads everywhere.
+(function injectBrandFont() {
+    if (document.getElementById('brand-font-css')) return;
+    var link = document.createElement('link');
+    link.id = 'brand-font-css';
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap';
+    document.head.appendChild(link);
+    var st = document.createElement('style');
+    st.id = 'brand-font-css';
+    st.textContent = [
+        '.logo,.logo-end,.logo-less,.logo-icon,.footer-logo,',
+        '.logo-title,.logo-accent,.bname,.brand .name,',
+        '.share-logo-text,.share-logo-icon,.admin-logo-icon{',
+        "font-family:'Playfair Display',Georgia,'Times New Roman',serif!important;}"
+    ].join('');
+    document.head.appendChild(st);
+})();
+
 // 🖼️ PREMIUM GALLERY CSS (self-contained — no styles.css change needed)
 (function injectGalleryCSS() {
     if (document.getElementById('gal-css')) return;
