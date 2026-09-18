@@ -1272,7 +1272,7 @@ function syncCategoriesFromStorage() {
 }
 
 // 🔗 FOOTER LINKS — wire footer items to static pages (no index.html edit needed)
-(function wireFooterLinks() {
+function wireFooterLinks() {
     var map = {
         about_us: 'about.html', careers: 'careers.html', ethics: 'ethics.html',
         contact: 'contact.html', advertise: 'advertise.html',
@@ -1288,8 +1288,7 @@ function syncCategoriesFromStorage() {
             li.appendChild(a);
         }
     });
-})();
-wireFooterLinks();
+}
 
 // 🔥 FORCE SW UPDATE: stale service workers serve old files on mobile.
 // Check for a new SW on every load; reload ONCE when it takes control.
