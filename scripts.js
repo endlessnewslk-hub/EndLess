@@ -44,6 +44,18 @@ try {
     document.head.appendChild(st);
 })();
 
+// ═══════════════════════════════════════════════════════════════
+// 🚨 EMERGENCY ERROR BANNER — any JS crash shows ON THE PAGE itself
+// (remote debugging without console). Remove after site is stable.
+window.addEventListener('error', function(e) {
+    if (document.getElementById('js-err-ban')) return;
+    var b = document.createElement('div');
+    b.id = 'js-err-ban';
+    b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#dc2626;color:#fff;padding:10px 14px;font-size:13px;z-index:999999;font-family:monospace;white-space:pre-wrap;';
+    b.textContent = '⚠️ JS ERROR: ' + (e.message || 'unknown') + ' @ ' + String(e.filename || '').split('/').pop() + ':' + (e.lineno || '?');
+    if (document.body) document.body.appendChild(b);
+});
+
 const DEBUG = false; // 🔇 production: no debug logs in visitor console
 function dbg() { if (DEBUG) console.log.apply(console, arguments); }
 
@@ -102,9 +114,13 @@ const TRANSLATIONS = {
 
 // 🌍 DEFAULT LANGUAGE: TAMIL for every new visitor worldwide.
 // English only when the USER explicitly toggles (saved in their device).
-var _savedLang = localStorage.getItem('gd_language');
+// 🛡️ Bulletproof storage — blocked/corrupt localStorage must NEVER crash the script
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+var _savedLang = lsGet('gd_language');
 let currentLang = (_savedLang === 'ta' || _savedLang === 'en') ? _savedLang : 'ta';
-if (!_savedLang) localStorage.setItem('gd_language', 'ta');
+lsSet('gd_language', currentLang);
 let isMobile = window.innerWidth < 640;
 let touchStartY = 0;
 let isDataLoaded = false;
@@ -165,7 +181,7 @@ window.newsData = newsData;
 // 🛡️ Safe parse — corrupted localStorage (quota damage) must NEVER crash the script
 function safeJSON(key, fallback) {
     try {
-        var raw = localStorage.getItem(key);
+        var raw = lsGet(key);
         return raw ? JSON.parse(raw) : fallback;
     } catch (e) {
         try { localStorage.removeItem(key); } catch (_) {} // self-heal: drop corrupt data
@@ -253,6 +269,13 @@ async function syncFromFirebase() {
         console.error('❌ Firebase read error:', error);
         newsData = [];
     }
+}
+
+// ⏱️ Hard timeout: a hanging network request must NEVER freeze the site
+function withTimeout(promise, ms) {
+    return Promise.race([promise, new Promise(function(_, rej) {
+        setTimeout(function() { rej(new Error('TIMEOUT after ' + ms + 'ms')); }, ms);
+    })]);
 }
 
 async function loadAllNewsData() {
@@ -1282,7 +1305,31 @@ wireFooterLinks();
 })();
 
 document.addEventListener('DOMContentLoaded', async () => {
-    await loadAllNewsData();
+    // 🚀 PHASE 1 — INSTANT UI: date/weather/theme/language run FIRST.
+    // Even if Firebase hangs/blocks, the page is alive and interactive.
+    try { renderDate(); } catch (e) {}
+    try { initTheme(); } catch (e) {}
+    try { initWeather(); } catch (e) {}
+    try { setLanguage(currentLang); } catch (e) {}
+    try { wireFooterLinks(); } catch (e) {}
+
+    // 🚀 PHASE 2 — DATA: hard 15s timeout. Hang/fail aana kooda UI alive,
+    // user sees a clear refresh message instead of a dead page.
+    try {
+        await withTimeout(loadAllNewsData(), 15000);
+    } catch (e) {
+        console.warn('Data load failed or timed out:', e && e.message);
+        try {
+            isDataLoaded = true;
+            hideLoading();
+            renderHero(); renderFeed(); renderTrending();
+            renderCategories(); renderAds(); renderTicker();
+        } catch (_) {}
+        var _g = document.getElementById('news-grid');
+        if (_g && !_g.querySelector('.article-card')) {
+            _g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2.5rem 1rem;color:var(--text-muted)">⚠️ Live data connect aaga la — internet check pannunga illai refresh (Ctrl+Shift+R)</div>';
+        }
+    }
 
     if (newsData.length === 0) {
         dbg('ℹ️ No articles found in Firebase. Publish from admin panel.');
