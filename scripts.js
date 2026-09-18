@@ -162,8 +162,18 @@ function getNewsFromStorage() {
 
 var newsData = [];
 window.newsData = newsData;
-let adsData = JSON.parse(localStorage.getItem('endless_ads')) || DEFAULT_ADS;
-let categoriesData = JSON.parse(localStorage.getItem('endless_categories')) || DEFAULT_CATEGORIES;
+// 🛡️ Safe parse — corrupted localStorage (quota damage) must NEVER crash the script
+function safeJSON(key, fallback) {
+    try {
+        var raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+    } catch (e) {
+        try { localStorage.removeItem(key); } catch (_) {} // self-heal: drop corrupt data
+        return fallback;
+    }
+}
+let adsData = safeJSON('endless_ads', DEFAULT_ADS);
+let categoriesData = safeJSON('endless_categories', DEFAULT_CATEGORIES);
 let currentFilter = 'All';
 let searchQuery = '';
 let displayedCount = 4;
@@ -1219,7 +1229,7 @@ function syncNewsFromStorage() {
 }
 
 function syncAdsFromStorage() {
-    var localAds = JSON.parse(localStorage.getItem('endless_ads')) || DEFAULT_ADS;
+    var localAds = safeJSON('endless_ads', DEFAULT_ADS);
     if (Array.isArray(localAds) && localAds.length > 0) {
         adsData = localAds;
         dbg('Ads synced:', adsData.length, 'ads');
@@ -1228,7 +1238,7 @@ function syncAdsFromStorage() {
 }
 
 function syncCategoriesFromStorage() {
-    var localCats = JSON.parse(localStorage.getItem('endless_categories')) || DEFAULT_CATEGORIES;
+    var localCats = safeJSON('endless_categories', DEFAULT_CATEGORIES);
     if (Array.isArray(localCats) && localCats.length > 0) {
         categoriesData = localCats;
         dbg('Categories synced:', categoriesData.length, 'categories');
