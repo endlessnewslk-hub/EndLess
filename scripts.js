@@ -181,9 +181,16 @@ async function syncFromFirebase() {
 
     try {
         dbg('☁️ Fetching articles from Firebase...');
-        // 🔒 Server-side filter: ONLY published articles are sent to the browser.
-        // Draft/unpublished news never leaves Firebase — invisible in visitor console/Network tab.
-        const newsSnapshot = await db.collection('news').where('status', '==', 'published').get({ source: 'server' });
+        // 🔒 Server-side filter: published-only preferred (drafts stay in Firebase).
+        // FALLBACK: if that query errors, fetch all and filter client-side
+        // (missing status = legacy article → treated as published; explicit 'draft' → hidden).
+        let newsSnapshot;
+        try {
+            newsSnapshot = await db.collection('news').where('status', '==', 'published').get({ source: 'server' });
+        } catch (qErr) {
+            console.warn('Published-only query failed, using fallback fetch:', qErr && qErr.message);
+            newsSnapshot = await db.collection('news').get({ source: 'server' });
+        }
         let firebaseNews = [];
         let rejectedCount = 0;
 
@@ -401,7 +408,7 @@ function hideLoading() {
 }
 
 function renderHero() {
-    const featured = newsData.filter(n => n.featured && n.status === 'published' && !isGarbagePost(n)).slice(0, 3);
+    const featured = newsData.filter(n => n.featured && (n.status !== 'draft') && !isGarbagePost(n)).slice(0, 3);
     const heroSection = document.getElementById('hero-section');
     if (!heroSection) return;
 
@@ -438,7 +445,7 @@ function renderHero() {
 }
 
 function renderFeed() {
-    let filtered = newsData.filter(n => n.status === 'published' && !isGarbagePost(n));
+    let filtered = newsData.filter(n => (n.status !== 'draft') && !isGarbagePost(n));
 
     if (currentFilter !== 'All') {
         const catNames = categoriesData.filter(c =>
@@ -501,7 +508,7 @@ function renderFeed() {
 }
 
 function renderTrending() {
-    const trending = newsData.filter(n => n.trending && n.status === 'published' && !isGarbagePost(n)).slice(0, 5);
+    const trending = newsData.filter(n => n.trending && (n.status !== 'draft') && !isGarbagePost(n)).slice(0, 5);
     const list = document.getElementById('trending-list');
     if (!list) return;
 
@@ -630,7 +637,7 @@ function initAdSenseSlots() {
 }
 
 function renderTicker() {
-    const breaking = newsData.filter(n => n.status === 'published' && !isGarbagePost(n)).slice(0, 8);
+    const breaking = newsData.filter(n => (n.status !== 'draft') && !isGarbagePost(n)).slice(0, 8);
     const ticker = document.getElementById('ticker-content');
     if (!ticker) return;
 
@@ -1307,7 +1314,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
             const q = searchQuery.toLowerCase();
             const count = newsData.filter(n => 
-            n.status === 'published' && !isGarbagePost(n) && (
+            (n.status !== 'draft') && !isGarbagePost(n) && (
             (n.title && n.title.toLowerCase().includes(q)) ||
             (n.title_en && n.title_en.toLowerCase().includes(q)) ||
             

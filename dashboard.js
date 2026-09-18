@@ -1188,7 +1188,7 @@ function editNews(id) {
     if (imageUrl) imageUrl.value = news.image || '';
     if (featured) featured.checked = !!news.featured;
     if (trending) trending.checked = !!news.trending;
-    if (status) status.checked = news.status === 'published';
+    if (status) status.checked = news.status !== 'draft'; // legacy articles (no status) default to PUBLISHED
 
     if (news.image && photoPreview) {
         photoPreview.src = news.image;
