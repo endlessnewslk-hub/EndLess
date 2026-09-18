@@ -366,7 +366,13 @@ function setLanguage(lang) {
             if (el.tagName === 'INPUT' && el.placeholder !== undefined) {
                 el.placeholder = TRANSLATIONS[lang][key];
             } else {
-                el.textContent = TRANSLATIONS[lang][key];
+                // 🔗 Preserve footer links — update text INSIDE the <a>, never erase it
+                var link = el.querySelector('a');
+                if (link) {
+                    link.textContent = TRANSLATIONS[lang][key];
+                } else {
+                    el.textContent = TRANSLATIONS[lang][key];
+                }
             }
         }
     });
