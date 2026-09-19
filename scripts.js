@@ -43,6 +43,27 @@ try {
     document.head.appendChild(st);
 })();
 
+// 🎨 SHARE MODAL THEME FIX — styles.css-la var(--card-bg) ku variable illa,
+// so dark fallback EPPAVUME use aagudhu (light mode-la kooda dark card!).
+// Ithu site-oda REAL theme variables-ku override pannum: light → light, dark → dark.
+(function injectShareThemeFix() {
+    if (document.getElementById('share-theme-fix')) return;
+    var st = document.createElement('style');
+    st.id = 'share-theme-fix';
+    st.textContent = [
+        '.share-modal-content{background:var(--surface)!important;border-color:var(--border)!important;}',
+        '.share-modal-header h3{color:var(--text)!important;}',
+        '.modal-close{color:var(--text-muted)!important;}',
+        '.modal-close:hover{background:var(--border)!important;color:var(--text)!important;}',
+        '.share-btn{background:var(--bg)!important;border-color:var(--border)!important;color:var(--primary)!important;}',
+        '.share-btn span{color:var(--text)!important;}',
+        '.share-btn:hover{background:var(--primary-glow)!important;border-color:var(--primary)!important;}',
+        '.share-copy-label{color:var(--text-muted)!important;}',
+        '.share-copy-box input{background:var(--bg)!important;border-color:var(--border)!important;color:var(--text)!important;}'
+    ].join('');
+    document.head.appendChild(st);
+})();
+
 // 🖼️ PREMIUM GALLERY CSS (self-contained — no styles.css change needed)
 (function injectGalleryCSS() {
     if (document.getElementById('gal-css')) return;
