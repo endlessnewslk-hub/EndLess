@@ -295,14 +295,18 @@ function startSessionMonitor() {
         clearInterval(sessionCheckInterval);
     }
 
-    // Check session validity periodically
+    // 🔥 FIXED: Monitor FIREBASE AUTH STATE (not sessionStorage).
+    // Mobile Chrome kills background tabs & clears sessionStorage → old monitor
+    // falsely kicked users out. Firebase Auth persists in IndexedDB, survives
+    // tab kills, and auto-refreshes tokens — the ONLY real source of truth.
+    // Forced logout now happens ONLY on true sign-out.
     sessionCheckInterval = setInterval(function() {
-        const session = verifySession();
-        if (!session) {
-            console.warn('🔒 Auth Guard: Session expired during monitoring');
+        if (!guardAuth) return;
+        guardAuth.currentUser ? null : (function() {
+            console.warn('🔒 Auth Guard: Firebase user signed out — redirecting');
             clearAllSessions();
             showAccessDenied('session_expired');
-        }
+        })();
     }, SESSION_CONFIG.checkInterval);
 
     // Refresh session on user activity
