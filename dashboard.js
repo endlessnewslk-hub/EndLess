@@ -103,6 +103,24 @@ try {
     console.error('Firebase init error:', err);
 }
 
+// 🔤 BRAND FONT — admin panel "EndLess" logo = same premium Playfair font
+// as the main site (Georgia missing on Android → logo looked different).
+(function injectAdminBrandFont() {
+    if (document.getElementById('admin-brand-font')) return;
+    var link = document.createElement('link');
+    link.id = 'admin-brand-font';
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap';
+    document.head.appendChild(link);
+    var st = document.createElement('style');
+    st.textContent = [
+        '.admin-logo-icon,.sidebar-header h2,.sidebar-header h2 span,',
+        '.sidebar-header h2 *{',
+        "font-family:'Playfair Display',Georgia,serif!important;}"
+    ].join('');
+    document.head.appendChild(st);
+})();
+
 // 🔇 Production: no debug logs in console
 var DEBUG = false;
 function dbg() { if (DEBUG) console.log.apply(console, arguments); }

@@ -1,3 +1,19 @@
+// 🔤 BRAND FONT — login page "EndLess" logo = same premium Playfair font
+(function injectLoginBrandFont() {
+    if (document.getElementById('login-brand-font')) return;
+    var link = document.createElement('link');
+    link.id = 'login-brand-font';
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap';
+    document.head.appendChild(link);
+    var st = document.createElement('style');
+    st.textContent = [
+        '.logo-icon,.logo-title,.logo-accent,.logo-title span{',
+        "font-family:'Playfair Display',Georgia,serif!important;}"
+    ].join('');
+    document.head.appendChild(st);
+})();
+
 /* ═══════════════════════════════════════════════════════
    ENDLESS — PREMIUM LOGIN SYSTEM (Firebase Auth)
    Features: Login, Register, Forgot Password, Google Sign-In
