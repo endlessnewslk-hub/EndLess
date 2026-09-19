@@ -771,6 +771,40 @@ function videoBlockHtml(article) {
     return '';
 }
 
+// 📱 BACK-BUTTON LAYER SYSTEM (whole website) — BACK always closes the
+// topmost layer (article modal / share card / mobile menu) instead of
+// exiting the site. Instagram/YouTube app pattern. ✕ button-um same-a work aagum.
+let _layerStack = [];
+let _closingById = null;
+
+function pushLayer(id, closeFn) {
+    try { history.pushState({ el: id }, ''); } catch (e) {}
+    _layerStack.push({ id: id, fn: closeFn });
+}
+
+// BACK button pressed → browser pops history → close the topmost layer
+window.addEventListener('popstate', function() {
+    var layer = _layerStack.pop();
+    if (layer) {
+        _closingById = layer.id;
+        try { layer.fn(); } catch (e) {}
+        _closingById = null;
+    }
+});
+
+// Called when a layer closes via ✕ / programmatically — sync stack + history
+function layerClosed(id) {
+    for (var i = _layerStack.length - 1; i >= 0; i--) {
+        if (_layerStack[i].id === id) {
+            _layerStack.splice(i, 1);
+            if (_closingById !== id) {
+                try { history.back(); } catch (e) {} // consume pushed entry
+            }
+            break;
+        }
+    }
+}
+
 // 🖼️ Gallery navigation (glassy arrows + swipe)
 function galNav(dir) {
     var g = window._gal;
@@ -846,6 +880,9 @@ function openArticle(id) {
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
 
+    // 📱 Layer: BACK button closes this modal (not the site)
+    pushLayer('article', closeModal);
+
     // 🖼️ Swipe left/right on gallery image to change photo (mobile)
     (function() {
         var wrap = document.getElementById('gallery-wrap');
@@ -886,6 +923,9 @@ function closeModal() {
 
     modal.removeEventListener('touchstart', handleTouchStart);
     modal.removeEventListener('touchend', handleTouchEnd);
+
+    // 📱 Sync back-button layer stack
+    layerClosed('article');
 }
 
 function shareArticle(id) {
@@ -966,6 +1006,8 @@ function shareArticle(id) {
 
     shareOverlay.classList.add('open');
     document.body.style.overflow = 'hidden';
+    // 📱 BACK closes share card too
+    pushLayer('share', closeShareModal);
 }
 
 function closeShareModal() {
@@ -974,6 +1016,7 @@ function closeShareModal() {
         shareOverlay.classList.remove('open');
         document.body.style.overflow = '';
     }
+    layerClosed('share');
 }
 
 function performShare(platform) {
@@ -1126,6 +1169,8 @@ function openMobileMenu() {
         mobileNav.classList.add('open');
         mobileOverlay.classList.add('open');
         document.body.style.overflow = 'hidden';
+        // 📱 BACK closes the menu drawer too
+        pushLayer('menu', closeMobileMenu);
     }
 }
 
@@ -1137,6 +1182,7 @@ function closeMobileMenu() {
         mobileOverlay.classList.remove('open');
         document.body.style.overflow = '';
     }
+    layerClosed('menu');
 }
 
 // ═══════════════════════════════════════════════════════════════
