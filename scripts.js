@@ -1402,6 +1402,43 @@ function wireFooterLinks() {
             li.appendChild(a);
         }
     });
+
+    // 🏷️ FOOTER SECTIONS — click filters that category on the main site.
+    // English & Tamil labels matched against categoriesData.
+    var footer = document.querySelector('footer');
+    if (!footer) return;
+    var sectionH = null;
+    footer.querySelectorAll('h4').forEach(function(h) {
+        var t = (h.textContent || '').trim();
+        if (t === 'பிரிவுகள்' || t === 'Sections') sectionH = h;
+    });
+    if (!sectionH) return;
+    var ul = sectionH.parentElement.querySelector('ul');
+    if (!ul) return;
+    Array.prototype.forEach.call(ul.children, function(li) {
+        if (li.querySelector('a')) return;
+        var label = (li.textContent || '').trim();
+        var hit = categoriesData.find(function(c) {
+            return c.name_en === label || c.name === label;
+        });
+        li.style.cursor = 'pointer';
+        li.setAttribute('role', 'button');
+        li.setAttribute('tabindex', '0');
+        function go() {
+            var target = hit ? (hit.name_en || label) : label;
+            // ⚡ From ANY page (About/Contact/...) → jump to home + filter
+            if (!document.getElementById('news-grid')) {
+                var sep = location.search ? '&' : '?';
+                location.href = 'index.html' + sep + 'cat=' + encodeURIComponent(target);
+                return;
+            }
+            filterCategory(target);
+        }
+        li.addEventListener('click', go);
+        li.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+        });
+    });
 }
 
 // 🔥 FORCE SW UPDATE: stale service workers serve old files on mobile.
@@ -1556,6 +1593,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.addEventListener('resize', debounce(handleResize, 250));
 
     const urlParams = new URLSearchParams(window.location.search);
+    // 🏷️ Footer cross-page jump: ?cat=World → auto-filter that category
+    const urlCat = urlParams.get('cat');
+    if (urlCat && typeof filterCategory === 'function') {
+        setTimeout(function() { filterCategory(urlCat); }, 400);
+    }
     // 🔥 Share-language chain: ?lang=en/ta from shared links must set the site language
     const urlLang = urlParams.get('lang');
     if (urlLang && (urlLang === 'ta' || urlLang === 'en') && urlLang !== currentLang) {
