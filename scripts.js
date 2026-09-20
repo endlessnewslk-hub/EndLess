@@ -64,6 +64,53 @@ try {
     document.head.appendChild(st);
 })();
 
+// 📬 NEWSLETTER — subscribe box → Firestore 'subscribers' + welcome email
+async function subscribeNewsletter() {
+    var input = document.getElementById('newsletter-email');
+    var email = input ? input.value.trim() : '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        alert(currentLang === 'ta' ? '⚠️ சரியான மின்னஞ்சலை உள்ளிடவும்' : '⚠️ Please enter a valid email');
+        return;
+    }
+    if (!db) { alert('Network error — try again'); return; }
+    try {
+        var ref = db.collection('subscribers').doc(email);
+        var doc = await ref.get();
+        if (doc.exists) {
+            alert(currentLang === 'ta' ? '✅ நீங்கள் ஏற்கனவே சந்தா சேர்ந்துள்ளீர்கள்!' : '✅ Already subscribed!');
+            return;
+        }
+        await ref.set({ email: email, lang: currentLang, subscribedAt: new Date().toISOString() });
+        // 💌 Welcome email (requires Trigger Email extension)
+        try {
+            await db.collection('mail').doc('w_' + Date.now()).set({
+                to: email,
+                message: {
+                    subject: '🌅 Welcome to EndLess News Daily Briefing!',
+                    html: '<div style="font-family:Georgia,serif;background:#0a0a0f;color:#f1f5f9;padding:24px;border-radius:12px">' +
+                          '<h2 style="color:#e11d48">End<span style="color:#fff">Less</span> News</h2>' +
+                          '<p>You are now subscribed! Your daily Tamil &amp; English news briefing arrives every morning.</p>' +
+                          '<a href="https://endlessnews.lk" style="color:#e11d48;font-weight:700">Visit Website →</a></div>'
+                }
+            });
+        } catch (_) {}
+        if (input) input.value = '';
+        alert(currentLang === 'ta' ? '🎉 சந்தா வெற்றி! நாளை முதல் சுருக்கம் வரும்.' : '🎉 Subscribed! First briefing arrives tomorrow.');
+    } catch (e) {
+        alert(currentLang === 'ta' ? '⚠️ பிழை — மீண்டும் முயற்சிக்கவும்' : '⚠️ Error — please try again');
+    }
+}
+
+function wireNewsletterBox() {
+    var btn = document.querySelector('.newsletter [data-key="subscribe"]');
+    if (!btn || btn._nlWired) return;
+    btn._nlWired = true;
+    btn.removeAttribute('onclick'); // remove old fake alert
+    btn.addEventListener('click', function(e) { e.preventDefault(); subscribeNewsletter(); });
+    var input = document.getElementById('newsletter-email');
+    if (input) input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); subscribeNewsletter(); } });
+}
+
 // 🖼️ PREMIUM GALLERY CSS (self-contained — no styles.css change needed)
 (function injectGalleryCSS() {
     if (document.getElementById('gal-css')) return;
@@ -1490,6 +1537,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderDate(); // 📅 respects saved language (ta/en)
 
     initWeather(); // 🌤️ real-time weather by visitor location
+    wireNewsletterBox(); // 📬 newsletter subscribe
 
     initTheme();
     setLanguage(currentLang);

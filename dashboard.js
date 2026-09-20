@@ -121,6 +121,129 @@ try {
     document.head.appendChild(st);
 })();
 
+// 📬 NEWSLETTER ADMIN — subscribers, auto-briefing, one-click send
+function ensureNewsletterUI() {
+    if (document.getElementById('page-newsletter')) return;
+    // 1. Sidebar nav item (before logout button if present)
+    var nav = document.querySelector('.sidebar-nav');
+    if (nav && !nav.querySelector('[data-page="newsletter"]')) {
+        var b = document.createElement('button');
+        b.className = 'nav-item'; b.dataset.page = 'newsletter';
+        b.innerHTML = '<span>📬</span> Newsletter';
+        nav.insertBefore(b, nav.querySelector('#guard-logout-btn') || null);
+        b.addEventListener('click', function() { showPage('newsletter'); setTimeout(renderNewsletterPage, 60); });
+    }
+    // 2. Page content
+    var anchor = document.getElementById('page-settings');
+    if (!anchor || !anchor.parentNode) return;
+    var page = document.createElement('div');
+    page.id = 'page-newsletter'; page.className = 'page-content hidden';
+    page.innerHTML =
+        '<div class="stats-grid">' +
+        '  <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-info"><h3 id="nl-count">…</h3><p>Subscribers</p></div></div>' +
+        '  <div class="stat-card"><div class="stat-icon">✉️</div><div class="stat-info"><h3 id="nl-sent">…</h3><p>Total Sent</p></div></div>' +
+        '</div>' +
+        '<div class="panel">' +
+        '  <h3>✍️ Compose Daily Briefing</h3>' +
+        '  <div class="form-group"><label>Subject</label><input type="text" id="nl-subject" placeholder="🌅 EndLess Daily Briefing — ' + new Date().toLocaleDateString() + '"></div>' +
+        '  <div class="form-group"><button class="btn-secondary" id="nl-gen" type="button">⚡ Auto-Generate from Latest Articles</button></div>' +
+        '  <div class="form-group"><label>Email Body (HTML allowed)</label><textarea id="nl-body" rows="12" style="width:100%;padding:0.65rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:0.95rem;"></textarea></div>' +
+        '  <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">' +
+        '    <button class="btn-primary" id="nl-send" type="button">🚀 Send to All Subscribers</button>' +
+        '    <button class="btn-secondary" id="nl-test" type="button">🧪 Send Test to Admin</button>' +
+        '  </div>' +
+        '  <p style="color:#6b7280;font-size:0.8rem;margin-top:0.75rem;">📤 Emails send via the FREE Firebase "Trigger Email" extension (install once — guide below).</p>' +
+        '</div>' +
+        '<div class="panel"><h3>👥 Recent Subscribers</h3><div class="table-scroll"><table class="data-table compact"><thead><tr><th>Email</th><th>Lang</th><th>Joined</th></tr></thead><tbody id="nl-list"></tbody></table></div></div>';
+    anchor.parentNode.insertBefore(page, anchor.nextSibling);
+    document.getElementById('nl-gen').addEventListener('click', generateBriefing);
+    document.getElementById('nl-send').addEventListener('click', function() { sendBriefing(false); });
+    document.getElementById('nl-test').addEventListener('click', function() { sendBriefing(true); });
+}
+
+async function renderNewsletterPage() {
+    if (!db) { var c = document.getElementById('nl-count'); if (c) c.textContent = 'No DB'; return; }
+    try {
+        var snap = await db.collection('subscribers').get();
+        var c = document.getElementById('nl-count'); if (c) c.textContent = snap.size;
+        var list = document.getElementById('nl-list');
+        if (list) list.innerHTML = snap.docs.slice(0, 20).map(function(doc) {
+            var s = doc.data();
+            return '<tr><td>' + String(s.email || doc.id).replace(/</g, '&lt;') + '</td><td>' + (s.lang || 'ta') + '</td><td>' + (s.subscribedAt ? new Date(s.subscribedAt).toLocaleDateString() : '—') + '</td></tr>';
+        }).join('') || '<tr><td colspan="3" style="text-align:center;color:#9ca3af;">No subscribers yet</td></tr>';
+    } catch (e) {}
+    try {
+        var log = await db.collection('newsletter_log').doc('summary').get();
+        var t = document.getElementById('nl-sent');
+        if (t) t.textContent = (log.exists && log.data().totalSent) || 0;
+    } catch (e) {}
+}
+
+function generateBriefing() {
+    var latest = adminNews.filter(function(n) { return n.status !== 'draft'; }).slice(0, 5);
+    if (!latest.length) { showToast('No published articles found', 'error'); return; }
+    var d = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    var subj = '🌅 EndLess Daily Briefing — ' + d;
+    var rows = latest.map(function(n, i) {
+        var t = n.title_en || n.title || 'News';
+        var link = 'https://endlessnews.lk/?article=' + encodeURIComponent(n.id);
+        return (i + 1) + '️⃣ <b>' + t.replace(/</g, '&lt;') + '</b><br>&nbsp;&nbsp;&nbsp;👉 <a href="' + link + '">Read more</a>';
+    }).join('<br><br>');
+    var html =
+        '<div style="font-family:Georgia,serif;background:#0a0a0f;color:#f1f5f9;padding:24px;border-radius:12px;max-width:600px">' +
+        '<h2 style="color:#e11d48;margin:0 0 4px">End<span style="color:#fff">Less</span> News</h2>' +
+        '<p style="color:#94a3b8;margin:0 0 18px">' + d + '</p><hr style="border-color:#1e293b">' +
+        '<p style="font-size:18px;color:#fff"><b>🔥 Top ' + latest.length + ' Today</b></p>' +
+        '<p style="line-height:2">' + rows + '</p>' +
+        '<hr style="border-color:#1e293b">' +
+        '<a href="https://endlessnews.lk" style="display:inline-block;background:#e11d48;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:700">Visit Website →</a>' +
+        '<p style="color:#64748b;font-size:12px;margin-top:16px">© EndLess News · You are subscribed to the Daily Briefing</p>' +
+        '</div>';
+    document.getElementById('nl-subject').value = subj;
+    document.getElementById('nl-body').value = html;
+    showToast('⚡ Briefing generated from ' + latest.length + ' articles!', 'success');
+}
+
+async function sendBriefing(testOnly) {
+    var subject = (document.getElementById('nl-subject').value || '').trim();
+    var html = (document.getElementById('nl-body').value || '').trim();
+    if (!subject || !html) { showToast('Generate the briefing first!', 'error'); return; }
+    if (!db) { showToast('No Firebase connection', 'error'); return; }
+    var btn = document.getElementById(testOnly ? 'nl-test' : 'nl-send');
+    var orig = btn.textContent; btn.disabled = true; btn.textContent = '⏳ Sending…';
+    try {
+        var recipients = [];
+        if (testOnly) {
+            recipients = ['endlessnewslk@gmail.com'];
+        } else {
+            var snap = await db.collection('subscribers').get();
+            recipients = snap.docs.map(function(d) { return d.id; });
+            if (!recipients.length) { showToast('No subscribers yet!', 'error'); btn.disabled = false; btn.textContent = orig; return; }
+        }
+        // Batch-write mail docs (Trigger Email extension sends each)
+        var CHUNK = 400;
+        for (var i = 0; i < recipients.length; i += CHUNK) {
+            var batch = db.batch();
+            recipients.slice(i, i + CHUNK).forEach(function(email) {
+                var ref = db.collection('mail').doc('s' + Date.now() + '_' + Math.random().toString(36).slice(2, 8));
+                batch.set(ref, { to: email, message: { subject: subject, html: html } });
+            });
+            await batch.commit();
+        }
+        await db.collection('newsletter_log').doc('summary').set({
+            totalSent: firebase.firestore.FieldValue.increment(recipients.length),
+            lastSent: new Date().toISOString()
+        }, { merge: true });
+        showToast('🚀 Sent to ' + recipients.length + ' subscriber(s)!', 'success');
+        renderNewsletterPage();
+    } catch (e) {
+        console.warn('Send failed:', e);
+        showToast('⚠️ Send failed: ' + (e && e.message ? e.message : 'unknown') + ' — Trigger Email extension install aagirukka check pannunga', 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = orig;
+    }
+}
+
 // 🔇 Production: no debug logs in console
 var DEBUG = false;
 function dbg() { if (DEBUG) console.log.apply(console, arguments); }
@@ -250,6 +373,7 @@ async function initData() {
         saveNews();
     }
 
+    ensureNewsletterUI(); // 📬 Newsletter admin tab
     var dashboard = document.getElementById('admin-dashboard');
     if (dashboard) dashboard.style.display = 'flex';
 
