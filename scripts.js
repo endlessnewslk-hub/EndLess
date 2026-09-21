@@ -146,8 +146,13 @@ function wireNewsletterBox() {
         (scope || document).querySelectorAll('img').forEach(function(img) {
             if (img.dataset.arm) return; img.dataset.arm = '1';
             function show() { img.classList.add('ld'); }
-            if (img.complete && img.naturalWidth > 0) show();
-            else { img.addEventListener('load', show, { once: true }); img.addEventListener('error', show, { once: true }); }
+            // Instant if already loaded
+            if (img.complete && img.naturalWidth > 0) { show(); return; }
+            // Cross-origin safe: listen on capture phase (bypasses CORS event blocking)
+            img.addEventListener('load', show, { once: true, capture: true });
+            img.addEventListener('error', show, { once: true, capture: true });
+            // ⏱️ SAFETY NET: if image takes >2s (CORS/slow), force show — never invisible!
+            setTimeout(function() { show(); }, 2000);
         });
     }
     // Watch for dynamically injected content (feeds, heroes, ads)
