@@ -111,6 +111,55 @@ function wireNewsletterBox() {
     if (input) input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); subscribeNewsletter(); } });
 }
 
+// ⚡ PERFORMANCE SUITE — instant first paint, smooth images, zero font flash
+(function perfSuite() {
+    if (document.getElementById('perf-preloads')) return;
+    var frag = document.createDocumentFragment();
+
+    // 1. Preload critical CSS for instant first render (styles.css is render-blocking)
+    var css = document.createElement('link');
+    css.rel = 'preload'; css.href = 'styles.css?v=perf1'; css.as = 'style'; css.id = 'perf-preloads';
+    frag.appendChild(css);
+
+    // 2. Font: display=swap already set; add preconnect for faster Google Fonts
+    var p1 = document.createElement('link'); p1.rel = 'preconnect'; p1.href = 'https://fonts.googleapis.com';
+    var p2 = document.createElement('link'); p2.rel = 'preconnect'; p2.href = 'https://fonts.gstatic.com'; p2.crossOrigin = '';
+    frag.appendChild(p1); frag.appendChild(p2);
+    // Playfair (logo font) — preloaded so brand shows instantly, no fallback flash
+    var pf = document.createElement('link');
+    pf.rel = 'preload'; pf.as = 'font'; pf.type = 'font/woff2'; pf.crossOrigin = '';
+    pf.href = 'https://fonts.gstatic.com/s/playfairdisplay/v30/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvXDXbtM.woff2';
+    frag.appendChild(pf);
+    document.head.appendChild(frag);
+
+    // 3. Smooth image rendering: hero/first = eager, others = lazy fade-in (no jarring pop)
+    var st = document.createElement('style');
+    st.textContent = [
+        '.article-card img{opacity:0;transition:opacity .45s ease;}',
+        '.article-card img.ld{opacity:1;}',
+        '.hero-main img,.hero-card img{opacity:0;transition:opacity .5s ease;}',
+        '.hero-main img.ld,.hero-card img.ld{opacity:1;}'
+    ].join('');
+    document.head.appendChild(st);
+
+    function armImages(scope) {
+        (scope || document).querySelectorAll('img').forEach(function(img) {
+            if (img.dataset.arm) return; img.dataset.arm = '1';
+            function show() { img.classList.add('ld'); }
+            if (img.complete && img.naturalWidth > 0) show();
+            else { img.addEventListener('load', show, { once: true }); img.addEventListener('error', show, { once: true }); }
+        });
+    }
+    // Watch for dynamically injected content (feeds, heroes, ads)
+    var mo = new MutationObserver(function(muts) {
+        muts.forEach(function(m) { m.addedNodes && m.addedNodes.forEach && m.addedNodes.forEach(function(n) {
+            if (n.nodeType === 1) armImages(n);
+        }); });
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+    window._armImages = armImages;
+})();
+
 // 🖼️ PREMIUM GALLERY CSS (self-contained — no styles.css change needed)
 (function injectGalleryCSS() {
     if (document.getElementById('gal-css')) return;
@@ -1502,6 +1551,15 @@ function wireFooterLinks() {
 })();
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // 🚀 PHASE 0.5 — Defer non-critical heavy engines until browser is IDLE.
+    // Ads/analytics/sw-update must never delay the first interactive paint.
+    var _defer = (window.requestIdleCallback || function(cb) { setTimeout(cb, 1200); });
+    _defer(function() {
+        try { renderAds(); } catch (e) {}
+        try { initAdSenseSlots && initAdSenseSlots(); } catch (e) {}
+        try { initTicker(); } catch (e) {}
+    });
+
     // 🚀 PHASE 1 — INSTANT UI: date/weather/theme/language run FIRST.
     // Even if Firebase hangs/blocks, the page is alive and interactive.
     try { renderDate(); } catch (e) {}
