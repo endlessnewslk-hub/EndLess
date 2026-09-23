@@ -849,15 +849,20 @@ function renderTicker() {
 // 📰 IN-ARTICLE ADS — inject active ads between paragraphs (sidebar ads reused)
 function getInArticleAds() {
     var now = new Date();
-    var ads = (typeof adsData !== 'undefined' ? adsData : []).filter(function(a) {
+    var all = (typeof adsData !== 'undefined' ? adsData : []).filter(function(a) {
         if (!a || !a.active) return false;
         if (a.startDate && new Date(a.startDate) > now) return false;
         if (a.endDate && new Date(a.endDate) < now) return false;
-        return a.position === 'sidebar' || a.position === 'inline'; // reuse these
+        return true;
     });
+    // 📋 Order: Header first → Sidebar ads → Inline last
+    var header = all.filter(function(a) { return a.position === 'header'; });
+    var side = all.filter(function(a) { return a.position === 'sidebar'; });
+    var inl = all.filter(function(a) { return a.position === 'inline'; });
+    var ordered = header.concat(side, inl);
     // Dedupe by id
     var seen = {}, out = [];
-    ads.forEach(function(a) {
+    ordered.forEach(function(a) {
         var k = String(a.id || a.image);
         if (!seen[k]) { seen[k] = 1; out.push(a); }
     });
@@ -868,7 +873,7 @@ function inArticleAdHtml(ad) {
     return '<div style="margin:1.5rem 0;padding:14px;border:1px dashed var(--border);border-radius:12px;background:var(--bg);">' +
         '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--text-subtle);margin-bottom:8px;font-weight:700;">Sponsored · ' + (TRANSLATIONS[currentLang] ? TRANSLATIONS[currentLang].ad_label : 'Advertisement') + '</div>' +
         '<a href="' + escapeHtml(ad.link) + '" target="_blank" rel="noopener noreferrer" style="display:block;">' +
-        '<img src="' + escapeHtml(ad.image) + '" alt="' + escapeHtml(getLocalized(ad, 'title')) + '" loading="lazy" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;display:block;">' +
+        '<img src="' + escapeHtml(ad.image) + '" alt="' + escapeHtml(getLocalized(ad, 'title')) + '" loading="lazy" style="width:100%;height:auto;max-height:220px;object-fit:contain;background:var(--surface);border-radius:8px;display:block;">' +
         (getLocalized(ad, 'title') ? '<div style="margin-top:8px;font-weight:700;font-size:0.9rem;color:var(--text);">' + escapeHtml(getLocalized(ad, 'title')) + '</div>' : '') +
         '</a></div>';
 }
@@ -879,16 +884,21 @@ function injectInArticleAds(html) {
     var wrap = document.createElement('div');
     wrap.innerHTML = html;
     var blocks = Array.prototype.slice.call(wrap.children);
-    if (blocks.length < 3) return html; // short content — no injection
+    if (!blocks.length) return html;
     var out = [], ai = 0;
-    blocks.forEach(function(b, i) {
+    blocks.forEach(function(b) {
         out.push(b.outerHTML);
-        // Every 3rd paragraph → insert one ad (cycle through available ads)
-        if ((i + 1) % 3 === 0 && ai < ads.length * 2) {
+        // 📰 EVERY paragraph gap gets one ad (cycled through the ordered list)
+        if (ads.length) {
             out.push(inArticleAdHtml(ads[ai % ads.length]));
             ai++;
         }
     });
+    // Paragraphs mudinja → michama ads ellam article END-la (each shown once)
+    while (ai < ads.length) {
+        out.push(inArticleAdHtml(ads[ai]));
+        ai++;
+    }
     return out.join('');
 }
 
