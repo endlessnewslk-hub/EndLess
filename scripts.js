@@ -149,7 +149,12 @@ function wireNewsletterBox() {
         '.hero-card:hover img{transform:scale(1.05);}',
         '.hero-main{cursor:pointer;}',
         '.hero-main:hover{transform:translateY(-4px);box-shadow:0 20px 40px -8px rgba(0,0,0,0.3);}',
-        '.hero-main:hover img{transform:scale(1.08);}'
+        '.hero-main:hover img{transform:scale(1.08);}',
+        /* 📰 MOBILE AD FIX: styles.css .modal-article img{height:260px!important;cover}
+           catches injected ad images too → ads looked cropped/tiny on phones.
+           Exempt ad images: natural size, full width, no forced height. */
+        '.modal-article img.inl-ad-img{height:auto!important;min-height:0!important;max-height:none!important;object-fit:fill!important;border-radius:0;}',
+        '@media(max-width:640px){.modal-article img.inl-ad-img{height:auto!important;max-height:none!important;}}'
     ].join('');
     document.head.appendChild(st);
 
@@ -876,7 +881,7 @@ function inArticleAdHtml(ad) {
     return '<div style="margin:1.5rem 0;">' +
         '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--text-subtle);margin-bottom:6px;font-weight:700;">Sponsored · ' + (TRANSLATIONS[currentLang] ? TRANSLATIONS[currentLang].ad_label : 'Advertisement') + '</div>' +
         '<a href="' + escapeHtml(ad.link) + '" target="_blank" rel="noopener noreferrer" style="display:block;border-radius:10px;overflow:hidden;">' +
-        '<img src="' + escapeHtml(ad.image) + '" alt="' + escapeHtml(getLocalized(ad, 'title')) + '" loading="lazy" style="width:100%;height:auto;display:block;">' +
+        '<img class="inl-ad-img" src="' + escapeHtml(ad.image) + '" alt="' + escapeHtml(getLocalized(ad, 'title')) + '" loading="lazy" style="width:100%;height:auto;display:block;">' +
         '</a></div>';
 }
 
