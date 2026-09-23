@@ -758,6 +758,10 @@ function renderAds() {
         el.style.minHeight = '0';
         el.style.boxShadow = 'none';
         el.style.padding = '0';
+        // 🧱 CRITICAL: .ad-slot CSS has display:flex → children lay out in a ROW
+        // (2 sidebar ads sat side-by-side + shrank). Force BLOCK → vertical stack,
+        // each ad at natural full width.
+        el.style.display = 'block';
     }
 
     // 💎 ONE premium card style for EVERY slot (header/sidebar/inline/article view)
@@ -787,7 +791,7 @@ function renderAds() {
     if (sidebarSlot) {
         neutralizeSlot(sidebarSlot);
         sidebarSlot.innerHTML = sidebarAds.length ? sidebarAds.map(adCard).join('') : '';
-        sidebarSlot.style.display = sidebarAds.length ? '' : 'none';
+        sidebarSlot.style.display = sidebarAds.length ? 'block' : 'none'; // block, not '' (CSS flex!)
         sidebarSlot.style.marginBottom = '0';
     }
 
@@ -797,7 +801,7 @@ function renderAds() {
     if (inlineSlot) {
         neutralizeSlot(inlineSlot);
         inlineSlot.innerHTML = inlineAd ? adCard(inlineAd) : '';
-        inlineSlot.style.display = inlineAd ? '' : 'none';
+        inlineSlot.style.display = inlineAd ? 'block' : 'none';
     }
 
     // 🎯 Article View — same premium card, no box chrome
@@ -807,7 +811,7 @@ function renderAds() {
         neutralizeSlot(modalSlot);
         if (modalAd) {
             modalSlot.innerHTML = adCard(modalAd);
-            modalSlot.style.display = '';
+            modalSlot.style.display = 'block';
         } else {
             modalSlot.innerHTML = '';
             modalSlot.style.display = 'none';
