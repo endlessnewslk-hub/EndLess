@@ -150,6 +150,9 @@ function wireNewsletterBox() {
         '.hero-main{cursor:pointer;}',
         '.hero-main:hover{transform:translateY(-4px);box-shadow:0 20px 40px -8px rgba(0,0,0,0.3);}',
         '.hero-main:hover img{transform:scale(1.08);}',
+        /* 📱 FEED ADS: full-width between article cards; hidden on desktop (sidebar there) */
+        '.feed-ad-slot{grid-column:1/-1;margin:0.25rem 0 1rem;}',
+        '@media(min-width:1024px){.feed-ad-slot{display:none!important;}}',
         /* 📰 MOBILE AD FIX: styles.css .modal-article img{height:260px!important;cover}
            catches injected ad images too → ads looked cropped/tiny on phones.
            Exempt ad images: natural size, full width, no forced height. */
@@ -702,6 +705,30 @@ function renderFeed() {
             </div>
         </article>
     `).join('');
+
+    // 📱 MOBILE FEED ADS — same sidebar ads, placed between article cards
+    // (desktop shows them in the right rail; hidden ≥1024px via CSS).
+    (function mobileFeedAds() {
+        var now = new Date();
+        var ads = (typeof adsData !== 'undefined' ? adsData : []).filter(function(a) {
+            if (!a || !a.active) return false;
+            if (a.startDate && new Date(a.startDate) > now) return false;
+            if (a.endDate && new Date(a.endDate) < now) return false;
+            return a.position === 'sidebar';
+        }).slice(0, 4); // max 4 in feed — each ad once
+        if (!ads.length) return;
+        var cards = Array.prototype.slice.call(grid.children);
+        for (var i = 0; i < cards.length && i < ads.length; i++) {
+            var ad = document.createElement('div');
+            ad.className = 'feed-ad-slot';
+            ad.innerHTML =
+                '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--text-subtle);margin-bottom:0.5rem;font-weight:700;">' + (TRANSLATIONS[currentLang] ? TRANSLATIONS[currentLang].ad_label : 'Advertisement') + '</div>' +
+                '<a href="' + escapeHtml(ads[i].link) + '" target="_blank" rel="noopener noreferrer" style="display:block;border-radius:12px;overflow:hidden;box-shadow:0 3px 14px rgba(0,0,0,0.10);line-height:0;">' +
+                '<img src="' + escapeHtml(ads[i].image) + '" alt="' + escapeHtml(getLocalized(ads[i], 'title')) + '" loading="lazy" style="width:100%;height:auto;display:block;">' +
+                '</a>';
+            cards[i].after(ad);
+        }
+    })();
 
     const loadMoreWrap = document.getElementById('load-more-wrap');
     if (loadMoreWrap) loadMoreWrap.style.display = filtered.length > displayedCount ? 'block' : 'none';
