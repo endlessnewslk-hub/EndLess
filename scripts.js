@@ -745,82 +745,77 @@ function renderAds() {
     var now = new Date();
     const activeAds = adsData.filter(function(a) {
         if (!a || !a.active) return false;
-        if (a.startDate && new Date(a.startDate) > now) return false;  // not started yet
-        if (a.endDate && new Date(a.endDate) < now) return false;      // expired
+        if (a.startDate && new Date(a.startDate) > now) return false;
+        if (a.endDate && new Date(a.endDate) < now) return false;
         return true;
     });
 
-    // Header Ad — container fully HIDDEN when no active ad (no empty boxes)
+    // 🧹 Strip the old dashed-box/min-height chrome from a slot → ads look standalone
+    function neutralizeSlot(el) {
+        if (!el) return;
+        el.style.border = 'none';
+        el.style.background = 'transparent';
+        el.style.minHeight = '0';
+        el.style.boxShadow = 'none';
+        el.style.padding = '0';
+    }
+
+    // 💎 ONE premium card style for EVERY slot (header/sidebar/inline/article view)
+    function adCard(a, wide) {
+        return `
+        <div style="margin-bottom:1.5rem;">
+            <div class="ad-label" style="margin-bottom:0.5rem;">${TRANSLATIONS[currentLang].ad_label}</div>
+            <a href="${escapeHtml(a.link)}" target="_blank" rel="noopener noreferrer" style="display:block;border-radius:12px;overflow:hidden;box-shadow:0 3px 14px rgba(0,0,0,0.10);line-height:0;">
+                <img src="${escapeHtml(a.image)}" alt="${escapeHtml(getLocalized(a, 'title'))}" loading="lazy" style="width:100%;height:auto;display:block;">
+            </a>
+        </div>`;
+    }
+
+    // Header — wide natural banner (desktop wide, mobile same)
     const headerAd = activeAds.find(a => a.position === 'header');
     const headerContainer = document.getElementById('header-ad-container');
     const headerSlot = document.getElementById('ad-slot-header');
     if (headerContainer) headerContainer.style.display = headerAd ? '' : 'none';
     if (headerSlot) {
-        headerSlot.innerHTML = headerAd ? `
-            <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
-            <div class="ad-box">
-                <a href="${escapeHtml(headerAd.link)}" target="_blank" rel="noopener noreferrer">
-                    <img src="${escapeHtml(headerAd.image)}" alt="${escapeHtml(getLocalized(headerAd, 'title'))}" loading="lazy" style="width:100%; max-height:100px; object-fit:cover;">
-                </a>
-            </div>
-        ` : '';
+        neutralizeSlot(headerSlot);
+        headerSlot.innerHTML = headerAd ? adCard(headerAd, true) : '';
     }
 
-    // Sidebar (desktop right rail) — ALL active sidebar ads STACKED with gaps.
-    // Admin panel-la 'Sidebar' position-la ethana ads venum naalum add pannunga —
-    // ellam inga gap-oda stack aagum. Clean card look — site design maraathu.
+    // Sidebar — EACH AD its own card, clean stack, no merge
     const sidebarAds = activeAds.filter(a => a.position === 'sidebar');
     const sidebarSlot = document.getElementById('ad-slot-sidebar');
     if (sidebarSlot) {
-        sidebarSlot.innerHTML = sidebarAds.length ? sidebarAds.map(function(a) {
-            return `
-        <div style="margin-bottom:1.5rem;">
-            <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
-            <a href="${escapeHtml(a.link)}" target="_blank" rel="noopener noreferrer" style="display:block; border-radius:10px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.12);">
-                <img src="${escapeHtml(a.image)}" alt="${escapeHtml(getLocalized(a, 'title'))}" loading="lazy" style="width:100%; max-height:280px; object-fit:cover; display:block;">
-            </a>
-        </div>`;
-        }).join('') : '';
+        neutralizeSlot(sidebarSlot);
+        sidebarSlot.innerHTML = sidebarAds.length ? sidebarAds.map(adCard).join('') : '';
         sidebarSlot.style.display = sidebarAds.length ? '' : 'none';
+        sidebarSlot.style.marginBottom = '0';
     }
 
-    // 🎯 Article View ad — sponsors visible exactly where readers spend time.
-    // Admin panel-la 'Article View' position use pannunga.
+    // Inline
+    const inlineAd = activeAds.find(a => a.position === 'inline');
+    const inlineSlot = document.getElementById('ad-slot-inline');
+    if (inlineSlot) {
+        neutralizeSlot(inlineSlot);
+        inlineSlot.innerHTML = inlineAd ? adCard(inlineAd) : '';
+        inlineSlot.style.display = inlineAd ? '' : 'none';
+    }
+
+    // 🎯 Article View — same premium card, no box chrome
     const modalAd = activeAds.find(a => a.position === 'modal');
     const modalSlot = document.getElementById('ad-slot-modal');
     if (modalSlot) {
+        neutralizeSlot(modalSlot);
         if (modalAd) {
-            modalSlot.innerHTML = `
-            <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
-            <a href="${escapeHtml(modalAd.link)}" target="_blank" rel="noopener noreferrer" style="display:block; border-radius:10px; overflow:hidden;">
-                <img src="${escapeHtml(modalAd.image)}" alt="${escapeHtml(getLocalized(modalAd, 'title'))}" loading="lazy" style="width:100%; max-height:250px; object-fit:cover; display:block;">
-            </a>`;
+            modalSlot.innerHTML = adCard(modalAd);
             modalSlot.style.display = '';
-            modalSlot.style.border = 'none';
-            modalSlot.style.background = 'transparent';
-            modalSlot.style.minHeight = '0';
         } else {
             modalSlot.innerHTML = '';
             modalSlot.style.display = 'none';
         }
     }
-
-    // Inline Ad — NOTHING shown when no active ad
-    const inlineAd = activeAds.find(a => a.position === 'inline');
-    const inlineSlot = document.getElementById('ad-slot-inline');
-    if (inlineSlot) {
-        inlineSlot.innerHTML = inlineAd ? `
-            <div class="ad-label">${TRANSLATIONS[currentLang].ad_label}</div>
-            <div class="ad-box">
-                <a href="${escapeHtml(inlineAd.link)}" target="_blank" rel="noopener noreferrer">
-                    <img src="${escapeHtml(inlineAd.image)}" alt="${escapeHtml(getLocalized(inlineAd, 'title'))}" loading="lazy" style="width:100%; max-height:160px; object-fit:cover;">
-                </a>
-            </div>
-        ` : '';
-        inlineSlot.style.display = inlineAd ? '' : 'none';
-    }
 }
 
+// ── AdSense placeholders removed: admin panel / Firebase is the ONLY ad source ──
 // ── AdSense placeholders removed: admin panel / Firebase is the ONLY ad source ──
 // ── Initialize AdSense Slots (called after AdSense approve) ──
 function initAdSenseSlots() {
@@ -878,9 +873,9 @@ function inArticleAdHtml(ad) {
     // 📐 Natural sizing: banner = wide-thin, square = square — NO letterbox,
     // NO max-height crop. Fits perfectly on mobile + desktop.
     // 🚫 No title text in the reading area — clean image-only sponsored box.
-    return '<div style="margin:1.5rem 0;">' +
-        '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--text-subtle);margin-bottom:6px;font-weight:700;">Sponsored · ' + (TRANSLATIONS[currentLang] ? TRANSLATIONS[currentLang].ad_label : 'Advertisement') + '</div>' +
-        '<a href="' + escapeHtml(ad.link) + '" target="_blank" rel="noopener noreferrer" style="display:block;border-radius:10px;overflow:hidden;">' +
+    return '<div style="margin:1.75rem 0;">' +
+        '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--text-subtle);margin-bottom:0.5rem;font-weight:700;">Sponsored · ' + (TRANSLATIONS[currentLang] ? TRANSLATIONS[currentLang].ad_label : 'Advertisement') + '</div>' +
+        '<a href="' + escapeHtml(ad.link) + '" target="_blank" rel="noopener noreferrer" style="display:block;border-radius:12px;overflow:hidden;box-shadow:0 3px 14px rgba(0,0,0,0.10);line-height:0;">' +
         '<img class="inl-ad-img" src="' + escapeHtml(ad.image) + '" alt="' + escapeHtml(getLocalized(ad, 'title')) + '" loading="lazy" style="width:100%;height:auto;display:block;">' +
         '</a></div>';
 }
