@@ -718,7 +718,8 @@ function renderFeed() {
         }).slice(0, 4); // max 4 in feed — each ad once
         if (!ads.length) return;
         var cards = Array.prototype.slice.call(grid.children);
-        for (var i = 0; i < cards.length && i < ads.length; i++) {
+        var maxInsert = Math.min(cards.length - 1, ads.length); // never after the LAST card
+        for (var i = 0; i < maxInsert; i++) {
             var ad = document.createElement('div');
             ad.className = 'feed-ad-slot';
             ad.innerHTML =
@@ -783,6 +784,7 @@ function renderAds() {
         el.style.border = 'none';
         el.style.background = 'transparent';
         el.style.minHeight = '0';
+        el.style.maxHeight = 'none';      // .ad-slot-header CSS caps 120px → squeezes tall images
         el.style.boxShadow = 'none';
         el.style.padding = '0';
         // 🧱 CRITICAL: .ad-slot CSS has display:flex → children lay out in a ROW
