@@ -884,15 +884,34 @@ function injectInArticleAds(html) {
     var wrap = document.createElement('div');
     wrap.innerHTML = html;
     var blocks = Array.prototype.slice.call(wrap.children);
-    if (!blocks.length) return html;
-    var out = [], ai = 0;
-    blocks.forEach(function(b) {
-        out.push(b.outerHTML);
-        // 📰 EVERY paragraph gap gets one ad (cycled through the ordered list)
-        if (ads.length) {
-            out.push(inArticleAdHtml(ads[ai % ads.length]));
+    var n = blocks.length;
+    if (n < 2) return html; // too short — no ads
+
+    // 🧠 SMART SPACING: each ad appears EXACTLY ONCE — never repeated.
+    var insertAt = {}; // blockIndex -> ad object
+    var ai = 0;
+    if (ads.length >= n) {
+        // 📊 Many ads: EVERY paragraph gap gets one (1:1, each ad once)
+        for (var i = 0; i < n; i++) insertAt[i] = ads[ai++];
+    } else {
+        // 📉 Fewer ads: spread EVENLY across the article (2nd/3rd gap spacing).
+        // Premium rule: first ad never right after paragraph 1 — reader engages first.
+        var prev = 0;
+        for (var j = 0; j < ads.length; j++) {
+            var pos = Math.round((j + 1) * (n - 1) / (ads.length + 1));
+            if (pos < 1) pos = 1;                 // min: after paragraph 2
+            if (pos <= prev) pos = prev + 1;      // never two ads adjacent
+            if (pos > n - 1) break;               // no room left → goes to END
+            insertAt[pos] = ads[j];
             ai++;
+            prev = pos;
         }
+    }
+
+    var out = [];
+    blocks.forEach(function(b, i) {
+        out.push(b.outerHTML);
+        if (insertAt[i]) out.push(inArticleAdHtml(insertAt[i]));
     });
     // Paragraphs mudinja → michama ads ellam article END-la (each shown once)
     while (ai < ads.length) {
