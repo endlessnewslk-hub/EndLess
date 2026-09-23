@@ -132,13 +132,24 @@ function wireNewsletterBox() {
     frag.appendChild(pf);
     document.head.appendChild(frag);
 
-    // 3. Smooth image rendering: hero/first = eager, others = lazy fade-in (no jarring pop)
+    // 3. Smooth image rendering + PREMIUM HOVER RESTORED (fade-in + hover lift/zoom)
     var st = document.createElement('style');
     st.textContent = [
-        '.article-card img{opacity:0;transition:opacity .45s ease;}',
+        /* Fade-in on load (performance) */
+        '.article-card img{opacity:0;transition:opacity .45s ease,transform .6s ease;}',
         '.article-card img.ld{opacity:1;}',
-        '.hero-main img,.hero-card img{opacity:0;transition:opacity .5s ease;}',
-        '.hero-main img.ld,.hero-card img.ld{opacity:1;}'
+        '.hero-main img,.hero-card img{opacity:0;transition:opacity .5s ease,transform .6s ease;}',
+        '.hero-main img.ld,.hero-card img.ld{opacity:1;}',
+        /* ✨ PREMIUM HOVER: cursor mela — lift, shadow, scale (styles.css overrides maintained) */
+        '.article-card{cursor:pointer;}',
+        '.article-card:hover{transform:translateY(-4px);box-shadow:0 20px 40px -8px rgba(0,0,0,0.25);}',
+        '.article-card:hover img{transform:scale(1.05);}',
+        '.hero-card{cursor:pointer;}',
+        '.hero-card:hover{transform:translateY(-4px);box-shadow:0 20px 40px -8px rgba(0,0,0,0.25);}',
+        '.hero-card:hover img{transform:scale(1.05);}',
+        '.hero-main{cursor:pointer;}',
+        '.hero-main:hover{transform:translateY(-4px);box-shadow:0 20px 40px -8px rgba(0,0,0,0.3);}',
+        '.hero-main:hover img{transform:scale(1.08);}'
     ].join('');
     document.head.appendChild(st);
 
