@@ -870,11 +870,13 @@ function getInArticleAds() {
 }
 
 function inArticleAdHtml(ad) {
-    return '<div style="margin:1.5rem 0;padding:14px;border:1px dashed var(--border);border-radius:12px;background:var(--bg);">' +
-        '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--text-subtle);margin-bottom:8px;font-weight:700;">Sponsored · ' + (TRANSLATIONS[currentLang] ? TRANSLATIONS[currentLang].ad_label : 'Advertisement') + '</div>' +
-        '<a href="' + escapeHtml(ad.link) + '" target="_blank" rel="noopener noreferrer" style="display:block;">' +
-        '<img src="' + escapeHtml(ad.image) + '" alt="' + escapeHtml(getLocalized(ad, 'title')) + '" loading="lazy" style="width:100%;height:auto;max-height:220px;object-fit:contain;background:var(--surface);border-radius:8px;display:block;">' +
-        (getLocalized(ad, 'title') ? '<div style="margin-top:8px;font-weight:700;font-size:0.9rem;color:var(--text);">' + escapeHtml(getLocalized(ad, 'title')) + '</div>' : '') +
+    // 📐 Natural sizing: banner = wide-thin, square = square — NO letterbox,
+    // NO max-height crop. Fits perfectly on mobile + desktop.
+    // 🚫 No title text in the reading area — clean image-only sponsored box.
+    return '<div style="margin:1.5rem 0;">' +
+        '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--text-subtle);margin-bottom:6px;font-weight:700;">Sponsored · ' + (TRANSLATIONS[currentLang] ? TRANSLATIONS[currentLang].ad_label : 'Advertisement') + '</div>' +
+        '<a href="' + escapeHtml(ad.link) + '" target="_blank" rel="noopener noreferrer" style="display:block;border-radius:10px;overflow:hidden;">' +
+        '<img src="' + escapeHtml(ad.image) + '" alt="' + escapeHtml(getLocalized(ad, 'title')) + '" loading="lazy" style="width:100%;height:auto;display:block;">' +
         '</a></div>';
 }
 
