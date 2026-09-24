@@ -1617,8 +1617,25 @@ function updateDurationPreview() {
 // ═══════════════════════════════════════
 // AD MODAL
 // ═══════════════════════════════════════
+function ensureAdMobileImgUI() {
+    if (document.getElementById('ad-mobile-image')) return;
+    var anchor = document.getElementById('ad-image');
+    if (!anchor) return;
+    var group = anchor.closest('.form-group');
+    if (!group || !group.parentNode) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'form-group';
+    wrap.innerHTML =
+        '<label>Mobile Image URL (optional — phones show this instead)</label>' +
+        '<input type="text" id="ad-mobile-image" placeholder="https://.../mobile-banner.jpg" ' +
+        'style="width:100%;padding:0.65rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-size:1rem;">' +
+        '<small style="display:block;color:#9ca3af;font-size:0.78rem;margin-top:4px;">💡 If empty, all devices use the main image. If set, mobile users see THIS, desktop users see the main one.</small>';
+    group.parentNode.insertBefore(wrap, group.nextSibling);
+}
+
 function openAdModal(isEdit) {
     isEdit = isEdit || false;
+    ensureAdMobileImgUI(); // 📱 mobile image field
     // 📐 Exact banner sizes guide (injected — updates the static info box)
     var _sizeInfo = document.querySelector('.ad-size-info');
     if (_sizeInfo) {
@@ -1664,6 +1681,8 @@ function openAdModal(isEdit) {
         if (position) position.value = 'header';
         if (image) image.value = '';
         if (imagePreview) imagePreview.style.display = 'none';
+        var mImg = document.getElementById('ad-mobile-image');
+        if (mImg) mImg.value = '';
         if (active) active.checked = true;
 
         // Set default dates: start = now, end = now + 7 days
@@ -1731,6 +1750,8 @@ function editAd(id) {
         imagePreview.src = ad.image;
         imagePreview.style.display = 'block';
     }
+    var _mImg = document.getElementById('ad-mobile-image');
+    if (_mImg) _mImg.value = ad.mobileImage || '';
 }
 
 async function saveAdItem() {
@@ -1773,12 +1794,15 @@ async function saveAdItem() {
         return;
     }
 
+    var _mImgEl = document.getElementById('ad-mobile-image');
+    var mobileImg = _mImgEl ? _mImgEl.value.trim() : '';
     var adItem = {
         id: editingAdId || Date.now(),
         title: title_ta,
         title_en: title_en || title_ta,
         link: link,
         image: image,
+        mobileImage: mobileImg || null, // 📱 optional mobile-only image
         position: position,
         active: active,
         startDate: startDateObj.toISOString(),
