@@ -893,6 +893,52 @@ function pickAdImg(a) {
     return (window.innerWidth < 768 && a.mobileImage) ? a.mobileImage : a.image;
 }
 
+// 📊 REAL ANALYTICS — lightweight REST write (Firestore REST API, no SDK auth needed)
+// Tracks: page views, article views, shares. Counters stored in analytics collection.
+function analyticsTrack(type, articleId) {
+    try {
+        var today = new Date().toISOString().slice(0, 10);
+        var isMobile = window.innerWidth < 768;
+        var payload = {
+            writes: [{
+                transform: {
+                    document: 'projects/endless-news/databases/(default)/documents/analytics/totals',
+                    fieldTransforms: [
+                        { fieldPath: 'views', increment: { integerValue: type === 'view' ? 1 : 0 } },
+                        { fieldPath: 'shares', increment: { integerValue: type === 'share' ? 1 : 0 } },
+                        { fieldPath: isMobile ? 'mobile' : 'desktop', increment: { integerValue: 1 } }
+                    ]
+                }
+            }]
+        };
+        if (articleId) {
+            payload.writes.push({
+                transform: {
+                    document: 'projects/endless-news/databases/(default)/documents/analytics/articles/' + encodeURIComponent(String(articleId)),
+                    fieldTransforms: [
+                        { fieldPath: 'views', increment: { integerValue: 1 } },
+                        { fieldPath: 'lastViewed', setToServerValue: 'REQUEST_TIME' }
+                    ]
+                }
+            });
+        }
+        payload.writes.push({
+            transform: {
+                document: 'projects/endless-news/databases/(default)/documents/analytics/daily_' + today,
+                fieldTransforms: [
+                    { fieldPath: 'views', increment: { integerValue: type === 'view' ? 1 : 0 } },
+                    { fieldPath: 'shares', increment: { integerValue: type === 'share' ? 1 : 0 } },
+                    { fieldPath: 'date', setToServerValue: 'REQUEST_TIME' }
+                ]
+            }
+        });
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents:commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA');
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify(payload)); // fire-and-forget
+    } catch (e) { /* silent */ }
+}
+
 // 📰 IN-ARTICLE ADS — inject active ads between paragraphs (sidebar ads reused)
 function getInArticleAds() {
     var now = new Date();
@@ -1123,6 +1169,9 @@ function openArticle(id) {
     // 📱 Layer: BACK button closes this modal (not the site)
     pushLayer('article', closeModal);
 
+    // 📊 Track article view
+    analyticsTrack('view', id);
+
     // 🖼️ Swipe left/right on gallery image to change photo (mobile)
     (function() {
         var wrap = document.getElementById('gallery-wrap');
@@ -1174,6 +1223,8 @@ function shareArticle(id) {
         alert('Article not found!');
         return;
     }
+    // 📊 Track share (modal open = share intent)
+    analyticsTrack('share', id);
 
     // 📊 Track share (fire-and-forget)
     try {

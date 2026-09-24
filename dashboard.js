@@ -1,3 +1,143 @@
+function renderAnalyticsPage() {
+    var totalViewsEl = document.getElementById('stat-total-views');
+    var adClicksEl = document.getElementById('stat-ad-clicks');
+    var mobileEl = document.getElementById('stat-mobile-users');
+    var countryEl = document.getElementById('stat-top-country');
+
+    ['…'].forEach(function(t) {
+        if (totalViewsEl) totalViewsEl.textContent = t;
+        if (adClicksEl) adClicksEl.textContent = t;
+        if (mobileEl) mobileEl.textContent = t;
+        if (countryEl) countryEl.textContent = t;
+    });
+
+    var ctx = document.getElementById('analytics-chart');
+    if (ctx && analyticsChart) { analyticsChart.destroy(); analyticsChart = null; }
+
+    if (!db) {
+        ['N/A'].forEach(function(t) {
+            if (totalViewsEl) totalViewsEl.textContent = t;
+            if (adClicksEl) adClicksEl.textContent = t;
+            if (mobileEl) mobileEl.textContent = t;
+            if (countryEl) countryEl.textContent = 'No DB';
+        });
+        return;
+    }
+
+    // 🌍 Detect visitor country (ipwho.is — free, no key) → store aggregate
+    (function detectCountry() {
+        fetch('https://ipwho.is/').then(function(r) { return r.json(); }).then(function(ip) {
+            if (!ip || !ip.success || !ip.country) return;
+            var cc = ip.country_code || 'XX';
+            db.collection('analytics').doc('countries').set({
+                counts: firebase.firestore.FieldValue.increment ? undefined : undefined
+            }, { merge: true }).catch(function() {});
+            db.collection('analytics').doc('countries').update(
+                'counts.' + cc,
+                firebase.firestore.FieldValue.increment(1)
+            ).catch(function() {
+                db.collection('analytics').doc('countries').set({ counts: {} }, { merge: true })
+                    .then(function() {
+                        return db.collection('analytics').doc('countries').update(
+                            'counts.' + cc, firebase.firestore.FieldValue.increment(1));
+                    }).catch(function() {});
+            });
+        }).catch(function() {});
+    })();
+
+    db.collection('analytics').doc('totals').get().then(function(doc) {
+        var t = doc.exists ? doc.data() : {};
+        var views = (t.views || 0);
+        var shares = (t.shares || 0);
+        var mobile = t.mobile || 0, desktop = t.desktop || 0;
+        var totalD = mobile + desktop;
+        if (totalViewsEl) totalViewsEl.textContent = views.toLocaleString();
+        if (adClicksEl) adClicksEl.textContent = shares.toLocaleString();
+        if (mobileEl) mobileEl.textContent = totalD > 0 ? Math.round(mobile / totalD * 100) + '%' : '—';
+
+        // 🌍 Top country from stored counts
+        db.collection('analytics').doc('countries').get().then(function(cdoc) {
+            var counts = (cdoc.exists && cdoc.data().counts) || {};
+            var top = '—', topN = 0;
+            Object.keys(counts).forEach(function(k) {
+                if (counts[k] > topN) { topN = counts[k]; top = k; }
+            });
+            if (countryEl && top !== '—') {
+                var names = { LK: 'Sri Lanka', IN: 'India', MY: 'Malaysia', SG: 'Singapore', AE: 'UAE', GB: 'UK', US: 'USA', CA: 'Canada', AU: 'Australia' };
+                countryEl.textContent = names[top] || top;
+            } else if (countryEl) countryEl.textContent = '—';
+        }).catch(function() { if (countryEl) countryEl.textContent = '—'; });
+    }).catch(function() {
+        if (totalViewsEl) totalViewsEl.textContent = 'Error';
+    });
+
+    // 📈 Daily chart — last 7 days real data
+    var today = new Date();
+    var labels = [], keys = [];
+    for (var i = 6; i >= 0; i--) {
+        var dt = new Date(today); dt.setDate(dt.getDate() - i);
+        keys.push(dt.toISOString().slice(0, 10));
+        labels.push(dt.toLocaleDateString('en-GB', { weekday: 'short' }));
+    }
+    Promise.all(keys.map(function(k) {
+        return db.collection('analytics').doc('daily_' + k).get().catch(function() { return null; });
+    })).then(function(docs) {
+        var data = docs.map(function(doc) {
+            return (doc && doc.exists) ? (doc.data().views || 0) : 0;
+        });
+        if (!ctx) return;
+        if (analyticsChart) analyticsChart.destroy();
+        analyticsChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: labels, datasets: [{
+                label: 'Page Views',
+                data: data,
+                fill: true,
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.4,
+                pointBackgroundColor: '#ef4444',
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }]},
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(200,200,200,0.1)' }, ticks: { color: '#a0a0b8', precision: 0 } },
+                    x: { grid: { display: false }, ticks: { color: '#a0a0b8' } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    });
+
+    // 🔥 Top 5 most-read articles (real counts from analytics/articles/*)
+    db.collection('analytics').get().then(function(snap) {
+        var tops = [];
+        snap.docs.forEach(function(doc) {
+            if (doc.id.indexOf('articles/') === 0 || doc.id.split('_')[0] === 'article') {
+                var v = doc.data().views || 0;
+                var id = doc.id.replace('articles/', '').replace('article_', '');
+                if (v > 0 && id) tops.push({ id: id, views: v });
+            }
+        });
+        tops.sort(function(a, b) { return b.views - a.views; });
+        tops = tops.slice(0, 5);
+        var tbl = document.querySelector('#page-analytics .panel .table-scroll tbody')
+               || document.querySelector('#page-analytics tbody');
+        if (tbl && tops.length) {
+            tbl.innerHTML = tops.map(function(t) {
+                var art = (typeof adminNews !== 'undefined' ? adminNews : []).find(function(n) {
+                    return String(n.id) === String(t.id);
+                });
+                var title = art ? (art.title_en || art.title) : ('Article #' + t.id);
+                return '<tr><td>' + String(title).replace(/</g, '&lt;').substring(0, 50) + '</td>' +
+                       '<td>' + t.views + ' views</td></tr>';
+            }).join('');
+        }
+    }).catch(function() {});
+}
 // ═══════════════════════════════════════════════════════════════
 // 🔥 HOTFIX v2: Strict auth guard — expired sessions block cloud saves
 // ═══════════════════════════════════════════════════════════════
