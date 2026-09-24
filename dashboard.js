@@ -1633,9 +1633,26 @@ function ensureAdMobileImgUI() {
     group.parentNode.insertBefore(wrap, group.nextSibling);
 }
 
+// 🎯 PER-AD in-article toggle — each ad-ku thaniya tick (Ad modal-la)
+function ensureAdInArticleChk() {
+    if (document.getElementById('ad-inarticle')) return;
+    var anchor = document.getElementById('ad-active');
+    if (!anchor) return;
+    var group = anchor.closest('.form-group');
+    if (!group || !group.parentNode) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'form-group';
+    wrap.innerHTML = '<label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-weight:600;">' +
+        '<input type="checkbox" id="ad-inarticle" style="width:18px;height:18px;cursor:pointer;">' +
+        ' 📰 Show in Articles <small style="color:#9ca3af;font-weight:400;">(paragraphs-ku nadula varum)</small></label>';
+    group.parentNode.insertBefore(wrap, group.nextSibling);
+}
+
 function openAdModal(isEdit) {
     isEdit = isEdit || false;
     ensureAdMobileImgUI(); // 📱 mobile image field
+    ensureAdInArticleChk(); // 🎯 per-ad in-article tick
+
     // 📐 Exact banner sizes guide (injected — updates the static info box)
     var _sizeInfo = document.querySelector('.ad-size-info');
     if (_sizeInfo) {
@@ -1683,6 +1700,8 @@ function openAdModal(isEdit) {
         if (imagePreview) imagePreview.style.display = 'none';
         var mImg = document.getElementById('ad-mobile-image');
         if (mImg) mImg.value = '';
+        var iaChk = document.getElementById('ad-inarticle');
+        if (iaChk) iaChk.checked = false; // 🎯 default OFF
         if (active) active.checked = true;
 
         // Set default dates: start = now, end = now + 7 days
@@ -1752,6 +1771,8 @@ function editAd(id) {
     }
     var _mImg = document.getElementById('ad-mobile-image');
     if (_mImg) _mImg.value = ad.mobileImage || '';
+    var _ia = document.getElementById('ad-inarticle');
+    if (_ia) _ia.checked = !!ad.inArticle; // 🎯 per-ad flag restore
 }
 
 async function saveAdItem() {
@@ -1803,6 +1824,7 @@ async function saveAdItem() {
         link: link,
         image: image,
         mobileImage: mobileImg || null, // 📱 optional mobile-only image
+        inArticle: (document.getElementById('ad-inarticle') || {}).checked === true, // 🎯 per-ad tick
         position: position,
         active: active,
         startDate: startDateObj.toISOString(),

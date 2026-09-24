@@ -433,6 +433,7 @@ async function syncFromFirebase() {
         } catch (adErr) {
             dbg('Ads sync failed:', adErr);
         }
+
     } catch (error) {
         console.error('❌ Firebase read error:', error);
         newsData = [];
@@ -897,6 +898,7 @@ function getInArticleAds() {
     var now = new Date();
     var all = (typeof adsData !== 'undefined' ? adsData : []).filter(function(a) {
         if (!a || !a.active) return false;
+        if (a.inArticle !== true) return false; // 🎯 PER-AD tick — Ad Manager-la enable pannina ads mattum
         if (a.startDate && new Date(a.startDate) > now) return false;
         if (a.endDate && new Date(a.endDate) < now) return false;
         return true;
