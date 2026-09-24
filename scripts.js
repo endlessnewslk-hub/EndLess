@@ -150,6 +150,8 @@ function wireNewsletterBox() {
         '.hero-main{cursor:pointer;}',
         '.hero-main:hover{transform:translateY(-4px);box-shadow:0 20px 40px -8px rgba(0,0,0,0.3);}',
         '.hero-main:hover img{transform:scale(1.08);}',
+        /* 🏷️ Hide static HTML ad labels — adCard prints its own translated label */
+        '.ad-slot-label{display:none!important;}',
         /* 📱 FEED ADS: full-width between article cards; hidden on desktop (sidebar there) */
         '.feed-ad-slot{grid-column:1/-1;margin:0.25rem 0 1rem;}',
         '@media(min-width:1024px){.feed-ad-slot{display:none!important;}}',
@@ -718,16 +720,18 @@ function renderFeed() {
         }).slice(0, 4); // max 4 in feed — each ad once
         if (!ads.length) return;
         var cards = Array.prototype.slice.call(grid.children);
-        var maxInsert = Math.min(cards.length - 1, ads.length); // never after the LAST card
+        // Insert ad BEFORE the NEXT card (never after the LAST → in CSS Grid a
+        // sibling after the final item renders as a NEW ROW = "ad at scroll end" trap!)
+        var maxInsert = Math.min(cards.length - 1, ads.length);
         for (var i = 0; i < maxInsert; i++) {
             var ad = document.createElement('div');
             ad.className = 'feed-ad-slot';
             ad.innerHTML =
                 '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--text-subtle);margin-bottom:0.5rem;font-weight:700;">' + (TRANSLATIONS[currentLang] ? TRANSLATIONS[currentLang].ad_label : 'Advertisement') + '</div>' +
                 '<a href="' + escapeHtml(ads[i].link) + '" target="_blank" rel="noopener noreferrer" style="display:block;border-radius:12px;overflow:hidden;box-shadow:0 3px 14px rgba(0,0,0,0.10);line-height:0;">' +
-                '<img src="' + escapeHtml(ads[i].image) + '" alt="' + escapeHtml(getLocalized(ads[i], 'title')) + '" loading="lazy" style="width:100%;height:auto;display:block;">' +
+                '<img src="' + escapeHtml(pickAdImg(ads[i])) + '" alt="' + escapeHtml(getLocalized(ads[i], 'title')) + '" loading="lazy" style="width:100%;height:auto;display:block;">' +
                 '</a>';
-            cards[i].after(ad);
+            cards[i + 1].before(ad); // ← BEFORE next card, NEVER after last
         }
     })();
 
@@ -793,13 +797,18 @@ function renderAds() {
         el.style.display = 'block';
     }
 
+    // 📱 MOBILE/DESKTOP image picker — ad.mobileImage (optional) used on phones
+    function pickAdImg(a) {
+        return (window.innerWidth < 768 && a.mobileImage) ? a.mobileImage : a.image;
+    }
+
     // 💎 ONE premium card style for EVERY slot (header/sidebar/inline/article view)
     function adCard(a, wide) {
         return `
         <div style="margin-bottom:1.5rem;">
             <div class="ad-label" style="margin-bottom:0.5rem;">${TRANSLATIONS[currentLang].ad_label}</div>
             <a href="${escapeHtml(a.link)}" target="_blank" rel="noopener noreferrer" style="display:block;border-radius:12px;overflow:hidden;box-shadow:0 3px 14px rgba(0,0,0,0.10);line-height:0;">
-                <img src="${escapeHtml(a.image)}" alt="${escapeHtml(getLocalized(a, 'title'))}" loading="lazy" style="width:100%;height:auto;display:block;">
+                <img src="${escapeHtml(pickAdImg(a))}" alt="${escapeHtml(getLocalized(a, 'title'))}" loading="lazy" style="width:100%;height:auto;display:block;">
             </a>
         </div>`;
     }
@@ -909,7 +918,7 @@ function inArticleAdHtml(ad) {
     return '<div style="margin:1.75rem 0;">' +
         '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--text-subtle);margin-bottom:0.5rem;font-weight:700;">Sponsored · ' + (TRANSLATIONS[currentLang] ? TRANSLATIONS[currentLang].ad_label : 'Advertisement') + '</div>' +
         '<a href="' + escapeHtml(ad.link) + '" target="_blank" rel="noopener noreferrer" style="display:block;border-radius:12px;overflow:hidden;box-shadow:0 3px 14px rgba(0,0,0,0.10);line-height:0;">' +
-        '<img class="inl-ad-img" src="' + escapeHtml(ad.image) + '" alt="' + escapeHtml(getLocalized(ad, 'title')) + '" loading="lazy" style="width:100%;height:auto;display:block;">' +
+        '<img class="inl-ad-img" src="' + escapeHtml(pickAdImg(ad)) + '" alt="' + escapeHtml(getLocalized(ad, 'title')) + '" loading="lazy" style="width:100%;height:auto;display:block;">' +
         '</a></div>';
 }
 
