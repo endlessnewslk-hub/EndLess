@@ -797,11 +797,6 @@ function renderAds() {
         el.style.display = 'block';
     }
 
-    // 📱 MOBILE/DESKTOP image picker — ad.mobileImage (optional) used on phones
-    function pickAdImg(a) {
-        return (window.innerWidth < 768 && a.mobileImage) ? a.mobileImage : a.image;
-    }
-
     // 💎 ONE premium card style for EVERY slot (header/sidebar/inline/article view)
     function adCard(a, wide) {
         return `
@@ -886,6 +881,11 @@ function renderTicker() {
     ticker.innerHTML = breaking.map(n => `
         <span class="ticker-item">${escapeHtml(getLocalized(n, 'title'))}</span>
     `).join('');
+}
+
+// 📱 MOBILE/DESKTOP image picker — GLOBAL (used by renderAds, feed ads, in-article ads)
+function pickAdImg(a) {
+    return (window.innerWidth < 768 && a.mobileImage) ? a.mobileImage : a.image;
 }
 
 // 📰 IN-ARTICLE ADS — inject active ads between paragraphs (sidebar ads reused)
