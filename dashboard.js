@@ -1359,7 +1359,113 @@ function loadGalleryRows(news) {
     }
 }
 
+// 📝 RICH TEXT EDITOR — Bold/Italic/Underline/Color/Size + Live Preview
+let _rteTarget = null;
+
+function ensureRichTextUI() {
+    ['ta', 'en'].forEach(function(lang) {
+        var ta = document.getElementById('news-content-' + lang);
+        if (!ta || ta._rteDone) return;
+        ta._rteDone = true;
+        ta.setAttribute('contenteditable', 'true');
+        ta.style.cssText = 'min-height:180px;border:1px solid #d1d5db;border-radius:6px;padding:12px;font-size:1rem;line-height:1.7;background:#fff;';
+
+        var bar = document.createElement('div');
+        bar.style.cssText = 'display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap;';
+        bar.innerHTML =
+            '<button type="button" class="rte-btn" data-cmd="bold" title="Bold"><b>B</b></button>' +
+            '<button type="button" class="rte-btn" data-cmd="italic" title="Italic"><i>I</i></button>' +
+            '<button type="button" class="rte-btn" data-cmd="underline" title="Underline"><u>U</u></button>' +
+            '<button type="button" class="rte-btn" data-cmd="foreColor" data-val="#dc2626" title="Red" style="color:#dc2626;">A</button>' +
+            '<button type="button" class="rte-btn" data-cmd="foreColor" data-val="#2563eb" title="Blue" style="color:#2563eb;">A</button>' +
+            '<button type="button" class="rte-btn" data-cmd="foreColor" data-val="#059669" title="Green" style="color:#059669;">A</button>' +
+            '<button type="button" class="rte-btn" data-cmd="foreColor" data-val="#d97706" title="Orange" style="color:#d97706;">A</button>' +
+            '<button type="button" class="rte-btn" data-cmd="foreColor" data-val="#1e293b" title="Black" style="color:#1e293b;">A</button>' +
+            '<button type="button" class="rte-btn" data-cmd="fontSize" data-val="5" title="Big" style="font-size:1.1em;">A+</button>' +
+            '<button type="button" class="rte-btn" data-cmd="fontSize" data-val="3" title="Normal" style="font-size:0.9em;">A</button>' +
+            '<button type="button" class="rte-btn" data-cmd="removeFormat" title="Clear">✕</button>';
+        ta.parentNode.insertBefore(bar, ta);
+
+        bar.querySelectorAll('.rte-btn').forEach(function(btn) {
+            btn.style.cssText = 'min-width:32px;height:32px;padding:0 8px;border:1px solid #d1d5db;border-radius:5px;background:#fff;cursor:pointer;font-size:13px;';
+            btn.addEventListener('mousedown', function(e) { e.preventDefault(); _rteTarget = ta; });
+            btn.addEventListener('click', function() {
+                var cmd = this.dataset.cmd, val = this.dataset.val || null;
+                ta.focus();
+                try { document.execCommand(cmd, false, val); } catch (e) {}
+                updateHiddenField(ta);
+            });
+        });
+
+        ta.addEventListener('input', function() { updateHiddenField(ta); });
+        ta.addEventListener('blur', function() { updateHiddenField(ta); });
+    });
+
+    ['ta', 'en'].forEach(function(lang) {
+        var ta = document.getElementById('news-content-' + lang);
+        if (ta && !ta._mirror) {
+            var hidden = document.createElement('textarea');
+            hidden.id = 'news-content-' + lang + '-html';
+            hidden.style.display = 'none';
+            ta.parentNode.appendChild(hidden);
+            ta._mirror = hidden;
+        }
+    });
+}
+
+function updateHiddenField(ta) {
+    if (ta && ta._mirror) ta._mirror.value = ta.innerHTML;
+}
+
+function previewArticleRich() {
+    var title = (document.getElementById('news-title-ta') || {}).value || 'Untitled';
+    var author = (document.getElementById('news-author-ta') || {}).value || '';
+    var ta = document.getElementById('news-content-ta');
+    var content = ta ? (ta._mirror ? ta._mirror.value : ta.value) : '';
+    var cat = (document.getElementById('news-category') || {}).value || '';
+    var img = document.getElementById('news-photo-preview');
+    var imgSrc = (img && img.src) || (document.getElementById('news-image-url') || {}).value || '';
+
+    var ov = document.getElementById('rte-preview-ov');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'rte-preview-ov';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+        ov.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:800px;width:100%;max-height:90vh;overflow-y:auto;padding:30px;position:relative;">' +
+            '<button id="pv-close" style="position:absolute;top:15px;right:15px;width:36px;height:36px;border:none;border-radius:50%;background:#fee2e2;color:#991b1b;font-size:18px;cursor:pointer;">✕</button>' +
+            '<img id="pv-img" style="width:100%;border-radius:10px;margin-bottom:18px;display:none;">' +
+            '<h1 id="pv-title" style="font-size:1.6rem;margin-bottom:8px;color:#111;"></h1>' +
+            '<p id="pv-meta" style="color:#6b7280;font-size:0.9rem;margin-bottom:16px;"></p>' +
+            '<div id="pv-body" style="font-size:1.05rem;line-height:1.9;color:#1f2937;"></div></div>';
+        document.body.appendChild(ov);
+        var closeB = document.getElementById('pv-close');
+        if (closeB) closeB.addEventListener('click', function() { ov.style.display = 'none'; });
+        ov.addEventListener('click', function(e) { if (e.target === ov) ov.style.display = 'none'; });
+    }
+    var pvImg = document.getElementById('pv-img');
+    if (imgSrc) { pvImg.src = imgSrc; pvImg.style.display = 'block'; } else pvImg.style.display = 'none';
+    document.getElementById('pv-title').textContent = title;
+    document.getElementById('pv-meta').textContent = [author, cat, new Date().toLocaleDateString()].filter(Boolean).join(' · ');
+    document.getElementById('pv-body').innerHTML = content || '<i style="color:#9ca3af;">(no content)</i>';
+    ov.style.display = 'flex';
+}
+
+function ensurePreviewBtn() {
+    if (document.getElementById('btn-preview-article')) return;
+    var save = document.getElementById('save-news');
+    if (!save || !save.parentNode) return;
+    var b = document.createElement('button');
+    b.id = 'btn-preview-article';
+    b.className = 'btn-secondary';
+    b.type = 'button';
+    b.textContent = '👁️ Preview';
+    b.style.marginRight = '0.5rem';
+    b.addEventListener('click', previewArticleRich);
+    save.parentNode.insertBefore(b, save);
+}
+
 function openNewsModal(isEdit) {
+    setTimeout(function() { ensureRichTextUI(); ensurePreviewBtn(); }, 50);
     isEdit = isEdit || false;
     var modal = document.getElementById('news-modal');
     var modalTitle = document.getElementById('news-modal-title');
@@ -1387,7 +1493,12 @@ function openNewsModal(isEdit) {
             if (titleInp) titleInp.value = '';
             if (excerptInp) excerptInp.value = '';
             if (authorInp) authorInp.value = '';
-            if (contentTa) contentTa.value = '';
+            if (contentTa) {
+                if (contentTa.hasAttribute('contenteditable')) {
+                    contentTa.innerHTML = '';
+                    if (contentTa._mirror) contentTa._mirror.value = '';
+                } else contentTa.value = '';
+            }
         });
 
         var imageUrl = document.getElementById('news-image-url');
@@ -1472,7 +1583,14 @@ function editNews(id) {
         Object.keys(fields).forEach(function(prefix) {
             var keys = fields[prefix];
             var el = document.getElementById(prefix + '-' + lang);
-            if (el) el.value = news[keys[idx]] || '';
+            if (!el) return;
+            if (prefix === 'news-content' && el.hasAttribute('contenteditable')) {
+                var v = news[keys[idx]] || '';
+                el.innerHTML = v;
+                if (el._mirror) el._mirror.value = v;
+            } else {
+                el.value = news[keys[idx]] || '';
+            }
         });
     });
 
@@ -1549,8 +1667,9 @@ async function saveNewsItem() {
 
     var author_ta = author_ta_el ? author_ta_el.value.trim() : '';
     var author_en = author_en_el ? author_en_el.value.trim() : '';
-    var content_ta = content_ta_el ? content_ta_el.value.trim() : '';
-    var content_en = content_en_el ? content_en_el.value.trim() : '';
+    // 📝 Rich text: contenteditable-a irundhu HTML-a edukkum
+    var content_ta = content_ta_el ? (content_ta_el._mirror ? content_ta_el._mirror.value.trim() : content_ta_el.value.trim()) : '';
+    var content_en = content_en_el ? (content_en_el._mirror ? content_en_el._mirror.value.trim() : content_en_el.value.trim()) : '';
     var imageUrl = imageUrl_el ? imageUrl_el.value.trim() : '';
     imageUrl = optimizeCloudinary(imageUrl); // ☁️ guarantee optimized
     var photoData = photoData_el ? photoData_el.value : '';
