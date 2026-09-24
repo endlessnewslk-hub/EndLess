@@ -112,7 +112,7 @@ function renderAnalyticsPage() {
         });
     });
 
-    // 🔥 Top 5 most-read articles (real counts from analytics/articles/*)
+    // 🔥 Top 5 most-read articles — REAL counts from analytics/articles/*
     db.collection('analytics').get().then(function(snap) {
         var tops = [];
         snap.docs.forEach(function(doc) {
@@ -124,17 +124,33 @@ function renderAnalyticsPage() {
         });
         tops.sort(function(a, b) { return b.views - a.views; });
         tops = tops.slice(0, 5);
-        var tbl = document.querySelector('#page-analytics .panel .table-scroll tbody')
-               || document.querySelector('#page-analytics tbody');
-        if (tbl && tops.length) {
-            tbl.innerHTML = tops.map(function(t) {
+        // 🎯 Dedicated panel (injected — never touches the chart panel's tbody!)
+        var host = document.getElementById('page-analytics');
+        if (!host) return;
+        var panel = document.getElementById('top-articles-panel');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.className = 'panel';
+            panel.id = 'top-articles-panel';
+            panel.style.marginTop = '1.5rem';
+            panel.innerHTML = '<h3>🔥 Top Articles (Most Read)</h3>' +
+                '<div class="table-scroll"><table class="data-table compact">' +
+                '<thead><tr><th>Article</th><th>Views</th></tr></thead>' +
+                '<tbody id="top-articles-body"><tr><td colspan="2" style="color:#9ca3af;">Loading…</td></tr></tbody>' +
+                '</table></div>';
+            var chartPanel = host.querySelector('.panel');
+            if (chartPanel) chartPanel.after(panel);
+        }
+        var tbody = document.getElementById('top-articles-body');
+        if (tbody) {
+            tbody.innerHTML = tops.length ? tops.map(function(t) {
                 var art = (typeof adminNews !== 'undefined' ? adminNews : []).find(function(n) {
                     return String(n.id) === String(t.id);
                 });
                 var title = art ? (art.title_en || art.title) : ('Article #' + t.id);
                 return '<tr><td>' + String(title).replace(/</g, '&lt;').substring(0, 50) + '</td>' +
                        '<td>' + t.views + ' views</td></tr>';
-            }).join('');
+            }).join('') : '<tr><td colspan="2" style="color:#9ca3af;">No article data yet</td></tr>';
         }
     }).catch(function() {});
 }
