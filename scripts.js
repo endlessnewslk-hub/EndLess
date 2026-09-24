@@ -155,6 +155,10 @@ function wireNewsletterBox() {
         /* 📱 FEED ADS: full-width between article cards; hidden on desktop (sidebar there) */
         '.feed-ad-slot{grid-column:1/-1;margin:0.25rem 0 1rem;}',
         '@media(min-width:1024px){.feed-ad-slot{display:none!important;}}',
+        /* 📱 MOBILE: hide sidebar AD slot — sidebar column sits below the feed on
+           mobile (looked like "ads at the end"). Mobile sees in-feed ads instead.
+           Trending/categories/newsletter in the sidebar still show as normal. */
+        '@media(max-width:1023px){#ad-slot-sidebar{display:none!important;}}',
         /* 📰 MOBILE AD FIX: styles.css .modal-article img{height:260px!important;cover}
            catches injected ad images too → ads looked cropped/tiny on phones.
            Exempt ad images: natural size, full width, no forced height. */
