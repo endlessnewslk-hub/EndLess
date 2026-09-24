@@ -1388,7 +1388,8 @@ function ensureRichTextUI() {
 
         bar.querySelectorAll('.rte-btn').forEach(function(btn) {
             btn.style.cssText = 'min-width:32px;height:32px;padding:0 8px;border:1px solid #d1d5db;border-radius:5px;background:#fff;cursor:pointer;font-size:13px;';
-            btn.addEventListener('mousedown', function(e) { e.preventDefault(); _rteTarget = ta; });
+            // 🔧 FIX: no preventDefault — it steals focus before selection, so
+            // highlight-then-click died. Standard click keeps selection & applies format.
             btn.addEventListener('click', function() {
                 var cmd = this.dataset.cmd, val = this.dataset.val || null;
                 ta.focus();
