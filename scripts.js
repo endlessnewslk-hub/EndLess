@@ -1288,6 +1288,39 @@ function openArticle(id) {
     }
 }
 
+// 📑 MY SAVED ARTICLES — bookmark page overlay
+function openSavedPage() {
+    var saved = getSavedArticles();
+    var ov = document.getElementById('saved-page-ov');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'saved-page-ov';
+        ov.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:2000;overflow-y:auto;';
+        ov.innerHTML = '<div style="max-width:900px;margin:0 auto;padding:20px;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px;">' +
+            '<h2 style="font-family:var(--font-heading);font-size:1.5rem;color:var(--text);" id="sv-title"></h2>' +
+            '<button id="sv-close-btn" style="padding:8px 20px;border:2px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text);cursor:pointer;font-weight:600;">✕ Close</button></div>' +
+            '<div id="sv-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem;"></div></div>';
+        document.body.appendChild(ov);
+        var svx = document.getElementById('sv-close-btn');
+        if (svx) svx.addEventListener('click', function() { ov.style.display = 'none'; document.body.style.overflow = ''; });
+        ov.addEventListener('click', function(e) { if (e.target === ov) { ov.style.display = 'none'; document.body.style.overflow = ''; } });
+    }
+    document.getElementById('sv-title').textContent = currentLang === 'ta' ? '🔖 சேமித்த செய்திகள்' : '🔖 My Saved Articles';
+    var grid = document.getElementById('sv-grid');
+    var arts = saved.map(function(id) { return newsData.find(function(n) { return String(n.id) === String(id); }); }).filter(Boolean);
+    grid.innerHTML = arts.length ? arts.map(function(a) {
+        return '<article class="article-card" onclick="document.getElementById(\'saved-page-ov\').style.display=\'none\';document.body.style.overflow=\'\';openArticle(\'' + a.id + '\')" style="cursor:pointer;">' +
+            '<img src="' + escapeHtml(a.image) + '" alt="' + escapeHtml(getLocalized(a, 'title')) + '" loading="lazy">' +
+            '<div class="card-body"><div class="meta"><span class="cat">' + escapeHtml(getLocalized(a, 'category')) + '</span><span>' + formatDate(a.date) + '</span></div>' +
+            '<h3>' + escapeHtml(getLocalized(a, 'title')) + '</h3>' +
+            "<button onclick=\"event.stopPropagation();toggleSaveArticle('" + a.id + "');openSavedPage();\" style=\"margin-top:8px;background:none;border:1px solid var(--border);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:0.75rem;color:var(--text-muted);\">🗑 " + (currentLang === 'ta' ? 'அகற்று' : 'Remove') + "</button>" +
+            '</div></article>';
+    }).join('') : '<p style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:3rem;">' + (currentLang === 'ta' ? 'இன்னும் எதுவும் சேமிக்கப்படவில்லை' : 'Nothing saved yet') + '</p>';
+    ov.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
 function closeModal() {
     const modal = document.getElementById('article-modal');
     if (!modal) return;
