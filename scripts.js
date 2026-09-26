@@ -527,10 +527,15 @@ function debounce(func, wait) {
 function renderDate() {
     const dateEl = document.getElementById('current-date');
     if (!dateEl) return;
-    const dateOptions = { weekday: 'short', month: 'short', day: 'numeric' };
-    dateEl.textContent = new Date().toLocaleDateString(
-        currentLang === 'ta' ? 'ta-IN' : 'en-US', dateOptions
-    );
+    // 📅 Custom weekday format: Tamil-la "ஞாயிறு" (கிழமை seka vendaam),
+    // English-la full "Sunday" (long form).
+    var d = new Date();
+    if (currentLang === 'ta') {
+        var taDays = ['ஞாயிறு', 'திங்கள்', 'செவ்வாய்', 'புதன்', 'வியாழன்', 'வெள்ளி', 'சனி'];
+        dateEl.textContent = taDays[d.getDay()] + ', ' + d.toLocaleDateString('ta-IN', { month: 'short', day: 'numeric' });
+    } else {
+        dateEl.textContent = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    }
 }
 
 function setLanguage(lang) {
@@ -1206,6 +1211,7 @@ function openArticle(id) {
 
     // 📰 Inject in-article ads between paragraphs (before rendering)
     processedContent = injectInArticleAds(processedContent);
+    if (typeof DEBUG !== 'undefined' && DEBUG) console.log('In-article ads — toggle check: ads eligible =', getInArticleAds().length);
 
     body.innerHTML = `
         <div class="modal-article">
