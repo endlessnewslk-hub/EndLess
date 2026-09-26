@@ -1288,37 +1288,62 @@ function openArticle(id) {
     }
 }
 
-// 📑 MY SAVED ARTICLES — bookmark page overlay
+// 📑 MY SAVED ARTICLES — premium page (live language toggle, theme-aware)
 function openSavedPage() {
-    var saved = getSavedArticles();
     var ov = document.getElementById('saved-page-ov');
     if (!ov) {
         ov = document.createElement('div');
         ov.id = 'saved-page-ov';
         ov.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:2000;overflow-y:auto;';
         ov.innerHTML = '<div style="max-width:900px;margin:0 auto;padding:20px;">' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px;">' +
-            '<h2 style="font-family:var(--font-heading);font-size:1.5rem;color:var(--text);" id="sv-title"></h2>' +
-            '<button id="sv-close-btn" style="padding:8px 20px;border:2px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text);cursor:pointer;font-weight:600;">✕ Close</button></div>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">' +
+            '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
+            '<h2 id="sv-title" style="font-family:var(--font-heading);font-size:1.5rem;color:var(--text);margin:0;"></h2>' +
+            '<span id="sv-count" style="background:var(--primary);color:#fff;font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:999px;"></span>' +
+            '</div>' +
+            '<div style="display:flex;gap:8px;align-items:center;">' +
+            '<button id="sv-lang-ta" style="padding:6px 14px;border-radius:999px;border:2px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-weight:700;font-size:0.8rem;">தமிழ்</button>' +
+            '<button id="sv-lang-en" style="padding:6px 14px;border-radius:999px;border:2px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-weight:700;font-size:0.8rem;">English</button>' +
+            '<button id="sv-close-btn" style="padding:8px 20px;border:2px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text);cursor:pointer;font-weight:600;">✕</button>' +
+            '</div></div>' +
             '<div id="sv-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem;"></div></div>';
         document.body.appendChild(ov);
         var svx = document.getElementById('sv-close-btn');
         if (svx) svx.addEventListener('click', function() { ov.style.display = 'none'; document.body.style.overflow = ''; });
         ov.addEventListener('click', function(e) { if (e.target === ov) { ov.style.display = 'none'; document.body.style.overflow = ''; } });
+        // 🌐 Saved page-oda OWN language toggle (real-time)
+        document.getElementById('sv-lang-ta').addEventListener('click', function() { _svLang = 'ta'; renderSavedPage(); });
+        document.getElementById('sv-lang-en').addEventListener('click', function() { _svLang = 'en'; renderSavedPage(); });
     }
-    document.getElementById('sv-title').textContent = currentLang === 'ta' ? '🔖 சேமித்த செய்திகள்' : '🔖 My Saved Articles';
+    _svLang = currentLang; // default = site language
+    ov.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    renderSavedPage();
+}
+
+let _svLang = 'ta';
+function renderSavedPage() {
+    var saved = getSavedArticles();
+    var L = _svLang || 'ta';
+    var t = document.getElementById('sv-title');
+    if (t) t.textContent = L === 'ta' ? '🔖 சேமித்த செய்திகள்' : '🔖 My Saved Articles';
+    var c = document.getElementById('sv-count');
+    if (c) c.textContent = saved.length + (L === 'ta' ? ' செய்திகள்' : ' articles');
+    // Language buttons active state
+    var bta = document.getElementById('sv-lang-ta'), ben = document.getElementById('sv-lang-en');
+    if (bta) { bta.style.background = L === 'ta' ? 'var(--primary)' : 'var(--surface)'; bta.style.color = L === 'ta' ? '#fff' : 'var(--text)'; bta.style.borderColor = L === 'ta' ? 'var(--primary)' : 'var(--border)'; }
+    if (ben) { ben.style.background = L === 'en' ? 'var(--primary)' : 'var(--surface)'; ben.style.color = L === 'en' ? '#fff' : 'var(--text)'; ben.style.borderColor = L === 'en' ? 'var(--primary)' : 'var(--border)'; }
     var grid = document.getElementById('sv-grid');
+    if (!grid) return;
     var arts = saved.map(function(id) { return newsData.find(function(n) { return String(n.id) === String(id); }); }).filter(Boolean);
     grid.innerHTML = arts.length ? arts.map(function(a) {
         return '<article class="article-card" onclick="document.getElementById(\'saved-page-ov\').style.display=\'none\';document.body.style.overflow=\'\';openArticle(\'' + a.id + '\')" style="cursor:pointer;">' +
             '<img src="' + escapeHtml(a.image) + '" alt="' + escapeHtml(getLocalized(a, 'title')) + '" loading="lazy">' +
             '<div class="card-body"><div class="meta"><span class="cat">' + escapeHtml(getLocalized(a, 'category')) + '</span><span>' + formatDate(a.date) + '</span></div>' +
             '<h3>' + escapeHtml(getLocalized(a, 'title')) + '</h3>' +
-            "<button onclick=\"event.stopPropagation();toggleSaveArticle('" + a.id + "');openSavedPage();\" style=\"margin-top:8px;background:none;border:1px solid var(--border);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:0.75rem;color:var(--text-muted);\">🗑 " + (currentLang === 'ta' ? 'அகற்று' : 'Remove') + "</button>" +
+            "<button onclick=\"event.stopPropagation();toggleSaveArticle('" + a.id + "');renderSavedPage();\" style=\"margin-top:8px;background:none;border:1px solid var(--border);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:0.75rem;color:var(--text-muted);\">🗑 " + (L === 'ta' ? 'அகற்று' : 'Remove') + "</button>" +
             '</div></article>';
-    }).join('') : '<p style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:3rem;">' + (currentLang === 'ta' ? 'இன்னும் எதுவும் சேமிக்கப்படவில்லை' : 'Nothing saved yet') + '</p>';
-    ov.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    }).join('') : '<p style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:3rem;">' + (L === 'ta' ? 'இன்னும் எதுவும் சேமிக்கப்படவில்லை' : 'Nothing saved yet') + '</p>';
 }
 
 function closeModal() {
