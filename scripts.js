@@ -1640,18 +1640,19 @@ function initWeather() {
     var weatherEl = document.getElementById('weather');
     if (!weatherEl) return;
 
-    function wEmoji(code) {
-        if (code === 0) return '☀️';
-        if (code <= 2) return '🌤️';
+    function wEmoji(code, isDay) {
+        // 🌙 Night icons — midnight-la ☀️ vara koodathu!
+        if (code === 0) return isDay ? '☀️' : '🌙';
+        if (code <= 2) return isDay ? '🌤️' : '☁️';
         if (code === 3) return '☁️';
         if (code === 45 || code === 48) return '🌫️';
-        if (code >= 51 && code <= 57) return '🌦️';
+        if (code >= 51 && code <= 57) return isDay ? '🌦️' : '🌧️';
         if (code >= 61 && code <= 67) return '🌧️';
-        if (code >= 71 && code <= 77) return '🌨️';
-        if (code >= 80 && code <= 82) return '🌦️';
+        if (code >= 71 && code <= 77) return isDay ? '🌨️' : '🌨️';
+        if (code >= 80 && code <= 82) return isDay ? '🌦️' : '🌧️';
         if (code >= 85 && code <= 86) return '🌨️';
         if (code >= 95) return '⛈️';
-        return '🌡️';
+        return isDay ? '🌡️' : '🌙';
     }
 
     function show(lat, lon, city) {
@@ -1661,11 +1662,12 @@ function initWeather() {
             .then(function(d) {
                 if (!d.current_weather) return;
                 var t = Math.round(d.current_weather.temperature);
+                var isDay = d.current_weather.is_day === 1;
                 var loc = city ? ' ' + city : '';
-                weatherEl.textContent = wEmoji(d.current_weather.weathercode) + ' ' + t + '°C' + loc;
+                weatherEl.textContent = wEmoji(d.current_weather.weathercode, isDay) + ' ' + t + '°C' + loc;
                 try {
                     localStorage.setItem('endless_weather', JSON.stringify({
-                        t: t, code: d.current_weather.weathercode, city: city, ts: Date.now()
+                        t: t, code: d.current_weather.weathercode, isDay: isDay, city: city, ts: Date.now()
                     }));
                 } catch (e) {}
             }).catch(function() {});
@@ -1675,7 +1677,7 @@ function initWeather() {
     try {
         var cached = JSON.parse(localStorage.getItem('endless_weather'));
         if (cached && Date.now() - cached.ts < 1800000) {
-            weatherEl.textContent = wEmoji(cached.code) + ' ' + cached.t + '°C' +
+            weatherEl.textContent = wEmoji(cached.code, cached.isDay) + ' ' + cached.t + '°C' +
                 (cached.city ? ' ' + cached.city : '');
         }
     } catch (e) {}
@@ -1689,11 +1691,19 @@ function initWeather() {
             }
         }).catch(function() {});
 
-    // Refine with GPS if visitor allows (more accurate)
+    // 📍 GPS refine — ALLOW pannalana exact location (Al Hasa stable-a irukkum)
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(pos) {
-            show(pos.coords.latitude, pos.coords.longitude, '');
-        }, function() { /* denied — IP location stays */ }, { timeout: 5000 });
+            // Reverse geocode for city name (nominatim — free)
+            fetch('https://nominatim.openstreetmap.org/reverse?lat=' + pos.coords.latitude +
+                  '&lon=' + pos.coords.longitude + '&format=json')
+                .then(function(r) { return r.json(); })
+                .then(function(g) {
+                    var city = (g.address && (g.address.city || g.address.town || g.address.county)) || '';
+                    show(pos.coords.latitude, pos.coords.longitude, city);
+                })
+                .catch(function() { show(pos.coords.latitude, pos.coords.longitude, ''); });
+        }, function() { /* denied — IP location stays */ }, { timeout: 8000, enableHighAccuracy: true });
     }
 }
 
