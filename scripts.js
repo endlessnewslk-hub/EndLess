@@ -152,6 +152,15 @@ function wireNewsletterBox() {
         '.hero-main:hover img{transform:scale(1.08);}',
         /* 🏷️ Hide static HTML ad labels — adCard prints its own translated label */
         '.ad-slot-label{display:none!important;}',
+        /* 🔗 RELATED ARTICLES — clean card grid (premium look) */
+        '.rel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}',
+        '.rel-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:transform .25s,box-shadow .25s;}',
+        '.rel-card:hover{transform:translateY(-3px);box-shadow:0 12px 24px rgba(0,0,0,0.15);}',
+        '.rel-card img{width:100%;height:110px;object-fit:cover;display:block;}',
+        '.rel-card .rc-b{padding:10px 12px;}',
+        '.rel-card .rc-cat{font-size:0.6rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:0.08em;}',
+        '.rel-card .rc-t{font-size:0.85rem;font-weight:600;line-height:1.35;margin-top:4px;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}',
+        '@media(max-width:640px){.rel-grid{grid-template-columns:repeat(3,1fr);gap:0.6rem;}.rel-card img{height:80px;}.rel-card .rc-t{font-size:0.78rem;}.rel-card .rc-b{padding:8px;}}',
         /* 📱 FEED ADS: full-width between article cards; hidden on desktop (sidebar there) */
         '.feed-ad-slot{grid-column:1/-1;margin:0.25rem 0 1rem;}',
         '@media(min-width:1024px){.feed-ad-slot{display:none!important;}}',
@@ -1084,7 +1093,16 @@ function toggleSaveArticle(id) {
     try { localStorage.setItem(SAVED_KEY, JSON.stringify(list)); } catch (e) {}
     var btn = document.getElementById('save-btn-' + id);
     if (btn) btn.innerHTML = '🔖 ' + (i > -1 ? (currentLang === 'ta' ? 'சேமி' : 'Save') : (currentLang === 'ta' ? 'சேமித்தது' : 'Saved'));
-    showToast(i > -1 ? (currentLang === 'ta' ? 'அகற்றப்பட்டது' : 'Removed') : (currentLang === 'ta' ? '✅ சேமிக்கப்பட்டது!' : '✅ Saved!'), 'success');
+    var msg = i > -1 ? (currentLang === 'ta' ? 'அகற்றப்பட்டது' : 'Removed') : (currentLang === 'ta' ? '✅ சேமிக்கப்பட்டது!' : '✅ Saved!');
+    // Toast fallback — main site-la showToast illa (dashboard only), so inline toast
+    if (typeof showToast === 'function') { showToast(msg, 'success'); }
+    else {
+        var t = document.createElement('div');
+        t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#059669;color:#fff;padding:10px 22px;border-radius:999px;font-weight:700;z-index:999999;font-size:0.9rem;box-shadow:0 8px 24px rgba(0,0,0,0.3);';
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(function() { t.remove(); }, 1800);
+    }
 }
 
 // 🔠 FONT SIZE CONTROL — article content zoom (A- / A / A+)
@@ -1108,10 +1126,10 @@ function getRelatedArticles(article, limit) {
     return pool.slice(0, limit);
 }
 function relatedArticleHtml(a) {
-    return '<div class="article-card" onclick="openArticle(\'' + a.id + '\')" style="cursor:pointer;">' +
+    return '<div class="rel-card" onclick="openArticle(\'' + a.id + '\')">' +
         '<img src="' + escapeHtml(a.image) + '" alt="' + escapeHtml(getLocalized(a, 'title')) + '" loading="lazy">' +
-        '<div class="card-body"><div class="meta"><span class="cat">' + escapeHtml(getLocalized(a, 'category')) + '</span><span>' + formatDate(a.date) + '</span></div>' +
-        '<h3>' + escapeHtml(getLocalized(a, 'title')) + '</h3></div></div>';
+        '<div class="rc-b"><div class="rc-cat">' + escapeHtml(getLocalized(a, 'category')) + '</div>' +
+        '<div class="rc-t">' + escapeHtml(getLocalized(a, 'title')) + '</div></div></div>';
 }
 
 // BACK button pressed → browser pops history → close the topmost layer
@@ -1218,7 +1236,7 @@ function openArticle(id) {
                     const rel = getRelatedArticles(article, 3);
                     return rel.length ? `<div style="margin-top:2.5rem;padding-top:1.5rem;border-top:2px solid var(--border);">
                         <h3 style="font-family:var(--font-heading);font-size:1.15rem;margin-bottom:1rem;color:var(--text);">${currentLang === 'ta' ? '🔥 தொடர்புடைய செய்திகள்' : '🔥 Related News'}</h3>
-                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">${rel.map(relatedArticleHtml).join('')}</div>
+                        <div class="rel-grid">${rel.map(relatedArticleHtml).join('')}</div>
                     </div>` : '';
                 })()}
                 ${videoBlockHtml(article)}
