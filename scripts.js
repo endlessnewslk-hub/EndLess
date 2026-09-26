@@ -263,7 +263,8 @@ const TRANSLATIONS = {
         no_results: "எந்த செய்தியும் கிடைக்கவில்லை",
         no_articles_yet: "இன்னும் செய்திகள் எதுவும் இல்லை. நிர்வாகி பேனலில் இருந்து கட்டுரைகளைப் பதிவு செய்யுங்கள்.",
         close: "மூடு", loading: "ஏற்றுகிறது...",
-        share_article: "பகிர்"
+        share_article: "பகிர்",
+        saved_articles: "சேமித்தவை"
     },
     en: {
         nav_home: "Home", nav_world: "World", nav_tech: "Technology",
@@ -285,7 +286,8 @@ const TRANSLATIONS = {
         no_results: "No articles found",
         no_articles_yet: "No articles yet. Please publish from the admin panel.",
         close: "Close", loading: "Loading...",
-        share_article: "Share"
+        share_article: "Share",
+        saved_articles: "Saved"
     },
 };
 
@@ -537,6 +539,10 @@ function setLanguage(lang) {
     // Ticker text length changes per language — re-measure speed after render
     setTimeout(initTicker, 100);
     renderDate(); // 📅 date-um language-ku eatha maariyum
+    // 🔖 Saved menu label — language-ku eatha maariyum
+    document.querySelectorAll('.sv-label').forEach(function(el) {
+        el.textContent = lang === 'ta' ? 'சேமித்தவை' : 'Saved';
+    });
 
     document.querySelectorAll('[data-key]').forEach(el => {
         const key = el.dataset.key;
@@ -2045,7 +2051,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (mul && !document.getElementById('mnav-saved-link')) {
             var li = document.createElement('li');
             li.id = 'mnav-saved-link';
-            li.innerHTML = "<a href='#' style='color:#e11d48;font-weight:700;' onclick='event.preventDefault();closeMobileMenu();openSavedPage();'>🔖 சேமித்தவை / Saved</a>";
+            li.innerHTML = "<a href='#' style='color:#e11d48;font-weight:700;' onclick='event.preventDefault();closeMobileMenu();openSavedPage();'>🔖 <span class='sv-label'>" + (currentLang === 'ta' ? 'சேமித்தவை' : 'Saved') + "</span></a>";
             mul.appendChild(li);
         }
     } catch (e) {}
