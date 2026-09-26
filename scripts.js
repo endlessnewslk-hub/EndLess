@@ -1065,6 +1065,55 @@ function pushLayer(id, closeFn) {
     _layerStack.push({ id: id, fn: closeFn });
 }
 
+// ⏱️ READING TIME — word count / 200 ≈ minutes
+function readingTime(text) {
+    var words = String(text || '').replace(/<[^>]*>/g, ' ').trim().split(/\s+/).length;
+    return Math.max(1, Math.ceil(words / 200));
+}
+
+// 🔖 SAVE FOR LATER — localStorage bookmarks
+const SAVED_KEY = 'endless_saved_articles';
+function getSavedArticles() {
+    try { return JSON.parse(localStorage.getItem(SAVED_KEY)) || []; } catch (e) { return []; }
+}
+function isArticleSaved(id) { return getSavedArticles().indexOf(String(id)) !== -1; }
+function toggleSaveArticle(id) {
+    var list = getSavedArticles();
+    var i = list.indexOf(String(id));
+    if (i > -1) { list.splice(i, 1); } else { list.push(String(id)); }
+    try { localStorage.setItem(SAVED_KEY, JSON.stringify(list)); } catch (e) {}
+    var btn = document.getElementById('save-btn-' + id);
+    if (btn) btn.innerHTML = '🔖 ' + (i > -1 ? (currentLang === 'ta' ? 'சேமி' : 'Save') : (currentLang === 'ta' ? 'சேமித்தது' : 'Saved'));
+    showToast(i > -1 ? (currentLang === 'ta' ? 'அகற்றப்பட்டது' : 'Removed') : (currentLang === 'ta' ? '✅ சேமிக்கப்பட்டது!' : '✅ Saved!'), 'success');
+}
+
+// 🔠 FONT SIZE CONTROL — article content zoom (A- / A / A+)
+let _articleFontScale = 1;
+function adjustFontSize(delta) {
+    if (delta === 0) { _articleFontScale = 1; }
+    else { _articleFontScale = Math.min(1.5, Math.max(0.8, _articleFontScale + delta * 0.15)); }
+    var el = document.querySelector('.modal-article .article-text');
+    if (el) el.style.fontSize = (1.05 * _articleFontScale).toFixed(2) + 'rem';
+}
+
+// 🔗 RELATED ARTICLES — same category, exclude current, top 3
+function getRelatedArticles(article, limit) {
+    limit = limit || 3;
+    var cat = article.category_en || article.category;
+    var pool = newsData.filter(function(n) {
+        return String(n.id) !== String(article.id)
+            && n.status !== 'draft'
+            && (n.category_en === cat || n.category === cat);
+    });
+    return pool.slice(0, limit);
+}
+function relatedArticleHtml(a) {
+    return '<div class="article-card" onclick="openArticle(\'' + a.id + '\')" style="cursor:pointer;">' +
+        '<img src="' + escapeHtml(a.image) + '" alt="' + escapeHtml(getLocalized(a, 'title')) + '" loading="lazy">' +
+        '<div class="card-body"><div class="meta"><span class="cat">' + escapeHtml(getLocalized(a, 'category')) + '</span><span>' + formatDate(a.date) + '</span></div>' +
+        '<h3>' + escapeHtml(getLocalized(a, 'title')) + '</h3></div></div>';
+}
+
 // BACK button pressed → browser pops history → close the topmost layer
 window.addEventListener('popstate', function() {
     var layer = _layerStack.pop();
@@ -1150,6 +1199,13 @@ function openArticle(id) {
                     <span>👤 ${escapeHtml(getLocalized(article, 'author'))}</span>
                     <span>📅 ${new Date(article.date).toLocaleDateString()}</span>
                     <span>🏷️ ${escapeHtml(getLocalized(article, 'category'))}</span>
+                    <span>⏱️ ${readingTime(processedContent)} ${currentLang === 'ta' ? 'நிமிடம்' : 'min read'}</span>
+                    <button onclick="toggleSaveArticle('${article.id}')" id="save-btn-${article.id}" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 12px;cursor:pointer;font-size:0.8rem;color:var(--text-muted);white-space:nowrap;">🔖 ${isArticleSaved(article.id) ? (currentLang === 'ta' ? 'சேமித்தது' : 'Saved') : (currentLang === 'ta' ? 'சேமி' : 'Save')}</button>
+                    <span style="margin-left:auto;display:flex;gap:4px;">
+                        <button onclick="adjustFontSize(-1)" title="Smaller" style="background:none;border:1px solid var(--border);border-radius:6px;width:30px;height:30px;cursor:pointer;color:var(--text);font-size:0.75rem;">A-</button>
+                        <button onclick="adjustFontSize(0)" title="Normal" style="background:none;border:1px solid var(--border);border-radius:6px;width:30px;height:30px;cursor:pointer;color:var(--text);font-size:0.85rem;">A</button>
+                        <button onclick="adjustFontSize(1)" title="Bigger" style="background:none;border:1px solid var(--border);border-radius:6px;width:30px;height:30px;cursor:pointer;color:var(--text);font-size:1rem;">A+</button>
+                    </span>
                 </div>
                 <button onclick="shareArticle('${article.id}')" style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.5rem;background:linear-gradient(135deg, var(--primary, #e11d48), var(--primary-hover, #be123c));color:#fff;border:none;border-radius:999px;font-size:0.9rem;font-weight:700;cursor:pointer;margin:1rem 0;font-family:inherit;box-shadow:0 4px 15px rgba(225,29,72,0.3);">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
@@ -1158,6 +1214,13 @@ function openArticle(id) {
                 <div class="article-text">
                     ${processedContent}
                 </div>
+                ${(() => {
+                    const rel = getRelatedArticles(article, 3);
+                    return rel.length ? `<div style="margin-top:2.5rem;padding-top:1.5rem;border-top:2px solid var(--border);">
+                        <h3 style="font-family:var(--font-heading);font-size:1.15rem;margin-bottom:1rem;color:var(--text);">${currentLang === 'ta' ? '🔥 தொடர்புடைய செய்திகள்' : '🔥 Related News'}</h3>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">${rel.map(relatedArticleHtml).join('')}</div>
+                    </div>` : '';
+                })()}
                 ${videoBlockHtml(article)}
             </div>
         </div>
@@ -1892,6 +1955,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     window.addEventListener('resize', debounce(handleResize, 250));
+
+    // 🔖 Mobile menu-la "My Saved" link inject (index.html touch pannama)
+    try {
+        var mnav = document.getElementById('mobile-nav');
+        var mul = mnav && mnav.querySelector('ul');
+        if (mul && !document.getElementById('mnav-saved-link')) {
+            var li = document.createElement('li');
+            li.id = 'mnav-saved-link';
+            li.innerHTML = "<a href='#' style='color:#e11d48;font-weight:700;' onclick='event.preventDefault();closeMobileMenu();openSavedPage();'>🔖 சேமித்தவை / Saved</a>";
+            mul.appendChild(li);
+        }
+    } catch (e) {}
 
     const urlParams = new URLSearchParams(window.location.search);
     // 🏷️ Footer cross-page jump: ?cat=World → auto-filter that category
