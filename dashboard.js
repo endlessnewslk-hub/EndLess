@@ -400,6 +400,21 @@ async function sendBriefing(testOnly) {
     }
 }
 
+// 🛡️ Global toast guard — any function calling showToast must not crash
+if (typeof window.showToast !== 'function') {
+    window.showToast = function(msg, type) {
+        try {
+            var t = document.createElement('div');
+            t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:' +
+                (type === 'error' ? '#dc2626' : '#059669') +
+                ';color:#fff;padding:12px 20px;border-radius:10px;font-weight:600;z-index:99999;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,0.25);';
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(function() { t.remove(); }, 2600);
+        } catch (e) {}
+    };
+}
+
 // 🔇 Production: no debug logs in console
 var DEBUG = false;
 function dbg() { if (DEBUG) console.log.apply(console, arguments); }
@@ -1360,6 +1375,21 @@ function loadGalleryRows(news) {
 }
 
 function openNewsModal(isEdit) {
+    // 📱 Mobile: Enter key in inputs must NOT submit/close modal (keyboard "Go" button)
+    var nf = document.getElementById('news-form');
+    if (nf) { nf.setAttribute('novalidate', 'novalidate'); nf.setAttribute('onsubmit', 'return false;'); }
+    setTimeout(function() {
+        var modal = document.getElementById('news-modal');
+        if (!modal || modal._enterGuard) return;
+        modal._enterGuard = true;
+        modal.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        }, true); // capture phase — stops mobile submit before any handler
+    }, 60);
     isEdit = isEdit || false;
     var modal = document.getElementById('news-modal');
     var modalTitle = document.getElementById('news-modal-title');

@@ -1110,8 +1110,12 @@ let _articleFontScale = 1;
 function adjustFontSize(delta) {
     if (delta === 0) { _articleFontScale = 1; }
     else { _articleFontScale = Math.min(1.5, Math.max(0.8, _articleFontScale + delta * 0.15)); }
+    applyArticleFontScale();
+}
+function applyArticleFontScale() {
+    // setLanguage re-renders the modal → re-apply. !important beats styles.css rules.
     var el = document.querySelector('.modal-article .article-text');
-    if (el) el.style.fontSize = (1.05 * _articleFontScale).toFixed(2) + 'rem';
+    if (el) el.style.setProperty('font-size', (1.05 * _articleFontScale).toFixed(2) + 'rem', 'important');
 }
 
 // 🔗 RELATED ARTICLES — same category, exclude current, top 3
@@ -1842,6 +1846,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     try { initTheme(); } catch (e) {}
     try { initWeather(); } catch (e) {}
     try { setLanguage(currentLang); } catch (e) {}
+    // 🔄 After language switch re-renders modal, restore article font zoom (A+/A-)
+    setTimeout(applyArticleFontScale, 150);
     try { wireFooterLinks(); } catch (e) {}
 
     // 🚀 PHASE 2 — DATA: hard 15s timeout. Hang/fail aana kooda UI alive,
