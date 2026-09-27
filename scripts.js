@@ -1880,7 +1880,7 @@ function initWeather() {
                 var t = Math.round(d.current_weather.temperature);
                 var isDay = d.current_weather.is_day === 1;
                 var loc = city ? ' ' + city : '';
-                weatherEl.textContent = wEmoji(d.current_weather.weathercode, isDay) + ' ' + t + '°C' + loc;
+                weatherEl.innerHTML = wEmoji(d.current_weather.weathercode, isDay) + ' ' + t + '°C' + '<span style="opacity:0.85">' + loc + '</span>';
                 try {
                     localStorage.setItem('endless_weather', JSON.stringify({
                         t: t, code: d.current_weather.weathercode, isDay: isDay, city: city, ts: Date.now()
@@ -1893,8 +1893,8 @@ function initWeather() {
     try {
         var cached = JSON.parse(localStorage.getItem('endless_weather'));
         if (cached && Date.now() - cached.ts < 1800000) {
-            weatherEl.textContent = wEmoji(cached.code, cached.isDay) + ' ' + cached.t + '°C' +
-                (cached.city ? ' ' + cached.city : '');
+            weatherEl.innerHTML = wEmoji(cached.code, cached.isDay) + ' ' + cached.t + '°C' +
+                (cached.city ? '<span style="opacity:0.85"> ' + cached.city + '</span>' : '');
         }
     } catch (e) {}
 
