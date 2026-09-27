@@ -296,7 +296,7 @@ function ensureNewsletterUI() {
     page.id = 'page-newsletter'; page.className = 'page-content hidden';
     page.innerHTML =
         '<div class="stats-grid">' +
-        '  <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-info"><h3 id="nl-count">…</h3><p>Subscribers</p></div></div>' +
+        '  <div class="stat-card"><div class="stat-icon">' + IC.users + '</div><div class="stat-info"><h3 id="nl-count">…</h3><p>Subscribers</p></div></div>' +
         '  <div class="stat-card"><div class="stat-icon">' + IC.mail + '</div><div class="stat-info"><h3 id="nl-sent">…</h3><p>Total Sent</p></div></div>' +
         '</div>' +
         '<div class="panel">' +
@@ -440,6 +440,18 @@ function iconifyAdmin() {
     document.querySelectorAll('.stat-icon').forEach(function(sp) {
         var t = sp.textContent.trim();
         if (statMap[t]) { sp.innerHTML = statMap[t]; sp.style.cssText += 'display:grid;place-items:center;color:#dc2626;'; }
+    });
+    // 📰 Panel h3 headings (dashboard.html-la static emojis): 📈 Recent Articles, 📢 Active Ads
+    var h3Map = { '📈': IC.chart, '📊': IC.chart, '📢': IC.megaphone, '✍️': IC.edit, '👥': IC.users };
+    document.querySelectorAll('.panel h3').forEach(function(h) {
+        if (h.dataset.iconDone) return;
+        var raw = h.textContent.trim();
+        var emoji = raw.split(' ')[0];
+        if (h3Map[emoji]) {
+            h.dataset.iconDone = '1';
+            h.style.display = 'flex'; h.style.alignItems = 'center'; h.style.gap = '7px';
+            h.innerHTML = '<span style="color:#dc2626;display:inline-flex;flex-shrink:0;">' + h3Map[emoji] + '</span><span>' + raw.substring(emoji.length).trim() + '</span>';
+        }
     });
     // Likes column header
     var th = document.getElementById('th-likes');
