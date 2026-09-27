@@ -160,8 +160,14 @@ function wireNewsletterBox() {
         '.rel-card .rc-b{padding:10px 12px;}',
         '.rel-card .rc-cat{font-size:0.6rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:0.08em;}',
         '.rel-card .rc-t{font-size:0.85rem;font-weight:600;line-height:1.35;margin-top:4px;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}',
-        /* 📱 Mobile: related cards — premium look intact, touch-friendly size */
-        '@media(max-width:640px){.rel-grid{grid-template-columns:repeat(3,1fr);gap:0.75rem;}.rel-card{border-radius:10px;}.rel-card img{height:90px;}.rel-card .rc-b{padding:8px 10px;}.rel-card .rc-cat{font-size:0.55rem;}.rel-card .rc-t{font-size:0.8rem;line-height:1.3;}}',
+        /* 📱 Mobile: RELATED NEWS — HORIZONTAL cards (image LEFT, text RIGHT).
+           !important forces flex over base .rel-card block styles — no portrait look! */
+        '@media(max-width:640px){.rel-grid{grid-template-columns:1fr!important;gap:0.9rem!important;}}',
+        '@media(max-width:640px){.rel-card{display:flex!important;flex-direction:row!important;align-items:stretch!important;border-radius:14px!important;overflow:hidden!important;min-height:100px!important;}}',
+        '@media(max-width:640px){.rel-card img{width:120px!important;height:100px!important;min-height:100px!important;object-fit:cover!important;flex-shrink:0!important;border-radius:0!important;}}',
+        '@media(max-width:640px){.rel-card .rc-b{flex:1!important;padding:10px 14px!important;display:flex!important;flex-direction:column!important;justify-content:center!important;}}',
+        '@media(max-width:640px){.rel-card .rc-cat{font-size:0.6rem!important;margin-bottom:4px!important;}}',
+        '@media(max-width:640px){.rel-card .rc-t{font-size:0.9rem!important;line-height:1.4!important;display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;overflow:hidden!important;}}',
         /* 📱 FEED ADS: full-width between article cards; hidden on desktop (sidebar there) */
         '.feed-ad-slot{grid-column:1/-1;margin:0.25rem 0 1rem;}',
         '@media(min-width:1024px){.feed-ad-slot{display:none!important;}}',
