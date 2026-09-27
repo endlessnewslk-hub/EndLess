@@ -236,7 +236,7 @@ window.addEventListener('error', function(e) {
     var b = document.createElement('div');
     b.id = 'js-err-ban';
     b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#dc2626;color:#fff;padding:10px 14px;font-size:13px;z-index:999999;font-family:monospace;white-space:pre-wrap;';
-    b.textContent = '⚠️ JS ERROR: ' + (e.message || 'unknown') + ' @ ' + String(e.filename || '').split('/').pop() + ':' + (e.lineno || '?');
+    b.innerHTML = '<span style="display:inline-flex;vertical-align:-3px;margin-right:6px;">' + IC.alert + '</span><b>JS ERROR:</b> ' + String(e.message || 'unknown') + ' @ ' + String(e.filename || '').split('/').pop() + ':' + (e.lineno || '?');
     if (document.body) document.body.appendChild(b);
 });
 
@@ -255,8 +255,8 @@ const TRANSLATIONS = {
         nav_business: "வணிகம்", nav_science: "அறிவியல்", nav_sports: "விளையாட்டு",
         nav_health: "சுகாதாரம்", placeholder_search: "செய்திகளைத் தேடு...",
         latest_news: "சமீபத்திய செய்திகள்", load_more: "மேலும் கட்டுரைகள் ↓",
-        trending: "🔥 பிரபலமானவை", categories: "📂 பிரிவுகள்",
-        newsletter: "📬 தினசரி சுருக்கம்",
+        trending: "பிரபலமானவை", categories: "பிரிவுகள்",
+        newsletter: "தினசரி சுருக்கம்",
         newsletter_desc: "முக்கியமான செய்திகளை உங்கள் மின்னஞ்சலுக்கு அனுப்புங்கள்.",
         subscribe: "சந்தா சேர்",
         footer_desc: "உலகம் முழுவதும் சுயாதீன பத்திரிகையாளர். தினமும் மில்லியன் கணக்கான வாசகர்களால் நம்பப்படுகிறது.",
@@ -278,8 +278,8 @@ const TRANSLATIONS = {
         nav_business: "Business", nav_science: "Science", nav_sports: "Sports",
         nav_health: "Health", placeholder_search: "Search news...",
         latest_news: "Latest News", load_more: "Load More Articles ↓",
-        trending: "🔥 Trending", categories: "📂 Categories",
-        newsletter: "📬 Daily Briefing",
+        trending: "Trending", categories: "Categories",
+        newsletter: "Daily Briefing",
         newsletter_desc: "Get the most important stories delivered to your inbox every morning.",
         subscribe: "Subscribe",
         footer_desc: "Independent journalism from around the world. Trusted by millions of readers daily.",
@@ -1092,6 +1092,61 @@ function pushLayer(id, closeFn) {
     _layerStack.push({ id: id, fn: closeFn });
 }
 
+// 🎨 PROFESSIONAL SVG ICON LIBRARY — replaces all emojis (BBC/NYT style).
+// Consistent 24px stroke icons, currentColor — theme-aware automatic!
+const IC = (function() {
+    function i(paths, vb) {
+        return '<svg viewBox="' + (vb || '0 0 24 24') + '" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.12em;display:inline-block;">' + paths + '</svg>';
+    }
+    return {
+        sun: i('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>'),
+        moon: i('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'),
+        cloud: i('<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>'),
+        cloudSun: i('<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M12 2v2M4.93 4.93l1.41 1.41M2 12h2"/>'),
+        cloudMoon: i('<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" transform="scale(0.5) translate(22 2)"/>'),
+        rain: i('<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M8 19v2M12 19v2M16 19v2"/>'),
+        snow: i('<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M8 19h.01M12 19h.01M16 19h.01"/>'),
+        thunder: i('<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M13 11l-3 5h4l-3 5"/>'),
+        fog: i('<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M4 15h16M6 19h12" stroke-width="1.5"/>'),
+        heart: i('<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>'),
+        thumbsUp: i('<path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>'),
+        laugh: i('<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>'),
+        wow: i('<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3.5"/><line x1="12" y1="4" x2="12" y2="7"/>'),
+        sad: i('<circle cx="12" cy="12" r="10"/><path d="M8 16s1.5-2 4-2 4 2 4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>'),
+        angry: i('<circle cx="12" cy="12" r="10"/><line x1="8" y1="8" x2="12" y2="11"/><line x1="16" y1="8" x2="12" y2="11"/><path d="M8 16s1.5-1.5 4-1.5 4 1.5 4 1.5"/>'),
+        bookmark: i('<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>'),
+        clock: i('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),
+        user: i('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
+        calendar: i('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'),
+        tag: i('<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.83z"/><line x1="7" y1="7" x2="7.01" y2="7"/>'),
+        flame: i('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'),
+        megaphone: i('<path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>'),
+        search: i('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'),
+        image: i('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>'),
+        video: i('<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>'),
+        mail: i('<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>'),
+        alert: i('<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
+        trash: i('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'),
+        eye: i('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
+        share: i('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>'),
+        chart: i('<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>'),
+        globe: i('<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'),
+        phone: i('<rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>'),
+        newsIcon: i('<path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6z"/>'),
+        settings: i('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
+        logout: i('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>'),
+        users: i('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
+        send: i('<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>'),
+        zap: i('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'),
+        check: i('<polyline points="20 6 9 17 4 12"/>'),
+        x: i('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
+        edit: i('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'),
+        pie: i('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
+        mouse: i('<rect x="6" y="3" width="12" height="18" rx="6"/><line x1="12" y1="7" x2="12" y2="11"/>'),
+        monitor: i('<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>')
+    };
+})();
+
 // ⏱️ READING TIME — word count / 200 ≈ minutes
 function readingTime(text) {
     var words = String(text || '').replace(/<[^>]*>/g, ' ').trim().split(/\s+/).length;
@@ -1110,7 +1165,7 @@ function toggleSaveArticle(id) {
     if (i > -1) { list.splice(i, 1); } else { list.push(String(id)); }
     try { localStorage.setItem(SAVED_KEY, JSON.stringify(list)); } catch (e) {}
     var btn = document.getElementById('save-btn-' + id);
-    if (btn) btn.innerHTML = '🔖 ' + (i > -1 ? (currentLang === 'ta' ? 'சேமி' : 'Save') : (currentLang === 'ta' ? 'சேமித்தது' : 'Saved'));
+    if (btn) btn.innerHTML = IC.bookmark + ' ' + (i > -1 ? (currentLang === 'ta' ? 'சேமி' : 'Save') : (currentLang === 'ta' ? 'சேமித்தது' : 'Saved'));
     var msg = i > -1 ? (currentLang === 'ta' ? 'அகற்றப்பட்டது' : 'Removed') : (currentLang === 'ta' ? '✅ சேமிக்கப்பட்டது!' : '✅ Saved!');
     // Toast fallback — main site-la showToast illa (dashboard only), so inline toast
     if (typeof showToast === 'function') { showToast(msg, 'success'); }
@@ -1139,8 +1194,16 @@ function applyArticleFontScale() {
 // ❤️ LIKE + REACTIONS — Facebook-style. Viewers: like/unlike + 6-emoji reactions.
 // Counts public; admin panel-la full breakdown kaatum.
 const LIKED_KEY = 'endless_liked';
-const REACTIONS = { like: '👍', love: '❤️', haha: '😂', wow: '🮮', sad: '😢', angry: '😡' };
-REACTIONS.wow = '😮';
+// 🎨 Reaction SVGs with brand colors (Facebook-style palette)
+function colored(icon, color) { return '<span style="color:' + color + ';display:inline-flex;">' + icon + '</span>'; }
+const REACTIONS = {
+    like: colored(IC.thumbsUp, '#1877F2'),
+    love: colored(IC.heart, '#F33E58'),
+    haha: colored(IC.laugh, '#F7B125'),
+    wow: colored(IC.wow, '#F7B125'),
+    sad: colored(IC.sad, '#F7B125'),
+    angry: colored(IC.angry, '#E9710F')
+};
 function getLikedMap() { try { return JSON.parse(localStorage.getItem(LIKED_KEY)) || {}; } catch (e) { return {}; } }
 
 function getLikeCount(articleId, cb) {
@@ -1206,7 +1269,7 @@ function buildReactionUI(container, articleId) {
     Object.keys(REACTIONS).forEach(function(k) {
         var b = document.createElement('button');
         b.type = 'button';
-        b.style.cssText = 'background:none;border:none;font-size:1.5rem;cursor:pointer;padding:2px 6px;transition:transform .15s;display:inline-block;';
+        b.style.cssText = 'background:none;border:none;font-size:1.6rem;cursor:pointer;padding:2px 6px;transition:transform .15s;display:inline-flex;color:inherit;';
         b.textContent = REACTIONS[k];
         b.dataset.reaction = k;
         b.addEventListener('mouseenter', function() { this.style.transform = 'scale(1.35)'; });
@@ -1267,7 +1330,7 @@ function pickReaction(articleId, emojiKey, isQuick) {
         var panel = container.querySelector('#react-panel');
         if (panel) panel.style.display = 'none';
         var eb = container.querySelector('#react-emoji');
-        if (eb) eb.textContent = next ? REACTIONS[next] : '👍';
+        if (eb) eb.innerHTML = next ? REACTIONS[next] : IC.thumbsUp;
         getLikeCount(articleId, function(total) {
             var c = container.querySelector('#react-count');
             if (c) c.textContent = total > 0 ? total : '';
@@ -1376,12 +1439,12 @@ function openArticle(id) {
                 <span class="category">${escapeHtml(getLocalized(article, 'category'))}</span>
                 <h1>${escapeHtml(getLocalized(article, 'title'))}</h1>
                 <div class="meta-bar">
-                    <span>👤 ${escapeHtml(getLocalized(article, 'author'))}</span>
-                    <span>📅 ${new Date(article.date).toLocaleDateString()}</span>
-                    <span>🏷️ ${escapeHtml(getLocalized(article, 'category'))}</span>
+                    <span>${IC.user} ${escapeHtml(getLocalized(article, 'author'))}</span>
+                    <span>${IC.calendar} ${new Date(article.date).toLocaleDateString()}</span>
+                    <span>${IC.tag} ${escapeHtml(getLocalized(article, 'category'))}</span>
                     <span id="reaction-wrap" style="display:inline-flex;align-items:center;"></span>
-                    <span>⏱️ ${readingTime(processedContent)} ${currentLang === 'ta' ? 'நிமிடம்' : 'min read'}</span>
-                    <button onclick="toggleSaveArticle('${article.id}')" id="save-btn-${article.id}" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 12px;cursor:pointer;font-size:0.8rem;color:var(--text-muted);white-space:nowrap;">🔖 ${isArticleSaved(article.id) ? (currentLang === 'ta' ? 'சேமித்தது' : 'Saved') : (currentLang === 'ta' ? 'சேமி' : 'Save')}</button>
+                    <span>${IC.clock} ${readingTime(processedContent)} ${currentLang === 'ta' ? 'நிமிடம்' : 'min read'}</span>
+                    <button onclick="toggleSaveArticle('${article.id}')" id="save-btn-${article.id}" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 12px;cursor:pointer;font-size:0.8rem;color:var(--text-muted);white-space:nowrap;display:inline-flex;align-items:center;gap:4px;">${IC.bookmark} ${isArticleSaved(article.id) ? (currentLang === 'ta' ? 'சேமித்தது' : 'Saved') : (currentLang === 'ta' ? 'சேமி' : 'Save')}</button>
                     <span style="margin-left:auto;display:flex;gap:4px;">
                         <button onclick="adjustFontSize(-1)" title="Smaller" style="background:none;border:1px solid var(--border);border-radius:6px;width:30px;height:30px;cursor:pointer;color:var(--text);font-size:0.75rem;">A-</button>
                         <button onclick="adjustFontSize(0)" title="Normal" style="background:none;border:1px solid var(--border);border-radius:6px;width:30px;height:30px;cursor:pointer;color:var(--text);font-size:0.85rem;">A</button>
@@ -1463,7 +1526,7 @@ function openSavedPage() {
         ov.innerHTML = '<div style="max-width:900px;margin:0 auto;padding:20px;">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">' +
             '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
-            '<h2 id="sv-title" style="font-family:var(--font-heading);font-size:1.5rem;color:var(--text);margin:0;"></h2>' +
+            '<h2 id="sv-title" style="font-family:var(--font-heading);font-size:1.5rem;color:var(--text);margin:0;display:flex;align-items:center;gap:8px;"><span style="color:#e11d48;display:inline-flex;">' + IC.bookmark + '</span><span id="sv-title-text"></span></h2>' +
             '<span id="sv-count" style="background:var(--primary);color:#fff;font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:999px;"></span>' +
             '</div>' +
             '<div style="display:flex;gap:8px;align-items:center;">' +
@@ -1491,7 +1554,7 @@ function renderSavedPage() {
     var saved = getSavedArticles();
     var L = _svLang || 'ta';
     var t = document.getElementById('sv-title');
-    if (t) t.textContent = L === 'ta' ? '🔖 சேமித்த செய்திகள்' : '🔖 My Saved Articles';
+    if (t) { var tt = document.getElementById('sv-title-text'); if (tt) tt.textContent = L === 'ta' ? 'சேமித்த செய்திகள்' : 'My Saved Articles'; }
     var c = document.getElementById('sv-count');
     if (c) c.textContent = saved.length + (L === 'ta' ? ' செய்திகள்' : ' articles');
     // Language buttons active state
@@ -1506,7 +1569,7 @@ function renderSavedPage() {
             '<img src="' + escapeHtml(a.image) + '" alt="' + escapeHtml(getLocalized(a, 'title')) + '" loading="lazy">' +
             '<div class="card-body"><div class="meta"><span class="cat">' + escapeHtml(getLocalized(a, 'category')) + '</span><span>' + formatDate(a.date) + '</span></div>' +
             '<h3>' + escapeHtml(getLocalized(a, 'title')) + '</h3>' +
-            "<button onclick=\"event.stopPropagation();toggleSaveArticle('" + a.id + "');renderSavedPage();\" style=\"margin-top:8px;background:none;border:1px solid var(--border);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:0.75rem;color:var(--text-muted);\">🗑 " + (L === 'ta' ? 'அகற்று' : 'Remove') + "</button>" +
+            "<button onclick=\"event.stopPropagation();toggleSaveArticle('" + a.id + "');renderSavedPage();\" style=\"margin-top:8px;background:none;border:1px solid var(--border);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:0.75rem;color:var(--text-muted);\">' + IC.trash + ' " + (L === 'ta' ? 'அகற்று' : 'Remove') + "</button>" +
             '</div></article>';
     }).join('') : '<p style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:3rem;">' + (L === 'ta' ? 'இன்னும் எதுவும் சேமிக்கப்படவில்லை' : 'Nothing saved yet') + '</p>';
 }
@@ -1794,18 +1857,18 @@ function initWeather() {
     if (!weatherEl) return;
 
     function wEmoji(code, isDay) {
-        // 🌙 Night icons — midnight-la ☀️ vara koodathu!
-        if (code === 0) return isDay ? '☀️' : '🌙';
-        if (code <= 2) return isDay ? '🌤️' : '☁️';
-        if (code === 3) return '☁️';
-        if (code === 45 || code === 48) return '🌫️';
-        if (code >= 51 && code <= 57) return isDay ? '🌦️' : '🌧️';
-        if (code >= 61 && code <= 67) return '🌧️';
-        if (code >= 71 && code <= 77) return isDay ? '🌨️' : '🌨️';
-        if (code >= 80 && code <= 82) return isDay ? '🌦️' : '🌧️';
-        if (code >= 85 && code <= 86) return '🌨️';
-        if (code >= 95) return '⛈️';
-        return isDay ? '🌡️' : '🌙';
+        // 🎨 Professional SVG icons — day/night aware
+        if (code === 0) return isDay ? IC.sun : IC.moon;
+        if (code <= 2) return isDay ? IC.cloudSun : IC.cloudMoon;
+        if (code === 3) return IC.cloud;
+        if (code === 45 || code === 48) return IC.fog;
+        if (code >= 51 && code <= 57) return IC.rain;
+        if (code >= 61 && code <= 67) return IC.rain;
+        if (code >= 71 && code <= 77) return IC.snow;
+        if (code >= 80 && code <= 82) return IC.rain;
+        if (code >= 85 && code <= 86) return IC.snow;
+        if (code >= 95) return IC.thunder;
+        return isDay ? IC.sun : IC.moon;
     }
 
     function show(lat, lon, city) {
@@ -2213,6 +2276,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.addEventListener('resize', debounce(handleResize, 250));
 
+    // 🎨 Sidebar h3 icons — 🔥📂📬 → professional SVG (index.html touch pannama)
+    try {
+        var iconH3 = [
+            ['trending', IC.flame, '#e11d48'],
+            ['categories', IC.tag, '#4f46e5'],
+            ['newsletter', IC.mail, '#059669']
+        ];
+        iconH3.forEach(function(cfg) {
+            document.querySelectorAll('h3[data-key="' + cfg[0] + '"]').forEach(function(h) {
+                if (h.dataset.iconDone) return;
+                h.dataset.iconDone = '1';
+                h.style.display = 'flex'; h.style.alignItems = 'center'; h.style.gap = '7px';
+                h.innerHTML = '<span style="color:' + cfg[2] + ';display:inline-flex;flex-shrink:0;">' + cfg[1] + '</span><span>' + h.textContent.trim() + '</span>';
+            });
+        });
+        // Ad placeholder emojis (📢) — SVG megaphone
+        document.querySelectorAll('.ad-slot-placeholder span').forEach(function(sp) {
+            if (sp.textContent.trim() === '📢') { sp.innerHTML = IC.megaphone; sp.style.cssText = 'display:inline-flex;color:var(--text-subtle);'; }
+        });
+        // Newsletter heading inside box (static h3 without data-key in some versions)
+    } catch (e) {}
+
     // 🔖 Mobile menu-la "My Saved" link inject (index.html touch pannama)
     try {
         var mnav = document.getElementById('mobile-nav');
@@ -2220,7 +2305,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (mul && !document.getElementById('mnav-saved-link')) {
             var li = document.createElement('li');
             li.id = 'mnav-saved-link';
-            li.innerHTML = "<a href='#' style='color:#e11d48;font-weight:700;' onclick='event.preventDefault();closeMobileMenu();openSavedPage();'>🔖 <span class='sv-label'>" + (currentLang === 'ta' ? 'சேமித்தவை' : 'Saved') + "</span></a>";
+            li.innerHTML = "<a href='#' style='color:#e11d48;font-weight:700;display:inline-flex;align-items:center;gap:5px;' onclick='event.preventDefault();closeMobileMenu();openSavedPage();'>" + IC.bookmark + " <span class='sv-label'>" + (currentLang === 'ta' ? 'சேமித்தவை' : 'Saved') + "</span></a>";
             mul.appendChild(li);
         }
     } catch (e) {}

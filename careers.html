@@ -51,7 +51,7 @@ h1{font-size:21px}
   <div class="lang-btns" style="display:flex;gap:6px;align-items:center;">
     <button id="b-ta" class="on">தமிழ்</button>
     <button id="b-en">English</button>
-    <button id="b-theme" style="padding:6px 12px;border-radius:999px;border:1px solid #334155;background:var(--surface);font-size:16px;cursor:pointer;" title="Toggle theme">🌙</button>
+    <button id="b-theme" style="padding:6px 12px;border-radius:999px;border:1px solid #334155;background:var(--surface);font-size:16px;cursor:pointer;" title="Toggle theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:1.1em;height:1.1em;vertical-align:-3px;"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></button>
   </div>
 </header>
 <main>
@@ -59,7 +59,7 @@ h1{font-size:21px}
 <h1>வேலைவாய்ப்பு</h1>
 <p>EndLess News-ல் இணைந்து பணியாற்ற திறமையானவர்களை நாங்கள் வரவேற்கிறோம்.</p>
 <div class="box"><strong>தற்போது திறக்கப்பட்டுள்ள பணியிடங்கள்:</strong><br><br>• செய்தியாளர் (Reporter) — பகுதி நேரம்<br>• மொழிபெயர்ப்பாளர் (Translator — தமிழ் ⇄ English)<br>• சமூக ஊடக நிபுணர் (Social Media Manager)<br><br>[EDIT — தேவைப்பட்டால் உங்கள் பட்டியலை இங்கே மாற்றவும்]</div>
-<h2>📋 எப்படி விண்ணப்பிப்பது?</h2>
+<h2> எப்படி விண்ணப்பிப்பது?</h2>
 <p>உங்கள் CV-யை மின்னஞ்சலில் அனுப்புங்கள்: <a href="mailto:endlessnewslk@gmail.com">endlessnewslk@gmail.com</a></p>
 <p>Subject-ல் "Careers — [பெயர்]" என குறிப்பிடுங்கள். 7 நாட்களுக்குள் பதில் தரப்படும்.</p>
 </div>
@@ -67,7 +67,7 @@ h1{font-size:21px}
 <h1>Careers</h1>
 <p>We welcome talented people to join the EndLess News team.</p>
 <div class="box"><strong>Current openings:</strong><br><br>• Reporter — Part-time<br>• Translator (Tamil ⇄ English)<br>• Social Media Manager<br><br>[EDIT — update this list as needed]</div>
-<h2>📋 How to Apply</h2>
+<h2> How to Apply</h2>
 <p>Email your CV to: <a href="mailto:endlessnewslk@gmail.com">endlessnewslk@gmail.com</a></p>
 <p>Use the subject "Careers — [Your Name]". We reply within 7 days.</p>
 </div>
@@ -77,13 +77,13 @@ h1{font-size:21px}
 var ta=document.getElementById('c-ta'),en=document.getElementById('c-en');
 var bt=document.getElementById('b-ta'),be=document.getElementById('b-en');
 var bth=document.getElementById('b-theme');
-// 🌓 Theme: main site memory (endless_theme) respected; default Tamil
+//  Theme: main site memory (endless_theme) respected; default Tamil
 var savedTheme=null; try{savedTheme=localStorage.getItem('endless_theme');}catch(e){}
 if(savedTheme==='light') document.documentElement.setAttribute('data-theme','light');
-function syncThemeIcon(){ if(bth) bth.textContent = document.documentElement.getAttribute('data-theme')==='dark'?'☀️':'🌙'; }
+function syncThemeIcon(){ if(bth) bth.innerHTML = document.documentElement.getAttribute('data-theme')==='dark'?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:1.1em;height:1.1em;vertical-align:-3px;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:1.1em;height:1.1em;vertical-align:-3px;"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>'; }
 syncThemeIcon();
 bth.onclick=function(){var cur=document.documentElement.getAttribute('data-theme');var nx=cur==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',nx);try{localStorage.setItem('endless_theme',nx);}catch(e){}syncThemeIcon();};
-// 🌐 Language: main site memory (gd_language); default Tamil
+// <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:1em;height:1em;vertical-align:-2px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Language: main site memory (gd_language); default Tamil
 var savedLang=null; try{savedLang=localStorage.getItem('gd_language');}catch(e){}
 if(savedLang==='en'){ta.style.display='none';en.style.display='block';be.className='on';bt.className='';document.documentElement.lang='en';}
 bt.onclick=function(){ta.style.display='block';en.style.display='none';bt.className='on';be.className='';document.documentElement.lang='ta';try{localStorage.setItem('gd_language','ta');}catch(e){}};
