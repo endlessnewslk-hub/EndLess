@@ -133,7 +133,7 @@ function renderAnalyticsPage() {
             panel.className = 'panel';
             panel.id = 'top-articles-panel';
             panel.style.marginTop = '1.5rem';
-            panel.innerHTML = '<h3>🔥 Top Articles (Most Read)</h3>' +
+            panel.innerHTML = '<h3>' + IC.flame + ' Top Articles (Most Read)</h3>' +
                 '<div class="table-scroll"><table class="data-table compact">' +
                 '<thead><tr><th>Article</th><th>Views</th></tr></thead>' +
                 '<tbody id="top-articles-body"><tr><td colspan="2" style="color:#9ca3af;">Loading…</td></tr></tbody>' +
@@ -163,7 +163,7 @@ function renderAnalyticsPage() {
             // Token expired but guard.js let us in via session-trust — force re-login
             sessionStorage.removeItem('endless_auth_session');
             localStorage.removeItem('endless_auth_persistent');
-            alert('⏰ Session expired! Please login again to save articles to cloud.');
+            alert('Session expired! Please login again.');
             window.location.href = 'x7k9m2.html';
         }
     });
@@ -297,13 +297,13 @@ function ensureNewsletterUI() {
     page.innerHTML =
         '<div class="stats-grid">' +
         '  <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-info"><h3 id="nl-count">…</h3><p>Subscribers</p></div></div>' +
-        '  <div class="stat-card"><div class="stat-icon">✉️</div><div class="stat-info"><h3 id="nl-sent">…</h3><p>Total Sent</p></div></div>' +
+        '  <div class="stat-card"><div class="stat-icon">' + IC.mail + '</div><div class="stat-info"><h3 id="nl-sent">…</h3><p>Total Sent</p></div></div>' +
         '</div>' +
         '<div class="panel">' +
-        '  <h3>✍️ Compose Daily Briefing</h3>' +
-        '  <div class="form-group"><label>Subject</label><input type="text" id="nl-subject" placeholder="🌅 EndLess Daily Briefing — ' + new Date().toLocaleDateString() + '"></div>' +
-        '  <div class="form-group"><button class="btn-secondary" id="nl-gen" type="button">⚡ Auto-Generate from Latest Articles</button></div>' +
-        '  <div class="form-group"><label>Email Body (HTML allowed)</label><textarea id="nl-body" rows="12" style="width:100%;padding:0.65rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:0.95rem;"></textarea></div>' +
+        '  <h3>' + IC.edit + ' Compose Daily Briefing</h3>' +
+        '  <div class="form-group"><label>' + IC.send + ' Subject</label><input type="text" id="nl-subject" placeholder="🌅 EndLess Daily Briefing — ' + new Date().toLocaleDateString() + '"></div>' +
+        '  <div class="form-group"><button class="btn-secondary" id="nl-gen" type="button">' + IC.zap + ' Auto-Generate from Latest Articles</button></div>' +
+        '  <div class="form-group"><label>' + IC.edit + ' Email Body (HTML allowed)</label><textarea id="nl-body" rows="12" style="width:100%;padding:0.65rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:0.95rem;"></textarea></div>' +
         '  <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">' +
         '    <button class="btn-primary" id="nl-send" type="button">🚀 Send to All Subscribers</button>' +
         '    <button class="btn-secondary" id="nl-test" type="button">🧪 Send Test to Admin</button>' +
@@ -366,7 +366,7 @@ async function sendBriefing(testOnly) {
     if (!subject || !html) { showToast('Generate the briefing first!', 'error'); return; }
     if (!db) { showToast('No Firebase connection', 'error'); return; }
     var btn = document.getElementById(testOnly ? 'nl-test' : 'nl-send');
-    var orig = btn.textContent; btn.disabled = true; btn.textContent = '⏳ Sending…';
+    var orig = btn.textContent; btn.disabled = true; btn.textContent = 'Sending…';
     try {
         var recipients = [];
         if (testOnly) {
@@ -394,7 +394,7 @@ async function sendBriefing(testOnly) {
         renderNewsletterPage();
     } catch (e) {
         console.warn('Send failed:', e);
-        showToast('⚠️ Send failed: ' + (e && e.message ? e.message : 'unknown') + ' — Trigger Email extension install aagirukka check pannunga', 'error');
+        showToast('Send failed: ' + (e && e.message ? e.message : 'unknown') + ' — Trigger Email extension install aagirukka check pannunga', 'error');
     } finally {
         btn.disabled = false; btn.textContent = orig;
     }
@@ -769,10 +769,10 @@ async function syncFromFirebase() {
             });
         } else if (adminNews.length > 0) {
             // Firebase empty but local has data — upload in background
-            console.log('☁️ Firebase empty, uploading', adminNews.length, 'articles...');
+            dbg(' Firebase empty, uploading', adminNews.length, 'articles...');
             Promise.all(adminNews.map(n => 
                 db.collection('news').doc(String(n.id)).set(n).catch(() => {})
-            )).then(() => console.log('✅ Upload complete'));
+            )).then(() => dbg('Upload complete'));
         }
         localStorage.setItem('endless_news', JSON.stringify(adminNews));
 
@@ -2415,7 +2415,7 @@ async function resetData() {
     if (typeof firebase !== 'undefined' && firebase.auth) {
         var _u = firebase.auth().currentUser;
         if (!_u || _u.email !== 'endlessnewslk@gmail.com') {
-            showToast('⛔ Not authorized — login as admin first', 'error');
+            showToast('Not authorized — login as admin first', 'error');
             return;
         }
     }
