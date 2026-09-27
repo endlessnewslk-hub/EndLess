@@ -1136,6 +1136,145 @@ function applyArticleFontScale() {
     if (el) el.style.setProperty('font-size', (1.05 * _articleFontScale).toFixed(2) + 'rem', 'important');
 }
 
+// ❤️ LIKE + REACTIONS — Facebook-style. Viewers: like/unlike + 6-emoji reactions.
+// Counts public; admin panel-la full breakdown kaatum.
+const LIKED_KEY = 'endless_liked';
+const REACTIONS = { like: '👍', love: '❤️', haha: '😂', wow: '🮮', sad: '😢', angry: '😡' };
+REACTIONS.wow = '😮';
+function getLikedMap() { try { return JSON.parse(localStorage.getItem(LIKED_KEY)) || {}; } catch (e) { return {}; } }
+
+function getLikeCount(articleId, cb) {
+    // Firestore REST read — public
+    try {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents/likes/' + encodeURIComponent(String(articleId)) + '?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA');
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                try {
+                    var f = JSON.parse(xhr.responseText).fields || {};
+                    var total = 0, breakdown = {};
+                    Object.keys(REACTIONS).forEach(function(k) {
+                        var v = (f[k] && (f[k].integerValue || 0)) || 0;
+                        v = parseInt(v) || 0;
+                        breakdown[k] = v; total += v;
+                    });
+                    cb(total, breakdown);
+                    return;
+                } catch (e) {}
+            }
+            cb(0, {});
+        };
+        xhr.onerror = function() { cb(0, {}); };
+        xhr.send();
+    } catch (e) { cb(0, {}); }
+}
+
+function submitReaction(articleId, emoji, prevEmoji) {
+    // Firestore REST commit — decrement prev (if changed/removed), increment new
+    var writes = [];
+    if (prevEmoji && prevEmoji !== emoji) {
+        writes.push({ transform: { document: 'projects/endless-news/databases/(default)/documents/likes/' + encodeURIComponent(String(articleId)),
+            fieldTransforms: [{ fieldPath: prevEmoji, increment: { integerValue: -1 } }] } });
+    }
+    var inc = (emoji && prevEmoji !== emoji) ? 1 : (prevEmoji === emoji ? -1 : 1);
+    if (emoji && inc !== 0) {
+        writes.push({ transform: { document: 'projects/endless-news/databases/(default)/documents/likes/' + encodeURIComponent(String(articleId)),
+            fieldTransforms: [{ fieldPath: emoji, increment: { integerValue: inc } }] } });
+    }
+    if (!writes.length) return;
+    try {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents:commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA');
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify({ writes: writes }));
+    } catch (e) {}
+}
+
+// Like button UI + long-press emoji panel (Facebook style)
+let _reactArticleId = null;
+function buildReactionUI(container, articleId) {
+    var liked = getLikedMap();
+    var myReaction = liked[articleId] || null;
+    container.innerHTML =
+        '<button type="button" id="react-btn" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 12px;cursor:pointer;font-size:0.85rem;color:var(--text);display:inline-flex;align-items:center;gap:5px;user-select:none;-webkit-user-select:none;">' +
+        '<span id="react-emoji">' + (myReaction ? REACTIONS[myReaction] : '👍') + '</span>' +
+        '<span id="react-count" style="font-weight:700;"></span></button>' +
+        '<span id="react-panel" style="display:none;position:absolute;bottom:44px;left:0;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:6px 10px;box-shadow:0 8px 24px rgba(0,0,0,0.25);z-index:50;gap:2px;"></span>';
+    container.style.position = 'relative';
+
+    var panel = container.querySelector('#react-panel');
+    Object.keys(REACTIONS).forEach(function(k) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.style.cssText = 'background:none;border:none;font-size:1.5rem;cursor:pointer;padding:2px 6px;transition:transform .15s;display:inline-block;';
+        b.textContent = REACTIONS[k];
+        b.dataset.reaction = k;
+        b.addEventListener('mouseenter', function() { this.style.transform = 'scale(1.35)'; });
+        b.addEventListener('mouseleave', function() { this.style.transform = 'scale(1)'; });
+        b.addEventListener('click', function(ev) { ev.stopPropagation(); pickReaction(articleId, k); });
+        panel.appendChild(b);
+    });
+
+    var btn = container.querySelector('#react-btn');
+    // Long-press (touch + mouse) → emoji panel; quick tap → like/unlike
+    var timer = null;
+    function startPress(ev) {
+        ev.preventDefault();
+        timer = setTimeout(function() {
+            timer = null;
+            panel.style.display = 'inline-flex';
+        }, 450);
+    }
+    function endPress(ev) {
+        if (timer) { clearTimeout(timer); timer = null; quickLike(articleId); }
+    }
+    btn.addEventListener('touchstart', startPress, { passive: false });
+    btn.addEventListener('touchend', endPress);
+    btn.addEventListener('mousedown', startPress);
+    btn.addEventListener('mouseup', endPress);
+    btn.addEventListener('mouseleave', function() { if (timer) { clearTimeout(timer); timer = null; } });
+
+    document.addEventListener('click', function hideP(ev) {
+        if (!container.contains(ev.target)) panel.style.display = 'none';
+    });
+
+    // Initial count
+    getLikeCount(articleId, function(total) {
+        var c = container.querySelector('#react-count');
+        if (c) c.textContent = total > 0 ? total : '';
+    });
+}
+
+function quickLike(articleId) {
+    var liked = getLikedMap();
+    var my = liked[articleId] || null;
+    var next = my === 'like' ? null : 'like'; // toggle = unlike
+    pickReaction(articleId, next || undefined, true);
+}
+
+function pickReaction(articleId, emojiKey, isQuick) {
+    var liked = getLikedMap();
+    var prev = liked[articleId] || null;
+    var next = emojiKey || null;
+    if (prev === next) next = null; // same = unlike
+    if (next) { liked[articleId] = next; } else { delete liked[articleId]; }
+    try { localStorage.setItem(LIKED_KEY, JSON.stringify(liked)); } catch (e) {}
+
+    submitReaction(articleId, next, prev);
+
+    var container = document.getElementById('reaction-wrap');
+    if (container) {
+        var panel = container.querySelector('#react-panel');
+        if (panel) panel.style.display = 'none';
+        var eb = container.querySelector('#react-emoji');
+        if (eb) eb.textContent = next ? REACTIONS[next] : '👍';
+        getLikeCount(articleId, function(total) {
+            var c = container.querySelector('#react-count');
+            if (c) c.textContent = total > 0 ? total : '';
+        });
+    }
+}
+
 // 🔗 RELATED ARTICLES — same category, exclude current, top 3
 function getRelatedArticles(article, limit) {
     limit = limit || 3;
@@ -1240,6 +1379,7 @@ function openArticle(id) {
                     <span>👤 ${escapeHtml(getLocalized(article, 'author'))}</span>
                     <span>📅 ${new Date(article.date).toLocaleDateString()}</span>
                     <span>🏷️ ${escapeHtml(getLocalized(article, 'category'))}</span>
+                    <span id="reaction-wrap" style="display:inline-flex;align-items:center;"></span>
                     <span>⏱️ ${readingTime(processedContent)} ${currentLang === 'ta' ? 'நிமிடம்' : 'min read'}</span>
                     <button onclick="toggleSaveArticle('${article.id}')" id="save-btn-${article.id}" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 12px;cursor:pointer;font-size:0.8rem;color:var(--text-muted);white-space:nowrap;">🔖 ${isArticleSaved(article.id) ? (currentLang === 'ta' ? 'சேமித்தது' : 'Saved') : (currentLang === 'ta' ? 'சேமி' : 'Save')}</button>
                     <span style="margin-left:auto;display:flex;gap:4px;">
@@ -1275,6 +1415,12 @@ function openArticle(id) {
 
     // 📊 Track article view
     analyticsTrack('view', id);
+
+    // ❤️ Reaction UI (like + long-press emoji panel)
+    setTimeout(function() {
+        var wrap = document.getElementById('reaction-wrap');
+        if (wrap) buildReactionUI(wrap, String(id));
+    }, 60);
 
     // 🖼️ Swipe left/right on gallery image to change photo (mobile)
     (function() {

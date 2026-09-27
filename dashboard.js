@@ -1058,8 +1058,20 @@ function renderNewsTable() {
     var btnDeleteHover = 'this.style.background=\'#dc2626\';this.style.transform=\'scale(1.05)\';';
     var btnDeleteOut = 'this.style.background=\'#ef4444\';this.style.transform=\'scale(1)\';';
 
+    // ❤️ Likes column header — inject once after Date th
+    (function ensureLikesHeader() {
+        var thead = document.querySelector('#page-news thead tr');
+        if (!thead || document.getElementById('th-likes')) return;
+        var ths = thead.querySelectorAll('th');
+        var dateTh = null;
+        ths.forEach(function(th) { if ((th.textContent || '').trim() === 'Date') dateTh = th; });
+        var th = document.createElement('th');
+        th.id = 'th-likes'; th.textContent = '❤️ Likes';
+        if (dateTh) dateTh.after(th); else thead.appendChild(th);
+    })();
+
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#6b7280;">No articles found. Click "+ Add New Article" to create one.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:#6b7280;">No articles found. Click "+ Add New Article" to create one.</td></tr>';
     } else {
         tbody.innerHTML = filtered.map(function(n) {
             var langs = [];
@@ -1074,11 +1086,28 @@ function renderNewsTable() {
                 '<td>' + escapeHtml(n.category_en || n.category || '') + '</td>' +
                 '<td>' + escapeHtml(n.author_en || n.author || '') + '</td>' +
                 '<td>' + dateStr + '</td>' +
+                '<td class="likes-cell" data-aid="' + escapeHtml(String(n.id)) + '" style="white-space:nowrap;">…</td>' +
                 '<td>' + langs.join('') + '</td>' +
                 '<td><span class="badge ' + (n.status === 'published' ? 'badge-green' : 'badge-gray') + '">' + (n.status || 'draft') + '</span></td>' +
                 '<td><button class="btn-icon btn-edit" style="' + btnEditStyle + '" onmouseover="' + btnEditHover + '" onmouseout="' + btnEditOut + '" onclick="editNews(' + n.id + ')" title="Edit">&#9999;&#65039;</button>' +
                 '<button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onmouseover="' + btnDeleteHover + '" onmouseout="' + btnDeleteOut + '" onclick="deleteNews(' + n.id + ')" title="Delete">&#128465;&#65039;</button></td></tr>';
         }).join('');
+    }
+
+    // ❤️ Populate like counts per article (likes collection)
+    if (db && tbody) {
+        tbody.querySelectorAll('.likes-cell').forEach(function(cell) {
+            var aid = cell.dataset.aid;
+            db.collection('likes').doc(String(aid)).get().then(function(doc) {
+                var f = doc.exists ? doc.data() : {};
+                var total = 0, parts = [];
+                [['like', '👍'], ['love', '❤️'], ['haha', '😂'], ['wow', '😮'], ['sad', '😢'], ['angry', '😡']].forEach(function(p) {
+                    var v = parseInt(f[p[0]]) || 0;
+                    if (v > 0) { total += v; parts.push(p[1] + v); }
+                });
+                cell.textContent = total > 0 ? parts.join(' ') : '0';
+            }).catch(function() { cell.textContent = '0'; });
+        });
     }
 
     if (mobileCards) {
