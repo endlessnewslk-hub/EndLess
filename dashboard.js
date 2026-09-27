@@ -1153,7 +1153,7 @@ function renderNewsTable() {
                     var v = parseInt(f[k]) || 0;
                     if (v > 0) { total += v; parts.push('<span style="color:' + rcols[k] + ';display:inline-flex;vertical-align:-2px;">' + IC.heart + '</span>' + v); }
                 });
-                cell.textContent = total > 0 ? parts.join(' ') : '0';
+                cell.innerHTML = total > 0 ? parts.join(' ') : '0';
             }).catch(function() { cell.textContent = '0'; });
         });
     }
