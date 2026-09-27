@@ -446,6 +446,78 @@ function iconifyAdmin() {
     if (th) th.innerHTML = '<span style="color:#dc2626;display:inline-flex;vertical-align:-3px;">' + IC.heart + '</span> Likes';
 }
 
+// 🧹 UNIVERSAL EMOJI SWEEPER — admin panel-la ellaa emojis → SVG (Lucide style)
+const SWEEP_ICONS = {
+    '\u270F\uFE0F': 'edit', '\u270F': 'edit', '✏️': 'edit', '✏': 'edit',
+    '\uD83D\uDDD1\uFE0F': 'trash', '\uD83D\uDDD1': 'trash', '🗑️': 'trash', '🗑': 'trash',
+    '\uD83D\uDD0D': 'search', '\uD83D\uDD0E': 'search', '🔍': 'search', '🔎': 'search',
+    '\u2795': 'plus', '➕': 'plus', '+': 'plus',
+    '\u2714\uFE0F': 'check', '\u2714': 'check', '✔️': 'check', '✔': 'check', '✓': 'check',
+    '\u2716\uFE0F': 'x', '\u2716': 'x', '✖️': 'x', '✖': 'x', '✕': 'x', '❌': 'x',
+    '\uD83D\uDCC5': 'calendar', '\uD83D\uDCC6': 'calendar', '📅': 'calendar',
+    '\uD83D\uDCE7': 'mail', '\u2709\uFE0F': 'mail', '\u2709': 'mail', '📧': 'mail', '✉️': 'mail', '✉': 'mail',
+    '\uD83D\uDC64': 'user', '👤': 'user',
+    '\uD83D\uDC65': 'users', '👥': 'users',
+    '\uD83D\uDCF1': 'phone', '📱': 'phone',
+    '\uD83D\uDCBB': 'monitor', '💻': 'monitor',
+    '\uD83C\uDF10': 'globe', '\uD83C\uDF0D': 'globe', '\uD83C\uDF0E': 'globe', '🌐': 'globe', '🌍': 'globe', '🌎': 'globe',
+    '\u26A0\uFE0F': 'alert', '\u26A0': 'alert', '⚠️': 'alert', '⚠': 'alert',
+    '\uD83D\uDD14': 'bell', '\uD83D\uDD15': 'bell', '🔔': 'bell', '🔕': 'bell',
+    '\uD83D\uDCC8': 'trend', '\uD83D\uDCC9': 'trend', '📈': 'trend', '📉': 'trend',
+    '\uD83D\uDCCA': 'chart', '📊': 'chart',
+    '\uD83D\uDCE2': 'megaphone', '📢': 'megaphone',
+    '\uD83D\uDCB0': 'coins', '💰': 'coins',
+    '\uD83D\uDCDD': 'edit2', '\uD83D\uDCDA': 'book', '📝': 'edit2', '📚': 'book',
+    '\uD83C\uDFF7\uFE0F': 'tag', '\uD83C\uDFF7': 'tag', '🏷️': 'tag', '🏷': 'tag',
+    '\u2699\uFE0F': 'settings', '\u2699': 'settings', '⚙️': 'settings', '⚙': 'settings',
+    '\uD83D\uDEAA': 'logout', '🚪': 'logout',
+    '\uD83D\uDCCE': 'pin', '\uD83D\uDCCD': 'pin', '📌': 'pin', '📍': 'pin',
+    '\uD83D\uDD27': 'wrench', '\uD83D\uDD28': 'hammer', '🔧': 'wrench', '🔨': 'hammer',
+    '\uD83D\uDD12': 'lock', '\uD83D\uDD13': 'lock', '🔒': 'lock', '🔓': 'lock',
+    '\u2B50': 'star', '\uD83C\uDF1F': 'star', '⭐': 'star', '🌟': 'star',
+    '\uD83D\uDD25': 'flame', '🔥': 'flame',
+    '\u231B': 'clock', '\u23F1\uFE0F': 'clock', '⌛': 'clock', '⏱️': 'clock',
+    '\uD83D\uDC41\uFE0F': 'eye', '\uD83D\uDC41': 'eye', '👁️': 'eye', '👁': 'eye',
+    '\uD83D\uDCAC': 'msg', '💬': 'msg',
+    '\uD83D\uDCE4': 'send', '\uD83D\uDCE5': 'send', '\uD83D\uDE80': 'rocket', '📤': 'send', '📥': 'send', '🚀': 'rocket',
+    '\u2694\uFE0F': 'shield', '\u2694': 'shield', '⚔️': 'shield', '🛡️': 'shield', '🛡': 'shield'
+};
+function sweepEmojisToSVG(root) {
+    (root || document).querySelectorAll('*').forEach(function(el) {
+        if (el.children.length > 0 && el.tagName !== 'BUTTON' && el.tagName !== 'TD' && el.tagName !== 'SPAN' && el.tagName !== 'H3' && el.tagName !== 'H4' && el.tagName !== 'P' && el.tagName !== 'SMALL' && el.tagName !== 'LABEL' && el.tagName !== 'DIV') return;
+        if (el.dataset.swept === '1') return;
+        if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'SVG' || el.tagName === 'PATH') return;
+        var t = el.textContent || '';
+        var changed = false;
+        Object.keys(SWEEP_ICONS).forEach(function(em) {
+            if (t.indexOf(em) !== -1) {
+                var iconName = SWEEP_ICONS[em];
+                if (window['IC'] && IC[iconName]) {
+                    t = t.split(em).join(''); // remove emoji
+                    changed = true;
+                }
+            }
+        });
+        if (changed) {
+            el.dataset.swept = '1';
+            // Rebuild with SVGs prepended to cleaned text
+            var cleaned = t.trim();
+            var icons = [];
+            Object.keys(SWEEP_ICONS).forEach(function(em) {
+                if ((el.textContent || '').indexOf(em) !== -1 && IC[SWEEP_ICONS[em]]) {
+                    icons.push('<span style="display:inline-flex;vertical-align:-2px;margin-right:3px;">' + IC[SWEEP_ICONS[em]] + '</span>');
+                }
+            });
+            el.innerHTML = icons.join('') + cleaned;
+        }
+    });
+}
+// Run sweep after every render + on init
+var _origRenderNews2 = typeof renderNewsTable === 'function' ? renderNewsTable : null;
+if (_origRenderNews2) { renderNewsTable = function() { _origRenderNews2.apply(this, arguments); sweepEmojisToSVG(document.getElementById('page-news')); swapActionButtons(document.getElementById('page-news')); }; }
+setTimeout(function() { sweepEmojisToSVG(document.getElementById('admin-dashboard')); iconifyAdmin(); }, 800);
+setTimeout(function() { sweepEmojisToSVG(document.getElementById('admin-dashboard')); }, 2500);
+
 // 🎨 ACTION BUTTON SVGs — replace ✏️/🗑 emoji entities with professional icons
 const ACT_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
 const ACT_DEL  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
