@@ -446,6 +446,27 @@ function iconifyAdmin() {
     if (th) th.innerHTML = '<span style="color:#dc2626;display:inline-flex;vertical-align:-3px;">' + IC.heart + '</span> Likes';
 }
 
+// 🎨 ACTION BUTTON SVGs — replace ✏️/🗑 emoji entities with professional icons
+const ACT_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+const ACT_DEL  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+function swapActionButtons(root) {
+    (root || document).querySelectorAll('button').forEach(function(btn) {
+        var t = (btn.textContent || '').trim();
+        if (t === '\u270F\uFE0F' || t === '✏️' || t.indexOf('✏') !== -1) {
+            if (!btn.dataset.svgDone) { btn.dataset.svgDone = '1'; btn.innerHTML = ACT_EDIT; btn.title = btn.title || 'Edit'; }
+        } else if (t === '\uD83D\uDDD1\uFE0F' || t === '🗑️' || t.indexOf('🗑') !== -1) {
+            if (!btn.dataset.svgDone) { btn.dataset.svgDone = '1'; btn.innerHTML = ACT_DEL; btn.title = btn.title || 'Delete'; }
+        }
+    });
+}
+// Auto-swap after each table render
+var _origRenderNews = typeof renderNewsTable === 'function' ? renderNewsTable : null;
+var _origRenderAds = typeof renderAdsTable === 'function' ? renderAdsTable : null;
+var _origRenderCats = typeof renderCategoriesTable === 'function' ? renderCategoriesTable : null;
+if (_origRenderNews) { renderNewsTable = function() { _origRenderNews.apply(this, arguments); swapActionButtons(document.getElementById('page-news')); }; }
+if (_origRenderAds) { renderAdsTable = function() { _origRenderAds.apply(this, arguments); swapActionButtons(document.getElementById('page-ads')); }; }
+if (_origRenderCats) { renderCategoriesTable = function() { _origRenderCats.apply(this, arguments); swapActionButtons(document.getElementById('page-categories')); }; }
+
 // 🛡️ Global toast guard — any function calling showToast must not crash
 if (typeof window.showToast !== 'function') {
     window.showToast = function(msg, type) {
