@@ -1569,7 +1569,7 @@ function renderSavedPage() {
             '<img src="' + escapeHtml(a.image) + '" alt="' + escapeHtml(getLocalized(a, 'title')) + '" loading="lazy">' +
             '<div class="card-body"><div class="meta"><span class="cat">' + escapeHtml(getLocalized(a, 'category')) + '</span><span>' + formatDate(a.date) + '</span></div>' +
             '<h3>' + escapeHtml(getLocalized(a, 'title')) + '</h3>' +
-            "<button onclick=\"event.stopPropagation();toggleSaveArticle('" + a.id + "');renderSavedPage();\" style=\"margin-top:8px;background:none;border:1px solid var(--border);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:0.75rem;color:var(--text-muted);\">' + IC.trash + ' " + (L === 'ta' ? 'அகற்று' : 'Remove') + "</button>" +
+            '<button onclick="event.stopPropagation();toggleSaveArticle(\'' + a.id + '\');renderSavedPage()" style="margin-top:8px;background:none;border:1px solid var(--border);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:0.75rem;color:var(--text-muted);display:inline-flex;align-items:center;gap:5px;">' + IC.trash + ' ' + (L === 'ta' ? 'அகற்று' : 'Remove') + '</button>' +
             '</div></article>';
     }).join('') : '<p style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:3rem;">' + (L === 'ta' ? 'இன்னும் எதுவும் சேமிக்கப்படவில்லை' : 'Nothing saved yet') + '</p>';
 }
