@@ -111,6 +111,42 @@ function wireNewsletterBox() {
     if (input) input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); subscribeNewsletter(); } });
 }
 
+// ⚡ SPEED PACK v2 — perceived instant load (minnal feel!)
+(function speedPack() {
+    if (document.getElementById('speed-pack-on')) return;
+    var mk = document.createElement('meta'); mk.id = 'speed-pack-on'; document.head.appendChild(mk);
+
+    // 1. Preload hero image — browser fetch starts BEFORE JS data arrives
+    try {
+        var cache = localStorage.getItem('endless_news');
+        if (cache) {
+            var arts = JSON.parse(cache) || [];
+            var hero = arts.find(function(a) { return a.featured && a.status !== 'draft'; }) || arts[0];
+            if (hero && hero.image && hero.image.indexOf('http') === 0) {
+                var pl = document.createElement('link');
+                pl.rel = 'preload'; pl.as = 'image'; pl.href = hero.image;
+                document.head.appendChild(pl);
+            }
+        }
+    } catch (e) {}
+
+    // 2. Cache-first render: show cached content INSTANTLY while Firebase refreshes
+    try {
+        var cachedNews = localStorage.getItem('endless_news');
+        if (cachedNews && !window._instantRendered) {
+            window._instantRendered = true;
+            try {
+                newsData = JSON.parse(cachedNews).filter(function(n) { return n.status !== 'draft'; });
+                newsData.sort(function(a, b) { return new Date(b.date || 0) - new Date(a.date || 0); });
+                isDataLoaded = true;
+                hideLoading();
+                renderHero(); renderFeed(); renderTrending();
+                renderCategories(); renderAds(); renderTicker();
+            } catch (e) {}
+        }
+    } catch (e) {}
+})();
+
 // ⚡ PERFORMANCE SUITE — instant first paint, smooth images, zero font flash
 (function perfSuite() {
     if (document.getElementById('perf-preloads')) return;
@@ -468,8 +504,8 @@ function withTimeout(promise, ms) {
 async function loadAllNewsData() {
     isDataLoaded = false;
     
-    // Show loading state
-    showLoading();
+    // Show loading state — SKIP if instant-rendered from cache (no skeleton re-flash)
+    if (!window._instantRendered) showLoading();
     
     // Fetch from Firebase (source of truth)
     await syncFromFirebase();
@@ -2146,10 +2182,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(applyArticleFontScale, 150);
     try { wireFooterLinks(); } catch (e) {}
 
-    // 🚀 PHASE 2 — DATA: hard 15s timeout. Hang/fail aana kooda UI alive,
-    // user sees a clear refresh message instead of a dead page.
+    // 🚀 PHASE 2 — DATA: hard 15s timeout. If we already instant-rendered from
+    // cache, refresh SILENTLY in background (no skeleton re-flash, minnal feel).
+    var _hadInstant = window._instantRendered;
     try {
-        await withTimeout(loadAllNewsData(), 15000);
+        if (_hadInstant) {
+            await withTimeout(loadAllNewsData(), 15000);
+            hideLoading();
+            renderHero(); renderFeed(); renderTrending();
+            renderCategories(); renderAds(); renderTicker();
+        } else {
+            await withTimeout(loadAllNewsData(), 15000);
+        }
     } catch (e) {
         console.warn('Data load failed or timed out:', e && e.message);
         try {
