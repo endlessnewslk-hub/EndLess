@@ -144,7 +144,8 @@ function wireNewsletterBox() {
                 renderCategories(); renderAds(); renderTicker();
             } catch (e) {}
         }
-    } catch (e) {}
+        if (window._hideSplash) window._hideSplash();
+    } catch (e) { if (window._hideSplash) window._hideSplash(); }
 })();
 
 // ⚡ PERFORMANCE SUITE — instant first paint, smooth images, zero font flash
@@ -265,6 +266,31 @@ function wireNewsletterBox() {
 })();
 
 // ═══════════════════════════════════════════════════════════════
+// 🎬 PREMIUM SPLASH SCREEN — "E" logo + spinning brand-color ring.
+// Shows while site loads; auto-hides the moment content renders.
+(function splashScreen() {
+    if (document.getElementById('endless-splash')) return;
+    var sp = document.createElement('div');
+    sp.id = 'endless-splash';
+    sp.style.cssText = 'position:fixed;inset:0;background:var(--bg,#0a0a0f);z-index:100000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;transition:opacity .5s ease;';
+    sp.innerHTML =
+        // Ring spinner around logo — conic gradient, rotating
+        '<div style="position:relative;width:110px;height:110px;">' +
+        '<div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,#dc2626,transparent 65%);animation:spinRing 1s linear infinite;-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));"></div>' +
+        '<div style="position:absolute;inset:10px;border-radius:22px;background:linear-gradient(135deg,#e11d48,#be123c);display:flex;align-items:center;justify-content:center;font-family:Georgia,\'Playfair Display\',serif;font-weight:900;font-size:44px;color:#fff;box-shadow:0 10px 30px rgba(225,29,72,0.35);">E</div>' +
+        '</div>' +
+        '<div style="font-family:Georgia,serif;font-size:1.25rem;font-weight:700;color:var(--text,#f1f5f9);letter-spacing:0.5px;">End<span style="color:#e11d48;">Less</span></div>' +
+        '<style>@keyframes spinRing{to{transform:rotate(360deg)}}</style>';
+    // Show ASAP (before body even ready, append to documentElement)
+    (document.body || document.documentElement).appendChild(sp);
+    window._hideSplash = function() {
+        var el = document.getElementById('endless-splash');
+        if (!el) return;
+        el.style.opacity = '0';
+        setTimeout(function() { el.remove(); }, 520);
+    };
+})();
+
 // 🚨 EMERGENCY ERROR BANNER — any JS crash shows ON THE PAGE itself
 // (remote debugging without console). Remove after site is stable.
 window.addEventListener('error', function(e) {
@@ -2162,6 +2188,8 @@ function wireFooterLinks() {
     });
 })();
 
+setTimeout(function() { if (window._hideSplash) window._hideSplash(); }, 6000);
+
 document.addEventListener('DOMContentLoaded', async () => {
     // 🚀 PHASE 0.5 — Defer non-critical heavy engines until browser is IDLE.
     // Ads/analytics/sw-update must never delay the first interactive paint.
@@ -2194,7 +2222,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             await withTimeout(loadAllNewsData(), 15000);
         }
+        if (window._hideSplash) window._hideSplash();
     } catch (e) {
+        if (window._hideSplash) window._hideSplash();
         console.warn('Data load failed or timed out:', e && e.message);
         try {
             isDataLoaded = true;
