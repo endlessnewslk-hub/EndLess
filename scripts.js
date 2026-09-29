@@ -277,12 +277,28 @@ function wireNewsletterBox() {
         // Ring spinner around logo — conic gradient, rotating
         '<div style="position:relative;width:110px;height:110px;">' +
         '<div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,#dc2626,transparent 65%);animation:spinRing 1s linear infinite;-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));"></div>' +
-        '<div style="position:absolute;inset:10px;border-radius:22px;background:linear-gradient(135deg,#e11d48,#be123c);display:flex;align-items:center;justify-content:center;font-family:Georgia,\'Playfair Display\',serif;font-weight:900;font-size:44px;color:#fff;box-shadow:0 10px 30px rgba(225,29,72,0.35);">E</div>' +
+        '<div id="splash-logo-e" style="position:absolute;inset:10px;border-radius:22px;background:linear-gradient(135deg,#e11d48,#be123c);display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-weight:900;font-size:44px;color:#fff;box-shadow:0 10px 30px rgba(225,29,72,0.35);">E</div>' +
         '</div>' +
-        '<div style="font-family:Georgia,serif;font-size:1.25rem;font-weight:700;color:var(--text,#f1f5f9);letter-spacing:0.5px;">End<span style="color:#e11d48;">Less</span></div>' +
+        '<div id="splash-brand" style="font-family:Georgia,serif;font-size:1.3rem;font-weight:700;color:var(--text,#f1f5f9);letter-spacing:0.5px;">End<span style="color:#e11d48;">Less</span></div>' +
         '<style>@keyframes spinRing{to{transform:rotate(360deg)}}</style>';
     // Show ASAP (before body even ready, append to documentElement)
     (document.body || document.documentElement).appendChild(sp);
+    // 🔤 Font swap: Georgia first (instant), Playfair once Google Fonts loads
+    try {
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(function() {
+                var b = document.getElementById('splash-brand');
+                if (b) b.style.fontFamily = "'Playfair Display',Georgia,serif";
+            });
+            // Faster path: explicit load check
+            document.fonts.load("700 1.3rem 'Playfair Display'").then(function() {
+                var b = document.getElementById('splash-brand');
+                if (b) b.style.fontFamily = "'Playfair Display',Georgia,serif";
+                var el = document.getElementById('splash-logo-e');
+                if (el) el.style.fontFamily = "'Playfair Display',Georgia,serif";
+            }).catch(function() {});
+        }
+    } catch (e) {}
     window._hideSplash = function() {
         var el = document.getElementById('endless-splash');
         if (!el) return;
