@@ -1,4 +1,237 @@
-// Firebase Configuration
+function renderAnalyticsPage() {
+    var totalViewsEl = document.getElementById('stat-total-views');
+    var adClicksEl = document.getElementById('stat-ad-clicks');
+    var mobileEl = document.getElementById('stat-mobile-users');
+    var countryEl = document.getElementById('stat-top-country');
+
+    ['…'].forEach(function(t) {
+        if (totalViewsEl) totalViewsEl.textContent = t;
+        if (adClicksEl) adClicksEl.textContent = t;
+        if (mobileEl) mobileEl.textContent = t;
+        if (countryEl) countryEl.textContent = t;
+    });
+
+    var ctx = document.getElementById('analytics-chart');
+    if (ctx && analyticsChart) { analyticsChart.destroy(); analyticsChart = null; }
+
+    if (!db) {
+        ['N/A'].forEach(function(t) {
+            if (totalViewsEl) totalViewsEl.textContent = t;
+            if (adClicksEl) adClicksEl.textContent = t;
+            if (mobileEl) mobileEl.textContent = t;
+            if (countryEl) countryEl.textContent = 'No DB';
+        });
+        return;
+    }
+
+    // 🌍 Detect visitor country (ipwho.is — free, no key) → store aggregate
+    (function detectCountry() {
+        fetch('https://ipwho.is/').then(function(r) { return r.json(); }).then(function(ip) {
+            if (!ip || !ip.success || !ip.country) return;
+            var cc = ip.country_code || 'XX';
+            db.collection('analytics').doc('countries').set({
+                counts: firebase.firestore.FieldValue.increment ? undefined : undefined
+            }, { merge: true }).catch(function() {});
+            db.collection('analytics').doc('countries').update(
+                'counts.' + cc,
+                firebase.firestore.FieldValue.increment(1)
+            ).catch(function() {
+                db.collection('analytics').doc('countries').set({ counts: {} }, { merge: true })
+                    .then(function() {
+                        return db.collection('analytics').doc('countries').update(
+                            'counts.' + cc, firebase.firestore.FieldValue.increment(1));
+                    }).catch(function() {});
+            });
+        }).catch(function() {});
+    })();
+
+    db.collection('analytics').doc('totals').get().then(function(doc) {
+        var t = doc.exists ? doc.data() : {};
+        var views = (t.views || 0);
+        var shares = (t.shares || 0);
+        var mobile = t.mobile || 0, desktop = t.desktop || 0;
+        var totalD = mobile + desktop;
+        if (totalViewsEl) totalViewsEl.textContent = views.toLocaleString();
+        if (adClicksEl) adClicksEl.textContent = shares.toLocaleString();
+        if (mobileEl) mobileEl.textContent = totalD > 0 ? Math.round(mobile / totalD * 100) + '%' : '—';
+
+        // 🌍 Top country from stored counts
+        db.collection('analytics').doc('countries').get().then(function(cdoc) {
+            var counts = (cdoc.exists && cdoc.data().counts) || {};
+            var top = '—', topN = 0;
+            Object.keys(counts).forEach(function(k) {
+                if (counts[k] > topN) { topN = counts[k]; top = k; }
+            });
+            if (countryEl && top !== '—') {
+                var names = { LK: 'Sri Lanka', IN: 'India', MY: 'Malaysia', SG: 'Singapore', AE: 'UAE', GB: 'UK', US: 'USA', CA: 'Canada', AU: 'Australia' };
+                countryEl.textContent = names[top] || top;
+            } else if (countryEl) countryEl.textContent = '—';
+        }).catch(function() { if (countryEl) countryEl.textContent = '—'; });
+    }).catch(function() {
+        if (totalViewsEl) totalViewsEl.textContent = 'Error';
+    });
+
+    // 📈 Daily chart — last 7 days real data
+    var today = new Date();
+    var labels = [], keys = [];
+    for (var i = 6; i >= 0; i--) {
+        var dt = new Date(today); dt.setDate(dt.getDate() - i);
+        keys.push(dt.toISOString().slice(0, 10));
+        labels.push(dt.toLocaleDateString('en-GB', { weekday: 'short' }));
+    }
+    Promise.all(keys.map(function(k) {
+        return db.collection('analytics').doc('daily_' + k).get().catch(function() { return null; });
+    })).then(function(docs) {
+        var data = docs.map(function(doc) {
+            return (doc && doc.exists) ? (doc.data().views || 0) : 0;
+        });
+        if (!ctx) return;
+        if (analyticsChart) analyticsChart.destroy();
+        analyticsChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: labels, datasets: [{
+                label: 'Page Views',
+                data: data,
+                fill: true,
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.4,
+                pointBackgroundColor: '#ef4444',
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }]},
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(200,200,200,0.1)' }, ticks: { color: '#a0a0b8', precision: 0 } },
+                    x: { grid: { display: false }, ticks: { color: '#a0a0b8' } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    });
+
+    // 🔥 Top 5 most-read articles — REAL counts from analytics/articles/*
+    db.collection('analytics').get().then(function(snap) {
+        var tops = [];
+        snap.docs.forEach(function(doc) {
+            if (doc.id.indexOf('articles_') === 0) {
+                var v = doc.data().views || 0;
+                var id = doc.id.replace('articles_', '');
+                if (v > 0 && id) tops.push({ id: id, views: v });
+            } else if (doc.id.indexOf('articles/') === 0 || doc.id.split('_')[0] === 'article') {
+                var v = doc.data().views || 0;
+                var id = doc.id.replace('articles/', '').replace('article_', '');
+                if (v > 0 && id) tops.push({ id: id, views: v });
+            }
+        });
+        tops.sort(function(a, b) { return b.views - a.views; });
+        tops = tops.slice(0, 5);
+        // 🎯 Dedicated panel (injected — never touches the chart panel's tbody!)
+        var host = document.getElementById('page-analytics');
+        if (!host) return;
+        var panel = document.getElementById('top-articles-panel');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.className = 'panel';
+            panel.id = 'top-articles-panel';
+            panel.style.marginTop = '1.5rem';
+            panel.innerHTML = '<h3>' + IC.flame + ' Top Articles (Most Read)</h3>' +
+                '<div class="table-scroll"><table class="data-table compact">' +
+                '<thead><tr><th>Article</th><th>Views</th></tr></thead>' +
+                '<tbody id="top-articles-body"><tr><td colspan="2" style="color:#9ca3af;">Loading…</td></tr></tbody>' +
+                '</table></div>';
+            var chartPanel = host.querySelector('.panel');
+            if (chartPanel) chartPanel.after(panel);
+        }
+        var tbody = document.getElementById('top-articles-body');
+        if (tbody) {
+            tbody.innerHTML = tops.length ? tops.map(function(t) {
+                var art = (typeof adminNews !== 'undefined' ? adminNews : []).find(function(n) {
+                    return String(n.id) === String(t.id);
+                });
+                var title = art ? (art.title_en || art.title) : ('Article #' + t.id);
+                return '<tr><td>' + String(title).replace(/</g, '&lt;').substring(0, 50) + '</td>' +
+                       '<td>' + t.views + ' views</td></tr>';
+            }).join('') : '<tr><td colspan="2" style="color:#9ca3af;">No article data yet</td></tr>';
+        }
+    }).catch(function() {});
+}
+// ═══════════════════════════════════════════════════════════════
+// 🔥 HOTFIX v2: Strict auth guard — expired sessions block cloud saves
+// ═══════════════════════════════════════════════════════════════
+(function() {
+    firebase.auth().onAuthStateChanged(function(user) {
+        if (!user) {
+            // Token expired but guard.js let us in via session-trust — force re-login
+            sessionStorage.removeItem('endless_auth_session');
+            localStorage.removeItem('endless_auth_persistent');
+            alert('Session expired! Please login again.');
+            window.location.href = 'x7k9m2.html';
+        }
+    });
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+// 🔥 HOTFIX: Image auto-compression (Firestore 1MB limit fix)
+// ═══════════════════════════════════════════════════════════════
+(function() {
+    var _origHandleFileUpload = window.handleFileUpload;
+    window.handleFileUpload = function(inputId, previewId, dataId, type) {
+        type = type || 'image';
+        var input = document.getElementById(inputId);
+        var preview = document.getElementById(previewId);
+        var dataInput = document.getElementById(dataId);
+        if (!input) return;
+
+        input.addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+
+            if (type === 'image') {
+                var img = new Image();
+                var objUrl = URL.createObjectURL(file);
+                img.onload = function() {
+                    URL.revokeObjectURL(objUrl);
+                    var maxW = 900;
+                    var scale = Math.min(1, maxW / img.width);
+                    var canvas = document.createElement('canvas');
+                    canvas.width = Math.max(1, Math.round(img.width * scale));
+                    canvas.height = Math.max(1, Math.round(img.height * scale));
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    var compressed = canvas.toDataURL('image/jpeg', 0.72);
+                    if (dataInput) dataInput.value = compressed;
+                    if (preview) preview.src = compressed;
+                    var wrap = document.getElementById('photo-preview-wrap');
+                    var placeholder = document.getElementById('photo-placeholder');
+                    if (wrap) wrap.style.display = 'block';
+                    if (placeholder) placeholder.style.display = 'none';
+                    if (typeof showToast === 'function') showToast('Photo compressed & ready', 'success');
+                };
+                img.onerror = function() {
+                    URL.revokeObjectURL(objUrl);
+                    if (typeof showToast === 'function') showToast('Image read failed', 'error');
+                };
+                img.src = objUrl;
+                return;
+            }
+            if (_origHandleFileUpload) {
+                var clone = input.cloneNode(true);
+                input.parentNode.replaceChild(clone, input);
+                _origHandleFileUpload(inputId, previewId, dataId, type);
+            }
+        });
+    };
+})();
+
+
+/* ═══════════════════════════════════════
+   ENDLESS — ADMIN PANEL LOGIC (Mobile Optimized)
+   ═══════════════════════════════════════ */
+
+// ── Firebase Configuration ──
 const firebaseConfig = {
     apiKey: "AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA",
     authDomain: "endless-news.firebaseapp.com",
@@ -8,7 +241,7 @@ const firebaseConfig = {
     appId: "1:363216005373:web:143fb950fb04dfc1cb7694"
 };
 
-// Initialize Firebase
+// Initialize Firebase safely
 let db = null;
 try {
     if (typeof firebase !== 'undefined') {
@@ -16,2523 +249,2578 @@ try {
             firebase.initializeApp(firebaseConfig);
         }
         db = firebase.firestore();
-        dbg('Firebase connected');
+
+        db.settings({
+            cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
+            ignoreUndefinedProperties: true
+        });
+
+        dbg('Firebase connected successfully');
+    } else {
+        console.warn('Firebase SDK not loaded - using localStorage only');
     }
 } catch (err) {
     console.error('Firebase init error:', err);
 }
 
-// 🔤 BRAND FONT — same "EndLess" look on EVERY device.
-// Georgia exists on Windows/Mac but NOT on Android → logo looked different on phones.
-// Playfair Display (Google Fonts) = premium Georgia-style serif, loads everywhere.
-(function injectBrandFont() {
-    if (document.getElementById('brand-font-css')) return;
+// 🔤 BRAND FONT — admin panel "EndLess" logo = same premium Playfair font
+// as the main site (Georgia missing on Android → logo looked different).
+(function injectAdminBrandFont() {
+    if (document.getElementById('admin-brand-font')) return;
     var link = document.createElement('link');
-    link.id = 'brand-font-css';
+    link.id = 'admin-brand-font';
     link.rel = 'stylesheet';
     link.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap';
     document.head.appendChild(link);
     var st = document.createElement('style');
-    st.id = 'brand-font-css';
     st.textContent = [
-        '.logo,.logo-end,.logo-less,.logo-icon,.footer-logo,',
-        '.logo-title,.logo-accent,.bname,.brand .name,',
-        '.share-logo-text,.share-logo-icon,.admin-logo-icon{',
-        "font-family:'Playfair Display',Georgia,'Times New Roman',serif!important;}"
+        '.admin-logo-icon,.sidebar-header h2,.sidebar-header h2 span,',
+        '.sidebar-header h2 *{',
+        "font-family:'Playfair Display',Georgia,serif!important;}"
     ].join('');
     document.head.appendChild(st);
 })();
 
-// 🎨 SHARE MODAL THEME FIX — styles.css-la var(--card-bg) ku variable illa,
-// so dark fallback EPPAVUME use aagudhu (light mode-la kooda dark card!).
-// Ithu site-oda REAL theme variables-ku override pannum: light → light, dark → dark.
-(function injectShareThemeFix() {
-    if (document.getElementById('share-theme-fix')) return;
-    var st = document.createElement('style');
-    st.id = 'share-theme-fix';
-    st.textContent = [
-        '.share-modal-content{background:var(--surface)!important;border-color:var(--border)!important;}',
-        '.share-modal-header h3{color:var(--text)!important;}',
-        '.modal-close{color:var(--text-muted)!important;}',
-        '.modal-close:hover{background:var(--border)!important;color:var(--text)!important;}',
-        '.share-btn{background:var(--bg)!important;border-color:var(--border)!important;color:var(--primary)!important;}',
-        '.share-btn span{color:var(--text)!important;}',
-        '.share-btn:hover{background:var(--primary-glow)!important;border-color:var(--primary)!important;}',
-        '.share-copy-label{color:var(--text-muted)!important;}',
-        '.share-copy-box input{background:var(--bg)!important;border-color:var(--border)!important;color:var(--text)!important;}'
-    ].join('');
-    document.head.appendChild(st);
-})();
-
-// 📬 NEWSLETTER — subscribe box → Firestore 'subscribers' + welcome email
-async function subscribeNewsletter() {
-    var input = document.getElementById('newsletter-email');
-    var email = input ? input.value.trim() : '';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        alert(currentLang === 'ta' ? '⚠️ சரியான மின்னஞ்சலை உள்ளிடவும்' : '⚠️ Please enter a valid email');
-        return;
+// 📬 NEWSLETTER ADMIN — subscribers, auto-briefing, one-click send
+function ensureNewsletterUI() {
+    if (document.getElementById('page-newsletter')) return;
+    // 1. Sidebar nav item (before logout button if present)
+    var nav = document.querySelector('.sidebar-nav');
+    if (nav && !nav.querySelector('[data-page="newsletter"]')) {
+        var b = document.createElement('button');
+        b.className = 'nav-item'; b.dataset.page = 'newsletter';
+        b.innerHTML = '<span>📬</span> Newsletter';
+        nav.insertBefore(b, nav.querySelector('#guard-logout-btn') || null);
+        b.addEventListener('click', function() { showPage('newsletter'); setTimeout(renderNewsletterPage, 60); });
     }
-    if (!db) { alert('Network error — try again'); return; }
-    try {
-        var ref = db.collection('subscribers').doc(email);
-        var doc = await ref.get();
-        if (doc.exists) {
-            alert(currentLang === 'ta' ? '✅ நீங்கள் ஏற்கனவே சந்தா சேர்ந்துள்ளீர்கள்!' : '✅ Already subscribed!');
-            return;
-        }
-        await ref.set({ email: email, lang: currentLang, subscribedAt: new Date().toISOString() });
-        // 💌 Welcome email (requires Trigger Email extension)
-        try {
-            await db.collection('mail').doc('w_' + Date.now()).set({
-                to: email,
-                message: {
-                    subject: '🌅 Welcome to EndLess News Daily Briefing!',
-                    html: '<div style="font-family:Georgia,serif;background:#0a0a0f;color:#f1f5f9;padding:24px;border-radius:12px">' +
-                          '<h2 style="color:#e11d48">End<span style="color:#fff">Less</span> News</h2>' +
-                          '<p>You are now subscribed! Your daily Tamil &amp; English news briefing arrives every morning.</p>' +
-                          '<a href="https://endlessnews.lk" style="color:#e11d48;font-weight:700">Visit Website →</a></div>'
-                }
-            });
-        } catch (_) {}
-        if (input) input.value = '';
-        alert(currentLang === 'ta' ? '🎉 சந்தா வெற்றி! நாளை முதல் சுருக்கம் வரும்.' : '🎉 Subscribed! First briefing arrives tomorrow.');
-    } catch (e) {
-        alert(currentLang === 'ta' ? '⚠️ பிழை — மீண்டும் முயற்சிக்கவும்' : '⚠️ Error — please try again');
-    }
-}
-
-function wireNewsletterBox() {
-    var btn = document.querySelector('.newsletter [data-key="subscribe"]');
-    if (!btn || btn._nlWired) return;
-    btn._nlWired = true;
-    btn.removeAttribute('onclick'); // remove old fake alert
-    btn.addEventListener('click', function(e) { e.preventDefault(); subscribeNewsletter(); });
-    var input = document.getElementById('newsletter-email');
-    if (input) input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); subscribeNewsletter(); } });
-}
-
-// ⚡ SPEED PACK v2 — perceived instant load (minnal feel!)
-(function speedPack() {
-    if (document.getElementById('speed-pack-on')) return;
-    var mk = document.createElement('meta'); mk.id = 'speed-pack-on'; document.head.appendChild(mk);
-
-    // 1. Preload hero image — browser fetch starts BEFORE JS data arrives
-    try {
-        var cache = localStorage.getItem('endless_news');
-        if (cache) {
-            var arts = JSON.parse(cache) || [];
-            var hero = arts.find(function(a) { return a.featured && a.status !== 'draft'; }) || arts[0];
-            if (hero && hero.image && hero.image.indexOf('http') === 0) {
-                var pl = document.createElement('link');
-                pl.rel = 'preload'; pl.as = 'image'; pl.href = hero.image;
-                document.head.appendChild(pl);
-            }
-        }
-    } catch (e) {}
-
-    // 2. Cache-first render: show cached content INSTANTLY while Firebase refreshes
-    try {
-        var cachedNews = localStorage.getItem('endless_news');
-        if (cachedNews && !window._instantRendered) {
-            window._instantRendered = true;
-            try {
-                newsData = JSON.parse(cachedNews).filter(function(n) { return n.status !== 'draft'; });
-                newsData.sort(function(a, b) { return new Date(b.date || 0) - new Date(a.date || 0); });
-                isDataLoaded = true;
-                hideLoading();
-                renderHero(); renderFeed(); renderTrending();
-                renderCategories(); renderAds(); renderTicker();
-            } catch (e) {}
-        }
-        if (window._hideSplash) window._hideSplash();
-    } catch (e) { if (window._hideSplash) window._hideSplash(); }
-})();
-
-// ⚡ PERFORMANCE SUITE — instant first paint, smooth images, zero font flash
-(function perfSuite() {
-    if (document.getElementById('perf-preloads')) return;
-    var frag = document.createDocumentFragment();
-
-    // 1. Preload critical CSS for instant first render (styles.css is render-blocking)
-    var css = document.createElement('link');
-    css.rel = 'preload'; css.href = 'styles.css?v=perf1'; css.as = 'style'; css.id = 'perf-preloads';
-    frag.appendChild(css);
-
-    // 2. Font: display=swap already set; add preconnect for faster Google Fonts
-    var p1 = document.createElement('link'); p1.rel = 'preconnect'; p1.href = 'https://fonts.googleapis.com';
-    var p2 = document.createElement('link'); p2.rel = 'preconnect'; p2.href = 'https://fonts.gstatic.com'; p2.crossOrigin = '';
-    frag.appendChild(p1); frag.appendChild(p2);
-    // Playfair (logo font) — preloaded so brand shows instantly, no fallback flash
-    var pf = document.createElement('link');
-    pf.rel = 'preload'; pf.as = 'font'; pf.type = 'font/woff2'; pf.crossOrigin = '';
-    pf.href = 'https://fonts.gstatic.com/s/playfairdisplay/v30/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvXDXbtM.woff2';
-    frag.appendChild(pf);
-    document.head.appendChild(frag);
-
-    // 3. Smooth image rendering + PREMIUM HOVER RESTORED (fade-in + hover lift/zoom)
-    var st = document.createElement('style');
-    st.textContent = [
-        /* Fade-in on load (performance) */
-        '.article-card img{opacity:0;transition:opacity .45s ease,transform .6s ease;}',
-        '.article-card img.ld{opacity:1;}',
-        '.hero-main img,.hero-card img{opacity:0;transition:opacity .5s ease,transform .6s ease;}',
-        '.hero-main img.ld,.hero-card img.ld{opacity:1;}',
-        /* ✨ PREMIUM HOVER: cursor mela — lift, shadow, scale (styles.css overrides maintained) */
-        '.article-card{cursor:pointer;}',
-        '.article-card:hover{transform:translateY(-4px);box-shadow:0 20px 40px -8px rgba(0,0,0,0.25);}',
-        '.article-card:hover img{transform:scale(1.05);}',
-        '.hero-card{cursor:pointer;}',
-        '.hero-card:hover{transform:translateY(-4px);box-shadow:0 20px 40px -8px rgba(0,0,0,0.25);}',
-        '.hero-card:hover img{transform:scale(1.05);}',
-        '.hero-main{cursor:pointer;}',
-        '.hero-main:hover{transform:translateY(-4px);box-shadow:0 20px 40px -8px rgba(0,0,0,0.3);}',
-        '.hero-main:hover img{transform:scale(1.08);}',
-        /* 🏷️ Hide static HTML ad labels — adCard prints its own translated label */
-        '.ad-slot-label{display:none!important;}',
-        /* 🔗 RELATED ARTICLES — clean card grid (premium look) */
-        '.rel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}',
-        '.rel-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:transform .25s,box-shadow .25s;}',
-        '.rel-card:hover{transform:translateY(-3px);box-shadow:0 12px 24px rgba(0,0,0,0.15);}',
-        '.rel-card img{width:100%;height:110px;object-fit:cover;display:block;}',
-        '.rel-card .rc-b{padding:10px 12px;}',
-        '.rel-card .rc-cat{font-size:0.6rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:0.08em;}',
-        '.rel-card .rc-t{font-size:0.85rem;font-weight:600;line-height:1.35;margin-top:4px;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}',
-        /* 📱 Mobile: RELATED NEWS — HORIZONTAL cards (image LEFT, text RIGHT).
-           !important forces flex over base .rel-card block styles — no portrait look! */
-        '@media(max-width:640px){.rel-grid{grid-template-columns:1fr!important;gap:0.9rem!important;}}',
-        '@media(max-width:640px){.rel-card{display:flex!important;flex-direction:row!important;align-items:stretch!important;border-radius:14px!important;overflow:hidden!important;min-height:100px!important;}}',
-        '@media(max-width:640px){.rel-card img{width:120px!important;height:100px!important;min-height:100px!important;object-fit:cover!important;flex-shrink:0!important;border-radius:0!important;}}',
-        '@media(max-width:640px){.rel-card .rc-b{flex:1!important;padding:10px 14px!important;display:flex!important;flex-direction:column!important;justify-content:center!important;}}',
-        '@media(max-width:640px){.rel-card .rc-cat{font-size:0.6rem!important;margin-bottom:4px!important;}}',
-        '@media(max-width:640px){.rel-card .rc-t{font-size:0.9rem!important;line-height:1.4!important;display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;overflow:hidden!important;}}',
-        /* 📱 FEED ADS: full-width between article cards; hidden on desktop (sidebar there) */
-        '.feed-ad-slot{grid-column:1/-1;margin:0.25rem 0 1rem;}',
-        '@media(min-width:1024px){.feed-ad-slot{display:none!important;}}',
-        /* 📱 MOBILE: hide sidebar AD slot — sidebar column sits below the feed on
-           mobile (looked like "ads at the end"). Mobile sees in-feed ads instead.
-           Trending/categories/newsletter in the sidebar still show as normal. */
-        '@media(max-width:1023px){#ad-slot-sidebar{display:none!important;}}',
-        /* 📰 MOBILE AD FIX: styles.css .modal-article img{height:260px!important;cover}
-           catches injected ad images too → ads looked cropped/tiny on phones.
-           Exempt ad images: natural size, full width, no forced height. */
-        '.modal-article img.inl-ad-img{height:auto!important;min-height:0!important;max-height:none!important;object-fit:fill!important;border-radius:0;}',
-        '@media(max-width:640px){.modal-article img.inl-ad-img{height:auto!important;max-height:none!important;}}'
-    ].join('');
-    document.head.appendChild(st);
-
-    function armImages(scope) {
-        (scope || document).querySelectorAll('img').forEach(function(img) {
-            if (img.dataset.arm) return; img.dataset.arm = '1';
-            function show() { img.classList.add('ld'); }
-            // Instant if already loaded
-            if (img.complete && img.naturalWidth > 0) { show(); return; }
-            // Cross-origin safe: listen on capture phase (bypasses CORS event blocking)
-            img.addEventListener('load', show, { once: true, capture: true });
-            img.addEventListener('error', show, { once: true, capture: true });
-            // ⏱️ SAFETY NET: if image takes >2s (CORS/slow), force show — never invisible!
-            setTimeout(function() { show(); }, 2000);
-        });
-    }
-    // Watch for dynamically injected content (feeds, heroes, ads)
-    var mo = new MutationObserver(function(muts) {
-        muts.forEach(function(m) { m.addedNodes && m.addedNodes.forEach && m.addedNodes.forEach(function(n) {
-            if (n.nodeType === 1) armImages(n);
-        }); });
-    });
-    mo.observe(document.body, { childList: true, subtree: true });
-    window._armImages = armImages;
-})();
-
-// 🖼️ PREMIUM GALLERY CSS (self-contained — no styles.css change needed)
-(function injectGalleryCSS() {
-    if (document.getElementById('gal-css')) return;
-    var st = document.createElement('style');
-    st.id = 'gal-css';
-    st.textContent = `
-.gallery-wrap{position:relative;}
-.gallery-wrap img{width:100%;display:block;}
-.gal-arrow{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.15);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.35);color:#fff;font-size:22px;line-height:1;cursor:pointer;transition:all 0.2s ease;z-index:5;text-shadow:0 1px 4px rgba(0,0,0,0.4);}
-.gal-arrow:hover{background:rgba(255,255,255,0.32);transform:translateY(-50%) scale(1.08);}
-.gal-arrow:active{transform:translateY(-50%) scale(0.96);}
-.gal-prev{left:12px;}
-.gal-next{right:12px;}
-.gal-count{position:absolute;bottom:12px;right:12px;background:rgba(0,0,0,0.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:999px;z-index:5;border:1px solid rgba(255,255,255,0.2);}
-.gal-img-fade{animation:galFade 0.3s ease;}
-@keyframes galFade{from{opacity:0.3;}to{opacity:1;}}
-.vid-wrap{position:relative;width:100%;padding-top:56.25%;margin-top:1rem;border-radius:8px;overflow:hidden;background:#000;}
-.vid-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;}
-`;
-    document.head.appendChild(st);
-})();
-
-// ═══════════════════════════════════════════════════════════════
-// 🎬 PREMIUM SPLASH SCREEN — "E" logo + spinning brand-color ring.
-// Shows while site loads; auto-hides the moment content renders.
-(function splashScreen() {
-    if (document.getElementById('endless-splash')) return;
-    var sp = document.createElement('div');
-    sp.id = 'endless-splash';
-    sp.style.cssText = 'position:fixed;inset:0;background:var(--bg,#0a0a0f);z-index:100000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;transition:opacity .5s ease;';
-    sp.innerHTML =
-        // Ring spinner around logo — conic gradient, rotating
-        '<div style="position:relative;width:110px;height:110px;">' +
-        '<div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,#dc2626,transparent 65%);animation:spinRing 1s linear infinite;-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));"></div>' +
-        '<div id="splash-logo-e" style="position:absolute;inset:10px;border-radius:22px;background:linear-gradient(135deg,#e11d48,#be123c);display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-weight:900;font-size:44px;color:#fff;box-shadow:0 10px 30px rgba(225,29,72,0.35);">E</div>' +
+    // 2. Page content
+    var anchor = document.getElementById('page-settings');
+    if (!anchor || !anchor.parentNode) return;
+    var page = document.createElement('div');
+    page.id = 'page-newsletter'; page.className = 'page-content hidden';
+    page.innerHTML =
+        '<div class="stats-grid">' +
+        '  <div class="stat-card"><div class="stat-icon">' + IC.users + '</div><div class="stat-info"><h3 id="nl-count">…</h3><p>Subscribers</p></div></div>' +
+        '  <div class="stat-card"><div class="stat-icon">' + IC.mail + '</div><div class="stat-info"><h3 id="nl-sent">…</h3><p>Total Sent</p></div></div>' +
         '</div>' +
-        '<div id="splash-brand" style="font-family:Georgia,serif;font-size:1.3rem;font-weight:700;color:var(--text,#f1f5f9);letter-spacing:0.5px;">End<span style="color:#e11d48;">Less</span></div>' +
-        '<style>@keyframes spinRing{to{transform:rotate(360deg)}}</style>';
-    // Show ASAP (before body even ready, append to documentElement)
-    (document.body || document.documentElement).appendChild(sp);
-    // 🔤 Font swap: Georgia first (instant), Playfair once Google Fonts loads
+        '<div class="panel">' +
+        '  <h3>' + IC.edit + ' Compose Daily Briefing</h3>' +
+        '  <div class="form-group"><label>' + IC.send + ' Subject</label><input type="text" id="nl-subject" placeholder="🌅 EndLess Daily Briefing — ' + new Date().toLocaleDateString() + '"></div>' +
+        '  <div class="form-group"><button class="btn-secondary" id="nl-gen" type="button">' + IC.zap + ' Auto-Generate from Latest Articles</button></div>' +
+        '  <div class="form-group"><label>' + IC.edit + ' Email Body (HTML allowed)</label><textarea id="nl-body" rows="12" style="width:100%;padding:0.65rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:0.95rem;"></textarea></div>' +
+        '  <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">' +
+        '    <button class="btn-primary" id="nl-send" type="button">Send to All Subscribers</button>' +
+        '    <button class="btn-secondary" id="nl-test" type="button">Send Test to Admin</button>' +
+        '  </div>' +
+        '  <p style="color:#6b7280;font-size:0.8rem;margin-top:0.75rem;">Emails send via the FREE Firebase "Trigger Email" extension (install once — guide below).</p>' +
+        '</div>' +
+        '<div class="panel"><h3>👥 Recent Subscribers</h3><div class="table-scroll"><table class="data-table compact"><thead><tr><th>Email</th><th>Lang</th><th>Joined</th></tr></thead><tbody id="nl-list"></tbody></table></div></div>';
+    anchor.parentNode.insertBefore(page, anchor.nextSibling);
+    document.getElementById('nl-gen').addEventListener('click', generateBriefing);
+    document.getElementById('nl-send').addEventListener('click', function() { sendBriefing(false); });
+    document.getElementById('nl-test').addEventListener('click', function() { sendBriefing(true); });
+}
+
+async function renderNewsletterPage() {
+    if (!db) { var c = document.getElementById('nl-count'); if (c) c.textContent = 'No DB'; return; }
     try {
-        if (document.fonts && document.fonts.ready) {
-            document.fonts.ready.then(function() {
-                var b = document.getElementById('splash-brand');
-                if (b) b.style.fontFamily = "'Playfair Display',Georgia,serif";
-            });
-            // Faster path: explicit load check
-            document.fonts.load("700 1.3rem 'Playfair Display'").then(function() {
-                var b = document.getElementById('splash-brand');
-                if (b) b.style.fontFamily = "'Playfair Display',Georgia,serif";
-                var el = document.getElementById('splash-logo-e');
-                if (el) el.style.fontFamily = "'Playfair Display',Georgia,serif";
-            }).catch(function() {});
-        }
+        var snap = await db.collection('subscribers').get();
+        var c = document.getElementById('nl-count'); if (c) c.textContent = snap.size;
+        var list = document.getElementById('nl-list');
+        if (list) list.innerHTML = snap.docs.slice(0, 20).map(function(doc) {
+            var s = doc.data();
+            return '<tr><td>' + String(s.email || doc.id).replace(/</g, '&lt;') + '</td><td>' + (s.lang || 'ta') + '</td><td>' + (s.subscribedAt ? new Date(s.subscribedAt).toLocaleDateString() : '—') + '</td></tr>';
+        }).join('') || '<tr><td colspan="3" style="text-align:center;color:#9ca3af;">No subscribers yet</td></tr>';
     } catch (e) {}
-    window._hideSplash = function() {
-        var el = document.getElementById('endless-splash');
-        if (!el) return;
-        el.style.opacity = '0';
-        setTimeout(function() { el.remove(); }, 520);
-    };
-})();
-
-// 🚨 EMERGENCY ERROR BANNER — any JS crash shows ON THE PAGE itself
-// (remote debugging without console). Remove after site is stable.
-window.addEventListener('error', function(e) {
-    if (document.getElementById('js-err-ban')) return;
-    var b = document.createElement('div');
-    b.id = 'js-err-ban';
-    b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#dc2626;color:#fff;padding:10px 14px;font-size:13px;z-index:999999;font-family:monospace;white-space:pre-wrap;';
-    b.innerHTML = '<span style="display:inline-flex;vertical-align:-3px;margin-right:6px;">' + IC.alert + '</span><b>JS ERROR:</b> ' + String(e.message || 'unknown') + ' @ ' + String(e.filename || '').split('/').pop() + ':' + (e.lineno || '?');
-    if (document.body) document.body.appendChild(b);
-});
-
-const DEBUG = false; // 🔇 production: no debug logs in visitor console
-function dbg() { if (DEBUG) console.log.apply(console, arguments); }
-
-/* ═══════════════════════════════════════════════════════
-   ENDLESS — MAIN WEBSITE LOGIC
-   MOBILE-FIRST OPTIMIZED
-   2 LANGUAGE SUPPORT (Tamil/English)
-   ═══════════════════════════════════════════════════════ */
-
-const TRANSLATIONS = {
-    ta: {
-        nav_home: "முகப்பு", nav_world: "உலகம்", nav_tech: "தொழில்நுட்பம்",
-        nav_business: "வணிகம்", nav_science: "அறிவியல்", nav_sports: "விளையாட்டு",
-        nav_health: "சுகாதாரம்", placeholder_search: "செய்திகளைத் தேடு...",
-        latest_news: "சமீபத்திய செய்திகள்", load_more: "மேலும் கட்டுரைகள் ↓",
-        trending: "பிரபலமானவை", categories: "பிரிவுகள்",
-        newsletter: "தினசரி சுருக்கம்",
-        newsletter_desc: "முக்கியமான செய்திகளை உங்கள் மின்னஞ்சலுக்கு அனுப்புங்கள்.",
-        subscribe: "சந்தா சேர்",
-        footer_desc: "உலகம் முழுவதும் சுயாதீன பத்திரிகையாளர். தினமும் மில்லியன் கணக்கான வாசகர்களால் நம்பப்படுகிறது.",
-        footer_sections: "பிரிவுகள்", footer_company: "நிறுவனம்",
-        about_us: "எங்களைப் பற்றி", careers: "வேலைவாய்ப்பு", ethics: "பொருளாதார ஒழுக்கம்",
-        contact: "தொடர்பு", advertise: "விளம்பரம்", follow_us: "எங்களை பின்தொடர்",
-        rights: "அனைத்து உரிமைகளும் பாதுகாக்கப்பட்டவை", privacy: "தனியுரிமைக் கொள்கை", terms: "விதிமுறைகள்",
-        all_stories: "அனைத்து கதைகள்", read_more: "மேலும் படிக்க", by_author: "எழுதியவர்",
-        published_on: "வெளியிடப்பட்டது", breaking_news: "உடனடி செய்திகள்",
-        ad_label: "விளம்பரம்", search_results: "தேடல் முடிவுகள்",
-        no_results: "எந்த செய்தியும் கிடைக்கவில்லை",
-        no_articles_yet: "இன்னும் செய்திகள் எதுவும் இல்லை. நிர்வாகி பேனலில் இருந்து கட்டுரைகளைப் பதிவு செய்யுங்கள்.",
-        close: "மூடு", loading: "ஏற்றுகிறது...",
-        share_article: "பகிர்",
-        saved_articles: "சேமித்தவை"
-    },
-    en: {
-        nav_home: "Home", nav_world: "World", nav_tech: "Technology",
-        nav_business: "Business", nav_science: "Science", nav_sports: "Sports",
-        nav_health: "Health", placeholder_search: "Search news...",
-        latest_news: "Latest News", load_more: "Load More Articles ↓",
-        trending: "Trending", categories: "Categories",
-        newsletter: "Daily Briefing",
-        newsletter_desc: "Get the most important stories delivered to your inbox every morning.",
-        subscribe: "Subscribe",
-        footer_desc: "Independent journalism from around the world. Trusted by millions of readers daily.",
-        footer_sections: "Sections", footer_company: "Company",
-        about_us: "About Us", careers: "Careers", ethics: "Code of Ethics",
-        contact: "Contact", advertise: "Advertise", follow_us: "Follow Us",
-        rights: "All rights reserved", privacy: "Privacy Policy", terms: "Terms of Service",
-        all_stories: "All Stories", read_more: "Read More", by_author: "By",
-        published_on: "Published on", breaking_news: "Breaking News",
-        ad_label: "Advertisement", search_results: "Search Results",
-        no_results: "No articles found",
-        no_articles_yet: "No articles yet. Please publish from the admin panel.",
-        close: "Close", loading: "Loading...",
-        share_article: "Share",
-        saved_articles: "Saved"
-    },
-};
-
-// 🌍 DEFAULT LANGUAGE: TAMIL for every new visitor worldwide.
-// English only when the USER explicitly toggles (saved in their device).
-// 🛡️ Bulletproof storage — blocked/corrupt localStorage must NEVER crash the script
-function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
-function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-
-var _savedLang = lsGet('gd_language');
-let currentLang = (_savedLang === 'ta' || _savedLang === 'en') ? _savedLang : 'ta';
-lsSet('gd_language', currentLang);
-let isMobile = window.innerWidth < 640;
-let touchStartY = 0;
-let isDataLoaded = false;
-
-const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-
-const DEFAULT_NEWS = [];
-
-// 🔥 NO hardcoded ads — Firebase/admin panel is the ONLY source of truth.
-const DEFAULT_ADS = [];
-
-const DEFAULT_CATEGORIES = [
-    { id: "world", name: "உலகம்", name_en: "World", count: 0 },
-    { id: "technology", name: "தொழில்நுட்பம்", name_en: "Technology", count: 0 },
-    { id: "business", name: "வணிகம்", name_en: "Business", count: 0 },
-    { id: "science", name: "அறிவியல்", name_en: "Science", count: 0 },
-    { id: "sports", name: "விளையாட்டு", name_en: "Sports", count: 0 },
-    { id: "health", name: "சுகாதாரம்", name_en: "Health", count: 0 }
-];
-
-function isGarbagePost(n) {
-    if (!n || typeof n !== 'object') {
-        dbg('isGarbagePost: not an object');
-        return true;
-    }
-    var t = String(n.title || '').trim();
-    var t_en = String(n.title_en || '').trim();
-    var isBad = function(s) {
-        if (!s) return true;
-        var x = String(s).trim().toLowerCase();
-        return x === '' || x === 'untitled' || x === 'undefined' || x === 'null' ||
-               x === 'nan' || x === '[object object]';
-    };
-    var hasTitle = !isBad(t) || !isBad(t_en);
-    var idStr = String(n.id || '').trim();
-    var hasId = idStr !== '' && idStr !== 'undefined' && idStr !== 'null' && idStr !== '0';
-    
-    // (debug logs removed — logic intact)
-    return !hasTitle || !hasId;
-}
-
-function getNewsFromStorage() {
-    var data = localStorage.getItem('endless_news');
-    if (data) {
-        try {
-            var parsed = JSON.parse(data);
-            dbg('Loaded', parsed.length, 'articles from localStorage');
-            return parsed;
-        } catch(e) {
-            console.warn('Failed to parse news from localStorage');
-        }
-    }
-    return null;
-}
-
-var newsData = [];
-window.newsData = newsData;
-// 🛡️ Safe parse — corrupted localStorage (quota damage) must NEVER crash the script
-function safeJSON(key, fallback) {
     try {
-        var raw = lsGet(key);
-        return raw ? JSON.parse(raw) : fallback;
-    } catch (e) {
-        try { localStorage.removeItem(key); } catch (_) {} // self-heal: drop corrupt data
-        return fallback;
-    }
+        var log = await db.collection('newsletter_log').doc('summary').get();
+        var t = document.getElementById('nl-sent');
+        if (t) t.textContent = (log.exists && log.data().totalSent) || 0;
+    } catch (e) {}
 }
-let adsData = safeJSON('endless_ads', DEFAULT_ADS);
-let categoriesData = safeJSON('endless_categories', DEFAULT_CATEGORIES);
-let currentFilter = 'All';
-let searchQuery = '';
-let displayedCount = 4;
 
-async function syncFromFirebase() {
-    // 🔥 FIREBASE IS THE ONLY SOURCE OF TRUTH
-    newsData = [];
+function generateBriefing() {
+    var latest = adminNews.filter(function(n) { return n.status !== 'draft'; }).slice(0, 5);
+    if (!latest.length) { showToast('No published articles found', 'error'); return; }
+    var d = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    var subj = '🌅 EndLess Daily Briefing — ' + d;
+    var rows = latest.map(function(n, i) {
+        var t = n.title_en || n.title || 'News';
+        var link = 'https://endlessnews.lk/?article=' + encodeURIComponent(n.id);
+        return (i + 1) + '️⃣ <b>' + t.replace(/</g, '&lt;') + '</b><br>&nbsp;&nbsp;&nbsp;👉 <a href="' + link + '">Read more</a>';
+    }).join('<br><br>');
+    var html =
+        '<div style="font-family:Georgia,serif;background:#0a0a0f;color:#f1f5f9;padding:24px;border-radius:12px;max-width:600px">' +
+        '<h2 style="color:#e11d48;margin:0 0 4px">End<span style="color:#fff">Less</span> News</h2>' +
+        '<p style="color:#94a3b8;margin:0 0 18px">' + d + '</p><hr style="border-color:#1e293b">' +
+        '<p style="font-size:18px;color:#fff"><b>🔥 Top ' + latest.length + ' Today</b></p>' +
+        '<p style="line-height:2">' + rows + '</p>' +
+        '<hr style="border-color:#1e293b">' +
+        '<a href="https://endlessnews.lk" style="display:inline-block;background:#e11d48;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:700">Visit Website →</a>' +
+        '<p style="color:#64748b;font-size:12px;margin-top:16px">© EndLess News · You are subscribed to the Daily Briefing</p>' +
+        '</div>';
+    document.getElementById('nl-subject').value = subj;
+    document.getElementById('nl-body').value = html;
+    showToast('Briefing generated from ' + latest.length + ' articles!', 'success');
+}
 
-    if (!db) {
-        dbg('⚠️ No Firebase connection');
-        return;
-    }
-
+async function sendBriefing(testOnly) {
+    var subject = (document.getElementById('nl-subject').value || '').trim();
+    var html = (document.getElementById('nl-body').value || '').trim();
+    if (!subject || !html) { showToast('Generate the briefing first!', 'error'); return; }
+    if (!db) { showToast('No Firebase connection', 'error'); return; }
+    var btn = document.getElementById(testOnly ? 'nl-test' : 'nl-send');
+    var orig = btn.textContent; btn.disabled = true; btn.textContent = 'Sending…';
     try {
-        dbg('☁️ Fetching articles from Firebase...');
-        // 🔒 Server-side filter: published-only preferred (drafts stay in Firebase).
-        // FALLBACK: if that query errors, fetch all and filter client-side
-        // (missing status = legacy article → treated as published; explicit 'draft' → hidden).
-        let newsSnapshot;
-        try {
-            newsSnapshot = await db.collection('news').where('status', '==', 'published').get({ source: 'server' });
-        } catch (qErr) {
-            console.warn('Published-only query failed, using fallback fetch:', qErr && qErr.message);
-            newsSnapshot = await db.collection('news').get({ source: 'server' });
-        }
-        let firebaseNews = [];
-        let rejectedCount = 0;
-
-        dbg('📄 Firestore docs found:', newsSnapshot.size);
-
-        if (!newsSnapshot.empty) {
-            newsSnapshot.docs.forEach(doc => {
-                const data = doc.data();
-                const originalId = data.id;
-                data.id = doc.id;
-                
-                if (isGarbagePost(data)) {
-                    rejectedCount++;
-                } else {
-                    firebaseNews.push(data);
-                }
-            });
-        }
-
-        newsData = firebaseNews;
-        // 🔥 Sort newest first — Firebase order unpredictable, date ensures latest on top
-        newsData.sort(function(a, b) {
-            return new Date(b.date || 0) - new Date(a.date || 0);
-        });
-        dbg('✅ Final newsData:', newsData.length, 'articles (rejected:', rejectedCount, ')');
-        
-        // 💾 Cache is OPTIONAL — a full localStorage (base64 photos!) must NEVER
-        // wipe the articles we just fetched. Isolated try/catch.
-        try {
-            if (newsData.length > 0) localStorage.setItem('endless_news', JSON.stringify(newsData));
-        } catch (cacheErr) {
-            console.warn('localStorage cache skipped (quota):', cacheErr && cacheErr.message);
-        }
-
-        // 🔥 ADS: Firebase is the ONLY source — overwrites stale localStorage test ads
-        try {
-            const adsSnap = await db.collection('ads').get({ source: 'server' });
-            if (!adsSnap.empty) {
-                adsData = adsSnap.docs.map(function(doc) {
-                    var a = doc.data(); a.id = doc.id; return a;
-                });
-                localStorage.setItem('endless_ads', JSON.stringify(adsData));
-                dbg('✅ Ads synced from Firebase:', adsData.length);
-            } else {
-                adsData = [];   // Firebase empty → show NOTHING
-                localStorage.setItem('endless_ads', '[]');
-            }
-        } catch (adErr) {
-            dbg('Ads sync failed:', adErr);
-        }
-
-    } catch (error) {
-        console.error('❌ Firebase read error:', error);
-        newsData = [];
-    }
-}
-
-// ⏱️ Hard timeout: a hanging network request must NEVER freeze the site
-function withTimeout(promise, ms) {
-    return Promise.race([promise, new Promise(function(_, rej) {
-        setTimeout(function() { rej(new Error('TIMEOUT after ' + ms + 'ms')); }, ms);
-    })]);
-}
-
-async function loadAllNewsData() {
-    isDataLoaded = false;
-    
-    // Show loading state — SKIP if instant-rendered from cache (no skeleton re-flash)
-    if (!window._instantRendered) showLoading();
-    
-    // Fetch from Firebase (source of truth)
-    await syncFromFirebase();
-    
-    isDataLoaded = true;
-    
-    // Hide loading
-    hideLoading();
-    
-    // 🔥 RENDER IMMEDIATELY after Firebase fetch
-    renderHero();
-    renderFeed();
-    renderTrending();
-    renderCategories();
-    renderAds();
-    renderTicker();
-}
-
-function getLocalized(item, field) {
-    const suffix = currentLang === 'ta' ? '' : `_${currentLang}`;
-    return item[`${field}${suffix}`] || item[field];
-}
-
-function formatDate(dateStr) {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = Math.floor((now - date) / 1000);
-
-    if (diff < 60) return 'Just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return date.toLocaleDateString(currentLang === 'ta' ? 'ta-IN' : 'en-US', { month: 'short', day: 'numeric' });
-}
-
-function getCategoryName(catId) {
-    const cat = categoriesData.find(c => c.id === catId || c.name === catId || c.name_en === catId);
-    if (!cat) return catId;
-    return currentLang === 'ta' ? cat.name : cat.name_en;
-}
-
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function findArticleById(id) {
-    const searchId = String(id);
-    return newsData.find(n => String(n.id) === searchId);
-}
-
-function debounce(func, wait) {
-    let timeout;
-    return function(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), wait);
-    };
-}
-
-// 📅 Language-aware date — ta → தமிழ் date, en → English date
-function renderDate() {
-    const dateEl = document.getElementById('current-date');
-    if (!dateEl) return;
-    // 📅 Custom weekday format: Tamil-la "ஞாயிறு" (கிழமை seka vendaam),
-    // English-la full "Sunday" (long form).
-    var d = new Date();
-    if (currentLang === 'ta') {
-        var taDays = ['ஞாயிறு', 'திங்கள்', 'செவ்வாய்', 'புதன்', 'வியாழன்', 'வெள்ளி', 'சனி'];
-        dateEl.textContent = taDays[d.getDay()] + ', ' + d.toLocaleDateString('ta-IN', { month: 'short', day: 'numeric' });
-    } else {
-        dateEl.textContent = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-    }
-}
-
-function setLanguage(lang) {
-    currentLang = lang;
-    localStorage.setItem('gd_language', lang);
-    // Ticker text length changes per language — re-measure speed after render
-    setTimeout(initTicker, 100);
-    renderDate(); // 📅 date-um language-ku eatha maariyum
-    // 🔖 Saved menu label — language-ku eatha maariyum
-    document.querySelectorAll('.sv-label').forEach(function(el) {
-        el.textContent = lang === 'ta' ? 'சேமித்தவை' : 'Saved';
-    });
-
-    document.querySelectorAll('[data-key]').forEach(el => {
-        const key = el.dataset.key;
-        if (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) {
-            if (el.tagName === 'INPUT' && el.placeholder !== undefined) {
-                el.placeholder = TRANSLATIONS[lang][key];
-            } else {
-                // 🔗 Preserve footer links — update text INSIDE the <a>, never erase it
-                var link = el.querySelector('a');
-                if (link) {
-                    link.textContent = TRANSLATIONS[lang][key];
-                } else {
-                    el.textContent = TRANSLATIONS[lang][key];
-                }
-            }
-        }
-    });
-
-    document.querySelectorAll('.lang-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.lang === lang);
-    });
-
-    renderHero();
-    renderFeed();
-    renderTrending();
-    renderCategories();
-    renderAds();
-    renderTicker();
-}
-
-function showLoading() {
-    const grid = document.getElementById('news-grid');
-    const hero = document.getElementById('hero-section');
-    const trending = document.getElementById('trending-list');
-    const ticker = document.getElementById('ticker-content');
-
-    // Hero skeleton
-    const heroSkeleton = `
-        <div class="hero-grid">
-            <div class="skeleton skeleton-hero-main"></div>
-            <div class="skeleton-hero-side">
-                <div class="skeleton skeleton-hero-card"></div>
-                <div class="skeleton skeleton-hero-card"></div>
-            </div>
-        </div>
-    `;
-
-    // Article card skeleton (repeat 4 times)
-    const articleSkeleton = `
-        <div class="skeleton-article">
-            <div class="skeleton skeleton-img"></div>
-            <div class="skeleton-text">
-                <div class="skeleton skeleton-line short"></div>
-                <div class="skeleton skeleton-line title"></div>
-                <div class="skeleton skeleton-line" style="width:80%"></div>
-            </div>
-        </div>
-    `;
-
-    // Trending skeleton (3 items)
-    const trendingSkeleton = `
-        <div class="skeleton skeleton-trending"></div>
-        <div class="skeleton skeleton-trending"></div>
-        <div class="skeleton skeleton-trending"></div>
-    `;
-
-    if (hero) hero.innerHTML = heroSkeleton;
-    if (grid) grid.innerHTML = articleSkeleton.repeat(4);
-    if (trending) trending.innerHTML = trendingSkeleton;
-    if (ticker) ticker.innerHTML = `<span class="ticker-item">Loading latest news...</span>`;
-}
-
-function hideLoading() {
-    const grid = document.getElementById('news-grid');
-    const hero = document.getElementById('hero-section');
-    const trending = document.getElementById('trending-list');
-    const ticker = document.getElementById('ticker-content');
-    
-    // Clear skeletons OR spinners
-    if (grid && (grid.querySelector('.skeleton') || grid.innerHTML.includes('animation:spin'))) {
-        grid.innerHTML = '';
-    }
-    if (hero && (hero.querySelector('.skeleton') || hero.innerHTML.includes('animation:spin'))) {
-        hero.innerHTML = '';
-    }
-    if (trending && trending.querySelector('.skeleton')) trending.innerHTML = '';
-    if (ticker && ticker.innerHTML.includes('Loading')) ticker.innerHTML = '';
-}
-
-function renderHero() {
-    const featured = newsData.filter(n => n.featured && (n.status !== 'draft') && !isGarbagePost(n)).slice(0, 3);
-    const heroSection = document.getElementById('hero-section');
-    if (!heroSection) return;
-
-    if (featured.length === 0) {
-        heroSection.innerHTML = '';
-        return;
-    }
-
-    const main = featured[0];
-    const side = featured.slice(1, 3);
-
-    heroSection.innerHTML = `
-        <div class="hero-main" onclick="openArticle('${main.id}')">
-            <img src="${escapeHtml(main.image)}" alt="${escapeHtml(getLocalized(main, 'title'))}" loading="eager">
-            <div class="overlay"></div>
-            <div class="hero-content">
-                <span class="category">${escapeHtml(getLocalized(main, 'category'))}</span>
-                <h2>${escapeHtml(getLocalized(main, 'title'))}</h2>
-                <p>${escapeHtml(getLocalized(main, 'excerpt'))}</p>
-            </div>
-        </div>
-        <div class="hero-side">
-            ${side.map(item => `
-                <div class="hero-card" onclick="openArticle('${item.id}')">
-                    <img src="${escapeHtml(item.image)}" alt="${escapeHtml(getLocalized(item, 'title'))}" loading="lazy">
-                    <div class="card-body">
-                        <div class="category">${escapeHtml(getLocalized(item, 'category'))}</div>
-                        <h3>${escapeHtml(getLocalized(item, 'title'))}</h3>
-                    </div>
-                </div>
-            `).join('')}
-        </div>
-    `;
-}
-
-function renderFeed() {
-    let filtered = newsData.filter(n => (n.status !== 'draft') && !isGarbagePost(n));
-
-    if (currentFilter !== 'All') {
-        const catNames = categoriesData.filter(c =>
-            c.name_en === currentFilter || c.name === currentFilter
-        ).map(c => [c.name, c.name_en]).flat();
-        filtered = filtered.filter(n => catNames.includes(n.category) || catNames.includes(n.category_en));
-    }
-
-    if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        filtered = filtered.filter(n =>
-            (n.title && n.title.toLowerCase().includes(q)) ||
-            (n.title_en && n.title_en.toLowerCase().includes(q)) ||
-            
-            (n.excerpt && n.excerpt.toLowerCase().includes(q)) ||
-            (n.excerpt_en && n.excerpt_en.toLowerCase().includes(q))
-            
-        );
-    }
-
-    const toShow = filtered.slice(0, displayedCount);
-    const grid = document.getElementById('news-grid');
-    if (!grid) return;
-
-    if (toShow.length === 0) {
-        if (!isDataLoaded) {
-            return;
-        }
-        grid.innerHTML = `
-            <div style="text-align:center; padding:3rem; grid-column:1/-1;">
-                <p style="font-size:1.1rem; color:var(--text-muted); margin-bottom:0.5rem;">📭</p>
-                <p style="color:var(--text-muted); font-size:0.95rem;">${TRANSLATIONS[currentLang].no_articles_yet}</p>
-            </div>
-        `;
-        const loadMoreWrap = document.getElementById('load-more-wrap');
-        if (loadMoreWrap) loadMoreWrap.style.display = 'none';
-        return;
-    }
-
-    grid.innerHTML = toShow.map(item => `
-        <article class="article-card" onclick="openArticle('${item.id}')" data-article-id="${item.id}">
-            <img src="${escapeHtml(item.image)}" alt="${escapeHtml(getLocalized(item, 'title'))}" loading="lazy">
-            <div class="card-body">
-                <div class="meta">
-                    <span class="cat">${escapeHtml(getLocalized(item, 'category'))}</span>
-                    <span>${formatDate(item.date)}</span>
-                </div>
-                <h3>${escapeHtml(getLocalized(item, 'title'))}</h3>
-                <p>${escapeHtml(getLocalized(item, 'excerpt'))}</p>
-                <button onclick="event.stopPropagation(); shareArticle('${item.id}')" style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.4rem 0.875rem;background:linear-gradient(135deg, var(--primary, #e11d48), var(--primary-hover, #be123c));color:#fff;border:none;border-radius:999px;font-size:0.75rem;font-weight:700;cursor:pointer;margin-top:0.5rem;font-family:inherit;box-shadow:0 3px 12px rgba(225,29,72,0.25);">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-                    ${TRANSLATIONS[currentLang].share_article || 'Share'}
-                </button>
-            </div>
-        </article>
-    `).join('');
-
-    // 📱 MOBILE FEED ADS — same sidebar ads, placed between article cards
-    // (desktop shows them in the right rail; hidden ≥1024px via CSS).
-    (function mobileFeedAds() {
-        var now = new Date();
-        var ads = (typeof adsData !== 'undefined' ? adsData : []).filter(function(a) {
-            if (!a || !a.active) return false;
-            if (a.startDate && new Date(a.startDate) > now) return false;
-            if (a.endDate && new Date(a.endDate) < now) return false;
-            return a.position === 'sidebar';
-        }).slice(0, 4); // max 4 in feed — each ad once
-        if (!ads.length) return;
-        var cards = Array.prototype.slice.call(grid.children);
-        // Insert ad BEFORE the NEXT card (never after the LAST → in CSS Grid a
-        // sibling after the final item renders as a NEW ROW = "ad at scroll end" trap!)
-        var maxInsert = Math.min(cards.length - 1, ads.length);
-        for (var i = 0; i < maxInsert; i++) {
-            var ad = document.createElement('div');
-            ad.className = 'feed-ad-slot';
-            ad.innerHTML =
-                '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--text-subtle);margin-bottom:0.5rem;font-weight:700;">' + (TRANSLATIONS[currentLang] ? TRANSLATIONS[currentLang].ad_label : 'Advertisement') + '</div>' +
-                '<a href="' + escapeHtml(ads[i].link) + '" target="_blank" rel="noopener noreferrer" style="display:block;border-radius:12px;overflow:hidden;box-shadow:0 3px 14px rgba(0,0,0,0.10);line-height:0;">' +
-                '<img src="' + escapeHtml(pickAdImg(ads[i])) + '" alt="' + escapeHtml(getLocalized(ads[i], 'title')) + '" loading="lazy" style="width:100%;height:auto;display:block;">' +
-                '</a>';
-            cards[i + 1].before(ad); // ← BEFORE next card, NEVER after last
-        }
-    })();
-
-    const loadMoreWrap = document.getElementById('load-more-wrap');
-    if (loadMoreWrap) loadMoreWrap.style.display = filtered.length > displayedCount ? 'block' : 'none';
-}
-
-function renderTrending() {
-    const trending = newsData.filter(n => n.trending && (n.status !== 'draft') && !isGarbagePost(n)).slice(0, 5);
-    const list = document.getElementById('trending-list');
-    if (!list) return;
-
-    if (trending.length === 0 && isDataLoaded) {
-        list.innerHTML = `<div style="text-align:center; padding:1rem; color:var(--text-muted); font-size:0.85rem;">${TRANSLATIONS[currentLang].no_articles_yet}</div>`;
-        return;
-    }
-
-    list.innerHTML = trending.map((item, i) => `
-        <div class="trending-item" onclick="openArticle('${item.id}')">
-            <span class="trending-num">${i + 1}</span>
-            <div class="trending-info">
-                <h4>${escapeHtml(getLocalized(item, 'title'))}</h4>
-                <span>${escapeHtml(getLocalized(item, 'category'))} · ${formatDate(item.date)}</span>
-            </div>
-        </div>
-    `).join('');
-}
-
-function renderCategories() {
-    const list = document.getElementById('category-list');
-    if (!list) return;
-
-    list.innerHTML = categoriesData.map(cat => `
-        <li onclick="filterCategory('${escapeHtml(cat.name_en)}')">
-            <span>${currentLang === 'ta' ? escapeHtml(cat.name) : escapeHtml(cat.name_en)}</span>
-            <span class="count">${cat.count}</span>
-        </li>
-    `).join('');
-}
-
-function renderAds() {
-    // 📊 Impression tracking (one per render cycle)
-    try { adTrack(null, 'view'); } catch (e) {}
-    // 🔥 Only ads that are (a) active AND (b) inside their start/end date window
-    var now = new Date();
-    const activeAds = adsData.filter(function(a) {
-        if (!a || !a.active) return false;
-        if (a.startDate && new Date(a.startDate) > now) return false;
-        if (a.endDate && new Date(a.endDate) < now) return false;
-        return true;
-    });
-
-    // 🧹 Strip the old dashed-box/min-height chrome from a slot → ads look standalone
-    function neutralizeSlot(el) {
-        if (!el) return;
-        el.style.border = 'none';
-        el.style.background = 'transparent';
-        el.style.minHeight = '0';
-        el.style.maxHeight = 'none';      // .ad-slot-header CSS caps 120px → squeezes tall images
-        el.style.boxShadow = 'none';
-        el.style.padding = '0';
-        // 🧱 CRITICAL: .ad-slot CSS has display:flex → children lay out in a ROW
-        // (2 sidebar ads sat side-by-side + shrank). Force BLOCK → vertical stack,
-        // each ad at natural full width.
-        el.style.display = 'block';
-    }
-
-    // 💎 ONE premium card style for EVERY slot (header/sidebar/inline/article view)
-    function adCard(a, wide) {
-        return `
-        <div style="margin-bottom:1.5rem;">
-            <div class="ad-label" style="margin-bottom:0.5rem;">${TRANSLATIONS[currentLang].ad_label}</div>
-            <a href="${escapeHtml(a.link)}" target="_blank" rel="noopener noreferrer" style="display:block;border-radius:12px;overflow:hidden;box-shadow:0 3px 14px rgba(0,0,0,0.10);line-height:0;">
-                <img src="${escapeHtml(pickAdImg(a))}" alt="${escapeHtml(getLocalized(a, 'title'))}" loading="lazy" style="width:100%;height:auto;display:block;">
-            </a>
-        </div>`;
-    }
-
-    // Header — wide natural banner (desktop wide, mobile same)
-    const headerAd = activeAds.find(a => a.position === 'header');
-    const headerContainer = document.getElementById('header-ad-container');
-    const headerSlot = document.getElementById('ad-slot-header');
-    if (headerContainer) headerContainer.style.display = headerAd ? '' : 'none';
-    if (headerSlot) {
-        neutralizeSlot(headerSlot);
-        headerSlot.innerHTML = headerAd ? adCard(headerAd, true) : '';
-    }
-
-    // Sidebar — EACH AD its own card, clean stack, no merge
-    const sidebarAds = activeAds.filter(a => a.position === 'sidebar');
-    const sidebarSlot = document.getElementById('ad-slot-sidebar');
-    if (sidebarSlot) {
-        neutralizeSlot(sidebarSlot);
-        sidebarSlot.innerHTML = sidebarAds.length ? sidebarAds.map(adCard).join('') : '';
-        sidebarSlot.style.display = sidebarAds.length ? 'block' : 'none'; // block, not '' (CSS flex!)
-        sidebarSlot.style.marginBottom = '0';
-    }
-
-    // Inline
-    const inlineAd = activeAds.find(a => a.position === 'inline');
-    const inlineSlot = document.getElementById('ad-slot-inline');
-    if (inlineSlot) {
-        neutralizeSlot(inlineSlot);
-        inlineSlot.innerHTML = inlineAd ? adCard(inlineAd) : '';
-        inlineSlot.style.display = inlineAd ? 'block' : 'none';
-    }
-
-    // 🎯 Article View — same premium card, no box chrome
-    const modalAd = activeAds.find(a => a.position === 'modal');
-    const modalSlot = document.getElementById('ad-slot-modal');
-    if (modalSlot) {
-        neutralizeSlot(modalSlot);
-        if (modalAd) {
-            modalSlot.innerHTML = adCard(modalAd);
-            modalSlot.style.display = 'block';
+        var recipients = [];
+        if (testOnly) {
+            recipients = ['endlessnewslk@gmail.com'];
         } else {
-            modalSlot.innerHTML = '';
-            modalSlot.style.display = 'none';
+            var snap = await db.collection('subscribers').get();
+            recipients = snap.docs.map(function(d) { return d.id; });
+            if (!recipients.length) { showToast('No subscribers yet!', 'error'); btn.disabled = false; btn.textContent = orig; return; }
         }
-    }
-}
-
-// ── AdSense placeholders removed: admin panel / Firebase is the ONLY ad source ──
-// ── AdSense placeholders removed: admin panel / Firebase is the ONLY ad source ──
-// ── Initialize AdSense Slots (called after AdSense approve) ──
-function initAdSenseSlots() {
-    // Replace placeholder divs with actual AdSense code
-    // Call this after Google AdSense approval + code paste
-    const slots = ['ad-slot-header', 'ad-slot-sidebar', 'ad-slot-inline', 'ad-slot-modal'];
-    slots.forEach(id => {
-        const el = document.getElementById(id);
-        if (el && el.querySelector('.ad-slot-placeholder')) {
-            // Slot is empty (no direct ad) → ready for AdSense
-            el.classList.add('adsense-ready');
-        }
-    });
-}
-
-function renderTicker() {
-    const breaking = newsData.filter(n => (n.status !== 'draft') && !isGarbagePost(n)).slice(0, 8);
-    const ticker = document.getElementById('ticker-content');
-    if (!ticker) return;
-
-    if (breaking.length === 0 && isDataLoaded) {
-        ticker.innerHTML = `<span class="ticker-item">${TRANSLATIONS[currentLang].no_articles_yet}</span>`;
-        return;
-    }
-
-    ticker.innerHTML = breaking.map(n => `
-        <span class="ticker-item">${escapeHtml(getLocalized(n, 'title'))}</span>
-    `).join('');
-}
-
-// 📱 MOBILE/DESKTOP image picker — GLOBAL (used by renderAds, feed ads, in-article ads)
-function pickAdImg(a) {
-    return (window.innerWidth < 768 && a.mobileImage) ? a.mobileImage : a.image;
-}
-
-// 📊 REAL ANALYTICS v3 — robust: auto-creates docs, retries, never fails silently
-(function() {
-    var BASE = 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents';
-    var KEY = '?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
-    var created = {}; // session cache — doc already created
-
-    function docPath(name) { return BASE + '/analytics/' + name; }
-
-    function ensureDoc(name) {
-        if (created[name]) return Promise.resolve(true);
-        return fetch(docPath(name) + KEY)
-            .then(function(r) {
-                if (r.ok) { created[name] = 1; return true; }
-                // Create with zero values first (increment needs existing doc)
-                return fetch(BASE + '/analytics?documentId=' + name + KEY, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fields: {
-                        views: { integerValue: 0 },
-                        shares: { integerValue: 0 },
-                        mobile: { integerValue: 0 },
-                        desktop: { integerValue: 0 }
-                    } })
-                }).then(function(cr) {
-                    created[name] = 1;
-                    return true;
-                });
-            }).catch(function() { return false; });
-    }
-
-    function commit(writes) {
-        return fetch(BASE + ':commit' + KEY, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ writes: writes })
-        });
-    }
-
-    window.analyticsTrack = function(type, articleId) {
-        try {
-            var today = new Date().toISOString().slice(0, 10);
-            var isMobile = window.innerWidth < 768;
-            var v = type === 'view' ? 1 : 0, sh = type === 'share' ? 1 : 0;
-            var devField = isMobile ? 'mobile' : 'desktop';
-
-            var docs = ['totals', 'daily_' + today];
-            if (articleId) docs.push('articles_' + String(articleId));
-
-            docs.forEach(function(name) {
-                ensureDoc(name).then(function() {
-                    var fields = [
-                        { fieldPath: 'views', increment: { integerValue: v } },
-                        { fieldPath: 'shares', increment: { integerValue: sh } },
-                        { fieldPath: devField, increment: { integerValue: 1 } }
-                    ];
-                    if (name.indexOf('daily_') === 0) {
-                        fields.push({ fieldPath: 'date', stringValue: today });
-                    }
-                    commit([{ transform: { document: 'projects/endless-news/databases/(default)/documents/analytics/' + name, fieldTransforms: fields } }])
-                        .catch(function() {});
-                });
+        // Batch-write mail docs (Trigger Email extension sends each)
+        var CHUNK = 400;
+        for (var i = 0; i < recipients.length; i += CHUNK) {
+            var batch = db.batch();
+            recipients.slice(i, i + CHUNK).forEach(function(email) {
+                var ref = db.collection('mail').doc('s' + Date.now() + '_' + Math.random().toString(36).slice(2, 8));
+                batch.set(ref, { to: email, message: { subject: subject, html: html } });
             });
-        } catch (e) {}
-    };
-})();
-
-// 📰 IN-ARTICLE ADS// 📊 AD TRACKING — impressions (view) + clicks (ad tap) → ad_analytics collection
-function adTrack(adId, type) {
-    try {
-        var today = new Date().toISOString().slice(0, 10);
-        var base = 'projects/endless-news/databases/(default)/documents/ad_analytics';
-        var key = '?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
-        var url = 'https://firestore.googleapis.com/v1/' + base;
-        var ensure = function(name) {
-            return fetch(url + '/' + name + key).then(function(r) {
-                if (r.ok) return true;
-                return fetch(url + '?documentId=' + name + key, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fields: { impressions: { integerValue: 0 }, clicks: { integerValue: 0 } } })
-                }).then(function() { return true; });
-            }).catch(function() { return false; });
-        };
-        var bump = function(name, imp, clk) {
-            ensure(name).then(function() {
-                fetch(url + ':commit' + key, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ writes: [{ transform: { document: base + '/' + name, fieldTransforms: [
-                        { fieldPath: 'impressions', increment: { integerValue: imp } },
-                        { fieldPath: 'clicks', increment: { integerValue: clk } }
-                    ] } }] })
-                }).catch(function() {});
-            });
-        };
-        var im = type === 'view' ? 1 : 0, cl = type === 'click' ? 1 : 0;
-        bump('totals', im, cl);
-        bump('daily_' + today, im, cl);
-        if (adId) bump('ad_' + String(adId), im, cl);
-    } catch (e) {}
-}
-// Auto-click on all ad links (event delegation — works for all slots incl. dynamic)
-document.addEventListener('click', function(e) {
-    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
-    if (!a) return;
-    var wrap = a.closest('.feed-ad-slot, #ad-slot-header, #ad-slot-sidebar, #ad-slot-inline, #ad-slot-modal, [class*="ad-"]');
-    if (wrap) adTrack(a.dataset.adId || null, 'click');
-}, true);
-
-// 📰 IN-ARTICLE ADS — inject active ads between paragraphs (sidebar ads reused)
-function getInArticleAds() {
-    var now = new Date();
-    var all = (typeof adsData !== 'undefined' ? adsData : []).filter(function(a) {
-        if (!a || !a.active) return false;
-        if (a.inArticle !== true) return false; // 🎯 PER-AD tick — Ad Manager-la enable pannina ads mattum
-        if (a.startDate && new Date(a.startDate) > now) return false;
-        if (a.endDate && new Date(a.endDate) < now) return false;
-        return true;
-    });
-    // 📋 Order: Header first → Sidebar ads → Inline last
-    var header = all.filter(function(a) { return a.position === 'header'; });
-    var side = all.filter(function(a) { return a.position === 'sidebar'; });
-    var inl = all.filter(function(a) { return a.position === 'inline'; });
-    var ordered = header.concat(side, inl);
-    // Dedupe by id
-    var seen = {}, out = [];
-    ordered.forEach(function(a) {
-        var k = String(a.id || a.image);
-        if (!seen[k]) { seen[k] = 1; out.push(a); }
-    });
-    return out;
-}
-
-function inArticleAdHtml(ad) {
-    // 📐 Natural sizing: banner = wide-thin, square = square — NO letterbox,
-    // NO max-height crop. Fits perfectly on mobile + desktop.
-    // 🚫 No title text in the reading area — clean image-only sponsored box.
-    return '<div style="margin:1.75rem 0;">' +
-        '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--text-subtle);margin-bottom:0.5rem;font-weight:700;">Sponsored · ' + (TRANSLATIONS[currentLang] ? TRANSLATIONS[currentLang].ad_label : 'Advertisement') + '</div>' +
-        '<a href="' + escapeHtml(ad.link) + '" target="_blank" rel="noopener noreferrer" style="display:block;border-radius:12px;overflow:hidden;box-shadow:0 3px 14px rgba(0,0,0,0.10);line-height:0;">' +
-        '<img class="inl-ad-img" src="' + escapeHtml(pickAdImg(ad)) + '" alt="' + escapeHtml(getLocalized(ad, 'title')) + '" loading="lazy" style="width:100%;height:auto;display:block;">' +
-        '</a></div>';
-}
-
-function injectInArticleAds(html) {
-    var ads = getInArticleAds();
-    if (!ads.length) return html;
-    var wrap = document.createElement('div');
-    wrap.innerHTML = html;
-    var blocks = Array.prototype.slice.call(wrap.children);
-    var n = blocks.length;
-    if (n < 2) return html; // too short — no ads
-
-    // 🧠 SMART SPACING: each ad appears EXACTLY ONCE — never repeated.
-    var insertAt = {}; // blockIndex -> ad object
-    var ai = 0;
-    if (ads.length >= n) {
-        // 📊 Many ads: EVERY paragraph gap gets one (1:1, each ad once)
-        for (var i = 0; i < n; i++) insertAt[i] = ads[ai++];
-    } else {
-        // 📉 Fewer ads: spread EVENLY across the article (2nd/3rd gap spacing).
-        // Premium rule: first ad never right after paragraph 1 — reader engages first.
-        var prev = 0;
-        for (var j = 0; j < ads.length; j++) {
-            var pos = Math.round((j + 1) * (n - 1) / (ads.length + 1));
-            if (pos < 1) pos = 1;                 // min: after paragraph 2
-            if (pos <= prev) pos = prev + 1;      // never two ads adjacent
-            if (pos > n - 1) break;               // no room left → goes to END
-            insertAt[pos] = ads[j];
-            ai++;
-            prev = pos;
+            await batch.commit();
         }
+        await db.collection('newsletter_log').doc('summary').set({
+            totalSent: firebase.firestore.FieldValue.increment(recipients.length),
+            lastSent: new Date().toISOString()
+        }, { merge: true });
+        showToast('🚀 Sent to ' + recipients.length + ' subscriber(s)!', 'success');
+        renderNewsletterPage();
+    } catch (e) {
+        console.warn('Send failed:', e);
+        showToast('Send failed: ' + (e && e.message ? e.message : 'unknown') + ' — Trigger Email extension install aagirukka check pannunga', 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = orig;
     }
-
-    var out = [];
-    blocks.forEach(function(b, i) {
-        out.push(b.outerHTML);
-        if (insertAt[i]) out.push(inArticleAdHtml(insertAt[i]));
-    });
-    // Paragraphs mudinja → michama ads ellam article END-la (each shown once)
-    while (ai < ads.length) {
-        out.push(inArticleAdHtml(ads[ai]));
-        ai++;
-    }
-    return out.join('');
 }
 
-// 🎬 VIDEO — detect link type & render proper player
-function getVideoInfo(url) {
-    if (!url) return null;
-    var m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{6,})/);
-    if (m) return { type: 'youtube', id: m[1] };
-    m = url.match(/vimeo\.com\/(\d+)/);
-    if (m) return { type: 'vimeo', id: m[1] };
-    if (/facebook\.com|fb\.watch/.test(url)) return { type: 'fb' };
-    if (/\.(mp4|webm|ogg|mov)(\?|#|$)/i.test(url)) return { type: 'direct' };
-    return { type: 'link' };
-}
-
-function videoBlockHtml(article) {
-    var vl = article.videoLink;
-    var poster = escapeHtml(article.image || '');
-    if (vl) {
-        var info = getVideoInfo(vl);
-        if (info && info.type === 'youtube') {
-            return `<div class="vid-wrap"><iframe src="https://www.youtube-nocookie.com/embed/${info.id}" title="Video" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
-        }
-        if (info && info.type === 'vimeo') {
-            return `<div class="vid-wrap"><iframe src="https://player.vimeo.com/video/${info.id}" title="Video" loading="lazy" allowfullscreen></iframe></div>`;
-        }
-        if (info && info.type === 'fb') {
-            return `<div class="vid-wrap"><iframe src="https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(vl)}&show_text=false" title="Video" loading="lazy" allowfullscreen style="border:none;overflow:hidden"></iframe></div>`;
-        }
-        if (info && info.type === 'direct') {
-            return `<video controls playsinline poster="${poster}" style="width:100%;margin-top:1rem;border-radius:8px;" preload="metadata"><source src="${escapeHtml(vl)}"></video>`;
-        }
-        return `<p style="margin-top:1rem;"><a href="${escapeHtml(vl)}" target="_blank" rel="noopener" style="color:#e11d48;font-weight:700;">▶️ Watch video</a></p>`;
-    }
-    if (article.video) {
-        return `<video controls playsinline poster="${poster}" style="width:100%;margin-top:1rem;border-radius:8px;" preload="none"><source src="${escapeHtml(article.video)}"></video>`;
-    }
-    return '';
-}
-
-// 📱 BACK-BUTTON LAYER SYSTEM (whole website) — BACK always closes the
-// topmost layer (article modal / share card / mobile menu) instead of
-// exiting the site. Instagram/YouTube app pattern. ✕ button-um same-a work aagum.
-let _layerStack = [];
-let _closingById = null;
-
-function pushLayer(id, closeFn) {
-    try { history.pushState({ el: id }, ''); } catch (e) {}
-    _layerStack.push({ id: id, fn: closeFn });
-}
-
-// 🎨 PROFESSIONAL SVG ICON LIBRARY — replaces all emojis (BBC/NYT style).
-// Consistent 24px stroke icons, currentColor — theme-aware automatic!
+// 🎨 ADMIN SVG ICONS (Lucide-style — same set as main site)
 const IC = (function() {
-    function i(paths, vb) {
-        return '<svg viewBox="' + (vb || '0 0 24 24') + '" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.12em;display:inline-block;">' + paths + '</svg>';
-    }
+    function i(p) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.1em;height:1.1em;vertical-align:-0.15em;display:inline-block;">' + p + '</svg>'; }
     return {
-        sun: i('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>'),
-        moon: i('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'),
-        cloud: i('<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>'),
-        cloudSun: i('<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M12 2v2M4.93 4.93l1.41 1.41M2 12h2"/>'),
-        cloudMoon: i('<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" transform="scale(0.5) translate(22 2)"/>'),
-        rain: i('<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M8 19v2M12 19v2M16 19v2"/>'),
-        snow: i('<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M8 19h.01M12 19h.01M16 19h.01"/>'),
-        thunder: i('<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M13 11l-3 5h4l-3 5"/>'),
-        fog: i('<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M4 15h16M6 19h12" stroke-width="1.5"/>'),
-        heart: i('<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>'),
-        thumbsUp: i('<path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>'),
-        laugh: i('<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>'),
-        wow: i('<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3.5"/><line x1="12" y1="4" x2="12" y2="7"/>'),
-        sad: i('<circle cx="12" cy="12" r="10"/><path d="M8 16s1.5-2 4-2 4 2 4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>'),
-        angry: i('<circle cx="12" cy="12" r="10"/><line x1="8" y1="8" x2="12" y2="11"/><line x1="16" y1="8" x2="12" y2="11"/><path d="M8 16s1.5-1.5 4-1.5 4 1.5 4 1.5"/>'),
-        bookmark: i('<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>'),
-        clock: i('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),
-        user: i('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
-        calendar: i('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'),
-        tag: i('<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.83z"/><line x1="7" y1="7" x2="7.01" y2="7"/>'),
-        flame: i('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'),
-        megaphone: i('<path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>'),
-        search: i('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'),
-        image: i('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>'),
-        video: i('<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>'),
-        mail: i('<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>'),
-        alert: i('<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
-        trash: i('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'),
-        eye: i('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
-        share: i('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>'),
         chart: i('<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>'),
-        globe: i('<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'),
-        phone: i('<rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>'),
-        newsIcon: i('<path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6z"/>'),
+        pie: i('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
+        news: i('<path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6z"/>'),
+        megaphone: i('<path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>'),
+        tag: i('<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.83z"/>'),
         settings: i('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
         logout: i('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>'),
+        heart: i('<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>'),
+        mail: i('<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>'),
         users: i('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
         send: i('<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>'),
         zap: i('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'),
         check: i('<polyline points="20 6 9 17 4 12"/>'),
-        x: i('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
-        edit: i('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'),
-        pie: i('<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>'),
+        eye: i('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
+        phone: i('<rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>'),
+        globe: i('<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'),
         mouse: i('<rect x="6" y="3" width="12" height="18" rx="6"/><line x1="12" y1="7" x2="12" y2="11"/>'),
-        monitor: i('<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>')
+        edit: i('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'),
+        trash: i('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'),
+        x: i('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
+        flask: i('<path d="M9 3h6M10 3v6.34L4.62 17.7A2 2 0 0 0 6.36 21h11.28a2 2 0 0 0 1.74-3.3L14 9.34V3"/><line x1="7" y1="15" x2="17" y2="15"/>'),
+        outbox: i('<path d="M21 3H3v18h18V3zM12 18v-6"/><path d="M8 12l4-4 4 4"/>'),
+        broom: i('<path d="M19 3l-7 7M14 5l5 5M5 21c.5-4.5 3-8 7-9l2-2"/>'),
+        image: i('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>'),
+        video: i('<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>'),
+        link: i('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>')
     };
 })();
 
-// ⏱️ READING TIME — word count / 200 ≈ minutes
-function readingTime(text) {
-    var words = String(text || '').replace(/<[^>]*>/g, ' ').trim().split(/\s+/).length;
-    return Math.max(1, Math.ceil(words / 200));
-}
-
-// 🔖 SAVE FOR LATER — localStorage bookmarks
-const SAVED_KEY = 'endless_saved_articles';
-function getSavedArticles() {
-    try { return JSON.parse(localStorage.getItem(SAVED_KEY)) || []; } catch (e) { return []; }
-}
-function isArticleSaved(id) { return getSavedArticles().indexOf(String(id)) !== -1; }
-function toggleSaveArticle(id) {
-    var list = getSavedArticles();
-    var i = list.indexOf(String(id));
-    if (i > -1) { list.splice(i, 1); } else { list.push(String(id)); }
-    try { localStorage.setItem(SAVED_KEY, JSON.stringify(list)); } catch (e) {}
-    var btn = document.getElementById('save-btn-' + id);
-    if (btn) btn.innerHTML = IC.bookmark + ' ' + (i > -1 ? (currentLang === 'ta' ? 'சேமி' : 'Save') : (currentLang === 'ta' ? 'சேமித்தது' : 'Saved'));
-    var msg = i > -1 ? (currentLang === 'ta' ? 'அகற்றப்பட்டது' : 'Removed') : (currentLang === 'ta' ? '✅ சேமிக்கப்பட்டது!' : '✅ Saved!');
-    // Toast fallback — main site-la showToast illa (dashboard only), so inline toast
-    if (typeof showToast === 'function') { showToast(msg, 'success'); }
-    else {
-        var t = document.createElement('div');
-        t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#059669;color:#fff;padding:10px 22px;border-radius:999px;font-weight:700;z-index:999999;font-size:0.9rem;box-shadow:0 8px 24px rgba(0,0,0,0.3);';
-        t.textContent = msg;
-        document.body.appendChild(t);
-        setTimeout(function() { t.remove(); }, 1800);
-    }
-}
-
-// 🔠 FONT SIZE CONTROL — article content zoom (A- / A / A+)
-let _articleFontScale = 1;
-function adjustFontSize(delta) {
-    if (delta === 0) { _articleFontScale = 1; }
-    else { _articleFontScale = Math.min(1.5, Math.max(0.8, _articleFontScale + delta * 0.15)); }
-    applyArticleFontScale();
-}
-function applyArticleFontScale() {
-    // setLanguage re-renders the modal → re-apply. !important beats styles.css rules.
-    var el = document.querySelector('.modal-article .article-text');
-    if (el) el.style.setProperty('font-size', (1.05 * _articleFontScale).toFixed(2) + 'rem', 'important');
-}
-
-// ❤️ LIKE + REACTIONS — Facebook-style. Viewers: like/unlike + 6-emoji reactions.
-// Counts public; admin panel-la full breakdown kaatum.
-const LIKED_KEY = 'endless_liked';
-// 🎨 Reaction SVGs with brand colors (Facebook-style palette)
-function colored(icon, color) { return '<span style="color:' + color + ';display:inline-flex;">' + icon + '</span>'; }
-const REACTIONS = {
-    like: colored(IC.thumbsUp, '#1877F2'),
-    love: colored(IC.heart, '#F33E58'),
-    haha: colored(IC.laugh, '#F7B125'),
-    wow: colored(IC.wow, '#F7B125'),
-    sad: colored(IC.sad, '#F7B125'),
-    angry: colored(IC.angry, '#E9710F')
-};
-function getLikedMap() { try { return JSON.parse(localStorage.getItem(LIKED_KEY)) || {}; } catch (e) { return {}; } }
-
-function getLikeCount(articleId, cb) {
-    // Firestore REST read — public
-    try {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents/likes/' + encodeURIComponent(String(articleId)) + '?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA');
-        xhr.onload = function() {
-            if (xhr.status === 200) {
-                try {
-                    var f = JSON.parse(xhr.responseText).fields || {};
-                    var total = 0, breakdown = {};
-                    Object.keys(REACTIONS).forEach(function(k) {
-                        var v = (f[k] && (f[k].integerValue || 0)) || 0;
-                        v = parseInt(v) || 0;
-                        breakdown[k] = v; total += v;
-                    });
-                    cb(total, breakdown);
-                    return;
-                } catch (e) {}
-            }
-            cb(0, {});
-        };
-        xhr.onerror = function() { cb(0, {}); };
-        xhr.send();
-    } catch (e) { cb(0, {}); }
-}
-
-function submitReaction(articleId, emoji, prevEmoji) {
-    // Firestore REST commit — decrement prev (if changed/removed), increment new
-    var writes = [];
-    if (prevEmoji && prevEmoji !== emoji) {
-        writes.push({ transform: { document: 'projects/endless-news/databases/(default)/documents/likes/' + encodeURIComponent(String(articleId)),
-            fieldTransforms: [{ fieldPath: prevEmoji, increment: { integerValue: -1 } }] } });
-    }
-    var inc = (emoji && prevEmoji !== emoji) ? 1 : (prevEmoji === emoji ? -1 : 1);
-    if (emoji && inc !== 0) {
-        writes.push({ transform: { document: 'projects/endless-news/databases/(default)/documents/likes/' + encodeURIComponent(String(articleId)),
-            fieldTransforms: [{ fieldPath: emoji, increment: { integerValue: inc } }] } });
-    }
-    if (!writes.length) return;
-    try {
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents:commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA');
-        xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.send(JSON.stringify({ writes: writes }));
-    } catch (e) {}
-}
-
-// Like button UI + long-press emoji panel (Facebook style)
-let _reactArticleId = null;
-function buildReactionUI(container, articleId) {
-    var liked = getLikedMap();
-    var myReaction = liked[articleId] || null;
-    container.innerHTML =
-        '<button type="button" id="react-btn" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 12px;cursor:pointer;font-size:0.85rem;color:var(--text);display:inline-flex;align-items:center;gap:5px;user-select:none;-webkit-user-select:none;">' +
-        '<span id="react-emoji">' + (myReaction ? REACTIONS[myReaction] : '👍') + '</span>' +
-        '<span id="react-count" style="font-weight:700;"></span></button>' +
-        '<span id="react-panel" style="display:none;position:absolute;bottom:44px;left:0;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:6px 10px;box-shadow:0 8px 24px rgba(0,0,0,0.25);z-index:50;gap:2px;"></span>';
-    container.style.position = 'relative';
-
-    var panel = container.querySelector('#react-panel');
-    Object.keys(REACTIONS).forEach(function(k) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.style.cssText = 'background:none;border:none;font-size:1.6rem;cursor:pointer;padding:2px 6px;transition:transform .15s;display:inline-flex;color:inherit;';
-        b.textContent = REACTIONS[k];
-        b.dataset.reaction = k;
-        b.addEventListener('mouseenter', function() { this.style.transform = 'scale(1.35)'; });
-        b.addEventListener('mouseleave', function() { this.style.transform = 'scale(1)'; });
-        b.addEventListener('click', function(ev) { ev.stopPropagation(); pickReaction(articleId, k); });
-        panel.appendChild(b);
+// 🔄 Replace emoji icons with SVGs — sidebar nav, stat cards, buttons
+function iconifyAdmin() {
+    // Sidebar nav: <span>EMOJI</span> Label → SVG
+    var navMap = { '📊': IC.chart, '📈': IC.pie, '📝': IC.news, '📢': IC.megaphone, '🏷️': IC.tag, '⚙️': IC.settings, '📬': IC.mail, '🚪': IC.logout };
+    document.querySelectorAll('.sidebar-nav .nav-item span, .mobile-bottom-nav .nav-item-mobile i').forEach(function(sp) {
+        var t = sp.textContent.trim();
+        if (navMap[t]) { sp.innerHTML = navMap[t]; sp.style.cssText = 'display:inline-flex;color:#f87171;'; }
     });
-
-    var btn = container.querySelector('#react-btn');
-    // Long-press (touch + mouse) → emoji panel; quick tap → like/unlike
-    var timer = null;
-    function startPress(ev) {
-        ev.preventDefault();
-        timer = setTimeout(function() {
-            timer = null;
-            panel.style.display = 'inline-flex';
-        }, 450);
-    }
-    function endPress(ev) {
-        if (timer) { clearTimeout(timer); timer = null; quickLike(articleId); }
-    }
-    btn.addEventListener('touchstart', startPress, { passive: false });
-    btn.addEventListener('touchend', endPress);
-    btn.addEventListener('mousedown', startPress);
-    btn.addEventListener('mouseup', endPress);
-    btn.addEventListener('mouseleave', function() { if (timer) { clearTimeout(timer); timer = null; } });
-
-    document.addEventListener('click', function hideP(ev) {
-        if (!container.contains(ev.target)) panel.style.display = 'none';
+    // Stat card icons
+    var statMap = { '📝': IC.news, '👁️': IC.eye, '📢': IC.megaphone, '🏷️': IC.tag, '👀': IC.eye, '🖱️': IC.mouse, '📱': IC.phone, '🌍': IC.globe, '👥': IC.users, '✉️': IC.mail };
+    document.querySelectorAll('.stat-icon').forEach(function(sp) {
+        var t = sp.textContent.trim();
+        if (statMap[t]) { sp.innerHTML = statMap[t]; sp.style.cssText += 'display:grid;place-items:center;color:#dc2626;'; }
     });
-
-    // Initial count
-    getLikeCount(articleId, function(total) {
-        var c = container.querySelector('#react-count');
-        if (c) c.textContent = total > 0 ? total : '';
-    });
-}
-
-function quickLike(articleId) {
-    var liked = getLikedMap();
-    var my = liked[articleId] || null;
-    var next = my === 'like' ? null : 'like'; // toggle = unlike
-    pickReaction(articleId, next || undefined, true);
-}
-
-function pickReaction(articleId, emojiKey, isQuick) {
-    var liked = getLikedMap();
-    var prev = liked[articleId] || null;
-    var next = emojiKey || null;
-    if (prev === next) next = null; // same = unlike
-    if (next) { liked[articleId] = next; } else { delete liked[articleId]; }
-    try { localStorage.setItem(LIKED_KEY, JSON.stringify(liked)); } catch (e) {}
-
-    submitReaction(articleId, next, prev);
-
-    var container = document.getElementById('reaction-wrap');
-    if (container) {
-        var panel = container.querySelector('#react-panel');
-        if (panel) panel.style.display = 'none';
-        var eb = container.querySelector('#react-emoji');
-        if (eb) eb.innerHTML = next ? REACTIONS[next] : IC.thumbsUp;
-        getLikeCount(articleId, function(total) {
-            var c = container.querySelector('#react-count');
-            if (c) c.textContent = total > 0 ? total : '';
-        });
-    }
-}
-
-// 🔗 RELATED ARTICLES — same category, exclude current, top 3
-function getRelatedArticles(article, limit) {
-    limit = limit || 3;
-    var cat = article.category_en || article.category;
-    var pool = newsData.filter(function(n) {
-        return String(n.id) !== String(article.id)
-            && n.status !== 'draft'
-            && (n.category_en === cat || n.category === cat);
-    });
-    return pool.slice(0, limit);
-}
-function relatedArticleHtml(a) {
-    return '<div class="rel-card" onclick="openArticle(\'' + a.id + '\')">' +
-        '<img src="' + escapeHtml(a.image) + '" alt="' + escapeHtml(getLocalized(a, 'title')) + '" loading="lazy">' +
-        '<div class="rc-b"><div class="rc-cat">' + escapeHtml(getLocalized(a, 'category')) + '</div>' +
-        '<div class="rc-t">' + escapeHtml(getLocalized(a, 'title')) + '</div></div></div>';
-}
-
-// BACK button pressed → browser pops history → close the topmost layer
-window.addEventListener('popstate', function() {
-    var layer = _layerStack.pop();
-    if (layer) {
-        _closingById = layer.id;
-        try { layer.fn(); } catch (e) {}
-        _closingById = null;
-    }
-});
-
-// Called when a layer closes via ✕ / programmatically — sync stack + history
-function layerClosed(id) {
-    for (var i = _layerStack.length - 1; i >= 0; i--) {
-        if (_layerStack[i].id === id) {
-            _layerStack.splice(i, 1);
-            if (_closingById !== id) {
-                try { history.back(); } catch (e) {} // consume pushed entry
-            }
-            break;
+    // 📰 Panel h3 headings (dashboard.html-la static emojis): 📈 Recent Articles, 📢 Active Ads
+    var h3Map = { '📈': IC.chart, '📊': IC.chart, '📢': IC.megaphone, '✍️': IC.edit, '👥': IC.users };
+    document.querySelectorAll('.panel h3').forEach(function(h) {
+        if (h.dataset.iconDone) return;
+        var raw = h.textContent.trim();
+        var emoji = raw.split(' ')[0];
+        if (h3Map[emoji]) {
+            h.dataset.iconDone = '1';
+            h.style.display = 'flex'; h.style.alignItems = 'center'; h.style.gap = '7px';
+            h.innerHTML = '<span style="color:#dc2626;display:inline-flex;flex-shrink:0;">' + h3Map[emoji] + '</span><span>' + raw.substring(emoji.length).trim() + '</span>';
         }
+    });
+    // Likes column header
+    var th = document.getElementById('th-likes');
+    if (th) th.innerHTML = '<span style="color:#dc2626;display:inline-flex;vertical-align:-3px;">' + IC.heart + '</span> Likes';
+}
+
+// 🧹 UNIVERSAL EMOJI SWEEPER v2 — TEXT-NODE walker: labels, buttons, notes, checkboxes — ELLAM!
+const EMOJI_MAP = {
+    '\u270F\uFE0F':'edit','\u270F':'edit','✏️':'edit','✏':'edit',
+    '\uD83D\uDDD1\uFE0F':'trash','\uD83D\uDDD1':'trash','🗑️':'trash','🗑':'trash',
+    '\uD83D\uDD0D':'search','🔍':'search','🔎':'search',
+    '\u2795':'plus','➕':'plus',
+    '\u2714\uFE0F':'check','\u2714':'check','✔️':'check','✔':'check','✅':'check',
+    '\u2716\uFE0F':'x','\u2716':'x','✖️':'x','✖':'x','✕':'x','❌':'x',
+    '📅':'calendar','\uD83D\uDCC5':'calendar','\uD83D\uDCC6':'calendar',
+    '📧':'mail','✉️':'mail','✉':'mail',
+    '👤':'user','👥':'users',
+    '📱':'phone','💻':'monitor',
+    '🌐':'globe','🌍':'globe','🌎':'globe',
+    '⚠️':'alert','⚠':'alert',
+    '🔔':'bell',
+    '📈':'trend','📉':'trend','📊':'chart',
+    '📢':'megaphone',
+    '💰':'coins',
+    '📝':'edit',
+    '🏷️':'tag','🏷':'tag',
+    '⚙️':'settings','⚙':'settings',
+    '🚪':'logout',
+    '📌':'pin','📍':'pin',
+    '🔧':'wrench','🔨':'hammer',
+    '🔒':'lock','🔓':'lock',
+    '⭐':'star','🌟':'star',
+    '🔥':'flame',
+    '⏱️':'clock','⌛':'clock',
+    '👁️':'eye','👁':'eye','👀':'eye',
+    '💬':'msg',
+    '📤':'send','📥':'send','🚀':'rocket',
+    '🛡️':'shield','🛡':'shield','⚔️':'shield',
+    '🧪':'flask','📤':'outbox',
+    '🧹':'broom',
+    '🖼️':'image','🖼':'image',
+    '🎬':'video',
+    '🔗':'link'
+};
+
+function sweepTextNodes(root) {
+    if (!root || typeof IC === 'undefined') return;
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(function(node) {
+        var text = node.nodeValue;
+        if (!text) return;
+        var parent = node.parentElement;
+        if (!parent || parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE' || parent.closest('svg')) return;
+        if (parent.closest('.sidebar-nav')) return; // sidebar = iconifyAdmin (consistent brand red)
+        var found = [];
+        Object.keys(EMOJI_MAP).forEach(function(em) {
+            if (text.indexOf(em) !== -1 && IC[EMOJI_MAP[em]]) {
+                found.push({ em: em, icon: IC[EMOJI_MAP[em]] });
+                text = text.split(em).join('\u0001'); // placeholder
+            }
+        });
+        if (!found.length) return;
+        var frag = document.createDocumentFragment();
+        text.split('\u0001').forEach(function(part, i) {
+            if (part) frag.appendChild(document.createTextNode(part));
+            if (i < found.length) {
+                var sp = document.createElement('span');
+                sp.style.cssText = 'display:inline-flex;vertical-align:-2px;margin-right:3px;';
+                sp.innerHTML = found[i].icon;
+                frag.appendChild(sp);
+            }
+        });
+        node.parentNode.replaceChild(frag, node);
+    });
+}
+var _sweeping = false, _sweepCount = 0, _sweepT = null;
+function sweepAllEmojis() {
+    if (_sweeping) return;
+    _sweeping = true;
+    try {
+        iconifyAdmin(); // FIRST — sidebar/stats/panels with consistent brand red
+        sweepTextNodes(document.getElementById('admin-dashboard') || document.body);
+    } catch (e) {}
+    _sweeping = false;
+    _sweepCount++;
+    // Auto-stop after 8 sweeps — static content done, renders handle the rest
+    if (_sweepCount >= 8 && _sweepMO) { _sweepMO.disconnect(); _sweepMO = null; }
+}
+
+// Run on init (few times to catch late content) — NO permanent observer (freeze fix)
+setTimeout(sweepAllEmojis, 700);
+setTimeout(sweepAllEmojis, 2000);
+setTimeout(sweepAllEmojis, 4000);
+// Debounced light observer — only while warming up, auto-disconnects
+var _sweepMO = new MutationObserver(function() {
+    if (_sweeping || _sweepCount >= 8) return;
+    clearTimeout(_sweepT);
+    _sweepT = setTimeout(sweepAllEmojis, 500);
+});
+setTimeout(function() {
+    if (_sweepCount >= 8) return;
+    var host = document.getElementById('admin-dashboard') || document.body;
+    _sweepMO.observe(host, { childList: true, subtree: true });
+}, 1200);
+
+// 🎨 ACTION BUTTON SVGs — replace ✏️/🗑 emoji entities with professional icons
+const ACT_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+const ACT_DEL  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+function swapActionButtons(root) {
+    (root || document).querySelectorAll('button').forEach(function(btn) {
+        var t = (btn.textContent || '').trim();
+        if (t === '\u270F\uFE0F' || t === '✏️' || t.indexOf('✏') !== -1) {
+            if (!btn.dataset.svgDone) { btn.dataset.svgDone = '1'; btn.innerHTML = ACT_EDIT; btn.title = btn.title || 'Edit'; }
+        } else if (t === '\uD83D\uDDD1\uFE0F' || t === '🗑️' || t.indexOf('🗑') !== -1) {
+            if (!btn.dataset.svgDone) { btn.dataset.svgDone = '1'; btn.innerHTML = ACT_DEL; btn.title = btn.title || 'Delete'; }
+        }
+    });
+}
+// Auto-swap after each table render
+var _origRenderNews = typeof renderNewsTable === 'function' ? renderNewsTable : null;
+var _origRenderAds = typeof renderAdsTable === 'function' ? renderAdsTable : null;
+var _origRenderCats = typeof renderCategoriesTable === 'function' ? renderCategoriesTable : null;
+if (_origRenderNews) { renderNewsTable = function() { _origRenderNews.apply(this, arguments); swapActionButtons(document.getElementById('page-news')); }; }
+if (_origRenderAds) { renderAdsTable = function() { _origRenderAds.apply(this, arguments); swapActionButtons(document.getElementById('page-ads')); }; }
+if (_origRenderCats) { renderCategoriesTable = function() { _origRenderCats.apply(this, arguments); swapActionButtons(document.getElementById('page-categories')); }; }
+// 🧹 MODAL SWEEPS — Add/Edit article + ad modal open pannum bodhu emoji labels-a sweep pannum
+var _origOpenNews = typeof openNewsModal === 'function' ? openNewsModal : null;
+if (_origOpenNews) {
+    openNewsModal = function() {
+        _origOpenNews.apply(this, arguments);
+        setTimeout(function() {
+            sweepTextNodes(document.getElementById('news-modal'));
+        }, 200);
+    };
+}
+var _origOpenAd = typeof openAdModal === 'function' ? openAdModal : null;
+if (_origOpenAd) {
+    openAdModal = function() {
+        _origOpenAd.apply(this, arguments);
+        setTimeout(function() { sweepTextNodes(document.getElementById('ad-modal')); }, 200);
+    };
+}
+
+// 🛡️ Global toast guard — any function calling showToast must not crash
+if (typeof window.showToast !== 'function') {
+    window.showToast = function(msg, type) {
+        try {
+            var t = document.createElement('div');
+            t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:' +
+                (type === 'error' ? '#dc2626' : '#059669') +
+                ';color:#fff;padding:12px 20px;border-radius:10px;font-weight:600;z-index:99999;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,0.25);';
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(function() { t.remove(); }, 2600);
+        } catch (e) {}
+    };
+}
+
+// 🔇 Production: no debug logs in console
+var DEBUG = false;
+function dbg() { if (DEBUG) console.log.apply(console, arguments); }
+
+// ── State Variables ──
+let adminNews = [];
+let adminAds = [];
+let adminCats = [];
+let currentPage = 'dashboard';
+let editingNewsId = null;
+let editingAdId = null;
+let currentNewsLang = 'ta';
+let dataInitialized = false;
+
+// ── Admin Password ──
+// SECURITY: No hardcoded password. Use Firebase Auth or environment variable.
+// For reset functionality, implement server-side validation.
+
+// ── Default Data ──
+const DEFAULT_NEWS = [];
+
+const DEFAULT_ADS = [];
+
+const DEFAULT_CATEGORIES = [];
+
+// ── Helper: Safe JSON Parse ──
+function safeJSONParse(key, fallback) {
+    try {
+        var data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : fallback;
+    } catch (e) {
+        console.warn('Failed to parse ' + key + ':', e);
+        return fallback;
     }
 }
 
-// 🖼️ Gallery navigation (glassy arrows + swipe)
-function galNav(dir) {
-    var g = window._gal;
-    if (!g || !g.imgs || g.imgs.length < 2) return;
-    g.idx = (g.idx + dir + g.imgs.length) % g.imgs.length;
-    var img = document.getElementById('gal-main-img');
-    if (img) {
-        img.src = g.imgs[g.idx];
-        img.classList.remove('gal-img-fade');
-        void img.offsetWidth;
-        img.classList.add('gal-img-fade');
+// ── Helper: Reload news from localStorage and restore defaults if needed ──
+function reloadAdminNewsFromStorage() {
+    var stored = safeJSONParse('endless_news', []);
+    if (!Array.isArray(stored) || stored.length === 0) {
+        console.log('reloadAdminNewsFromStorage: no stored news found, restoring DEFAULT_NEWS');
+        adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
+        saveNews();
+        return;
     }
-    var c = document.getElementById('gal-count');
-    if (c) c.textContent = (g.idx + 1) + '/' + g.imgs.length;
+
+    adminNews = stored.filter(function(n) {
+        return !isUntitledOrGarbage(n);
+    });
+
+    if (adminNews.length === 0) {
+        console.log('reloadAdminNewsFromStorage: stored news invalid or garbage, restoring DEFAULT_NEWS');
+        adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
+        saveNews();
+    }
 }
 
-function openArticle(id) {
-    const article = findArticleById(id);
-    if (!article || isGarbagePost(article)) return;
+// ── Helper: Check if post is garbage ──
+function isUntitledOrGarbage(n) {
+    if (!n || typeof n !== 'object') return true;
+    var hasId = n.id !== undefined && n.id !== null && n.id !== '';
+    var hasTitle = (n.title && String(n.title).trim() !== '') ||
+                   (n.title_en && String(n.title_en).trim() !== '');
+    return !hasId || !hasTitle;
+}
 
-    const modal = document.getElementById('article-modal');
-    const body = document.getElementById('modal-body');
-    if (!modal || !body) return;
+// ── Data Initialization ──
+async function initData() {
+    if (dataInitialized) {
+        dbg('initData: Already initialized, skipping');
+        return Promise.resolve(); // CRITICAL FIX: Return resolved promise
+    }
+    dbg('=== initData() starting ===');
 
-    let processedContent = getLocalized(article, 'content') || '';
+    reloadAdminNewsFromStorage();
+    adminAds = safeJSONParse('endless_ads', []);
+    adminCats = safeJSONParse('endless_categories', []);
 
-    if (!processedContent.includes('<p>') && processedContent.includes('<br')) {
-        const parts = processedContent.split(/<br\s*\/?>\s*<br\s*\/?>/);
-        processedContent = parts.map(part => {
-            const cleanPart = part.replace(/<br\s*\/?>/g, ' ').trim();
-            return cleanPart ? `<p>${cleanPart}</p>` : '';
+    dbg('Loaded from localStorage - News:', adminNews.length, 'Ads:', adminAds.length, 'Cats:', adminCats.length);
+
+    if (adminNews.length > 0) {
+        dbg('First news item:', JSON.stringify(adminNews[0]).substring(0, 200));
+    }
+
+    var beforeNewsCount = adminNews.length;
+    adminNews = adminNews.filter(function(n) {
+        return !isUntitledOrGarbage(n);
+    });
+    var removedLocal = beforeNewsCount - adminNews.length;
+    if (removedLocal > 0) {
+        saveNews();
+        console.log('Removed ' + removedLocal + ' garbage posts from localStorage');
+    }
+
+    if (adminNews.length === 0) {
+        dbg('Loaded DEFAULT news data');
+        adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
+        saveNews();
+    }
+    if (adminAds.length === 0) {
+        dbg('Loaded DEFAULT ads data');
+        adminAds = JSON.parse(JSON.stringify(DEFAULT_ADS));
+        saveAds();
+    }
+    if (adminCats.length === 0) {
+        dbg('Loaded DEFAULT categories data');
+        adminCats = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+        saveCats();
+    }
+
+    updateCategoryCounts();
+
+    if (db) {
+        try {
+            await syncFromFirebase();
+        } catch (err) {
+            console.warn('Firebase sync failed, using localStorage:', err);
+        }
+    } else {
+        dbg('No Firebase connection, using localStorage only');
+    }
+
+    // CRITICAL: After Firebase sync, check again if data is empty and restore defaults
+    if (adminNews.length === 0) {
+        dbg('After Firebase sync, adminNews is empty. Restoring DEFAULT_NEWS');
+        adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
+        saveNews();
+    }
+
+    ensureNewsletterUI(); // 📬 Newsletter admin tab
+    iconifyAdmin(); // 🎨 SVG icons replace emojis
+    var dashboard = document.getElementById('admin-dashboard');
+    if (dashboard) dashboard.style.display = 'flex';
+
+    var authLoading = document.getElementById('auth-loading-overlay');
+    if (authLoading) authLoading.style.display = 'none';
+
+    dbg('Final data - News:', adminNews.length, 'Ads:', adminAds.length, 'Cats:', adminCats.length);
+    dbg('=== initData() complete ===');
+
+    // CRITICAL FIX: Set dataInitialized ONLY after data is fully loaded
+    dataInitialized = true;
+    window.dataInitialized = true; // Also set global flag for guard.js
+
+    // CRITICAL FIX: Always render current page after data is ready
+    showPageContinue(currentPage);
+
+    // CRITICAL FIX: Force re-render of news table if on news page
+    if (currentPage === 'news') {
+        setTimeout(function() {
+            renderNewsTable();
+            dbg('Forced news table re-render after init');
+        }, 100);
+    }
+
+    // ── CHECK FOR EDIT PARAMETER (article edit from main website) ──
+    var urlParams = new URLSearchParams(window.location.search);
+    var editId = urlParams.get('edit') || localStorage.getItem('edit_article_id');
+    if (editId) {
+        console.log('Auto-opening article for edit:', editId);
+        // Navigate to news page and open edit modal
+        currentPage = 'news';
+        showPageContinue('news');
+        setTimeout(function() {
+            editNews(parseInt(editId));
+        }, 500);
+        // Clear the localStorage flag
+        localStorage.removeItem('edit_article_id');
+        // Update URL to remove parameter
+        window.history.replaceState({}, document.title, 'dashboard.html');
+    }
+
+    return Promise.resolve(); // CRITICAL FIX: Always return promise
+}
+
+// ── Update Category Counts ──
+function updateCategoryCounts() {
+    adminCats.forEach(function(cat) {
+        var count = adminNews.filter(function(n) {
+            return n.status === 'published' &&
+                (n.category === cat.name || n.category_en === cat.name_en);
+        }).length;
+        cat.count = count;
+    });
+    saveCats(); 
+}
+
+// ── Firebase Sync ──
+async function syncFromFirebase() {
+    if (!db) return;
+    try {   
+        // 🔥 PARALLEL FETCH — All collections at once (3x faster)
+        const [newsSnapshot, adsSnapshot, catsSnapshot] = await Promise.all([
+            db.collection('news').get().catch(() => ({ empty: true, docs: [] })),
+            db.collection('ads').get().catch(() => ({ empty: true, docs: [] })),
+            db.collection('categories').get().catch(() => ({ empty: true, docs: [] }))
+        ]);
+
+        // Process News
+        var firebaseNews = [];
+        if (!newsSnapshot.empty) {
+            newsSnapshot.docs.forEach(doc => {
+                const data = doc.data();
+                data.id = doc.id;
+                if (!isUntitledOrGarbage(data)) firebaseNews.push(data);
+            });
+        }
+        if (firebaseNews.length > 0) {
+            adminNews = firebaseNews;
+            // 🔥 Newest first — Firebase order unpredictable, sort by date
+            adminNews.sort(function(a, b) {
+                return new Date(b.date || 0) - new Date(a.date || 0);
+            });
+        } else if (adminNews.length > 0) {
+            // Firebase empty but local has data — upload in background
+            dbg(' Firebase empty, uploading', adminNews.length, 'articles...');
+            Promise.all(adminNews.map(n => 
+                db.collection('news').doc(String(n.id)).set(n).catch(() => {})
+            )).then(() => dbg('Upload complete'));
+        }
+        localStorage.setItem('endless_news', JSON.stringify(adminNews));
+
+        // Process Ads
+        var firebaseAds = [];
+        if (!adsSnapshot.empty) {
+            firebaseAds = adsSnapshot.docs.map(doc => { const d = doc.data(); d.id = doc.id; return d; });
+        }
+        if (firebaseAds.length > 0) adminAds = firebaseAds;
+        localStorage.setItem('endless_ads', JSON.stringify(adminAds));
+
+        // Process Categories
+        var firebaseCats = [];
+        if (!catsSnapshot.empty) {
+            firebaseCats = catsSnapshot.docs.map(doc => { const d = doc.data(); d.id = doc.id; return d; });
+        }
+        if (firebaseCats.length > 0) adminCats = firebaseCats;
+        localStorage.setItem('endless_categories', JSON.stringify(adminCats));
+
+        updateCategoryCounts();
+    } catch (error) {
+        console.error('Firebase read error:', error);
+        dbg('Keeping local data since Firebase sync failed');
+    }
+}
+
+function saveNews() {
+    localStorage.setItem('endless_news', JSON.stringify(adminNews));
+    
+    // Generate share page for latest article
+    if (adminNews && adminNews.length > 0) {
+        var latestArticle = adminNews[adminNews.length - 1];
+        saveSharePage(latestArticle);
+    }
+}
+
+function saveAds() { localStorage.setItem('endless_ads', JSON.stringify(adminAds)); }
+
+function saveCats() { localStorage.setItem('endless_categories', JSON.stringify(adminCats)); }
+
+// ── Share Page Generator ──
+function generateSharePage(article) {
+    var articleUrl = 'https://endlessnewslk-hub.github.io/EndLess/?article=' + article.id;
+    var shareUrl = 'https://endless-og.endlessnewslk.workers.dev/?article=' + article.id;
+    
+    var title = article.title_en || article.title || 'EndLess News';
+    var lang = currentNewsLang || 'en';
+    var image = article.image || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=1200&auto=format&fit=crop';
+    
+    var readMore = lang === 'ta' ? 'மேலும் படிக்க' : 'Continue Reading';
+    var redirectText = lang === 'ta' ? 'கட்டுரைக்கு திருப்பிவிடுகிறது' : 'Redirecting to article';
+    var clickHere = lang === 'ta' ? 'திருப்பிவிடவில்லை என்றால் இங்கே சொடுக்கவும்' : 'Click here if not redirected';
+    
+    var description = (article.excerpt || article.excerpt_en || title);
+    if (description.length > 200) description = description.substring(0, 197) + '...';
+    
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+    
+    return `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta property="og:locale" content="${lang === 'ta' ? 'ta_IN' : lang === 'si' ? 'si_LK' : 'en_US'}" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="${escapeHtml(title)}" />
+    <meta property="og:description" content="${escapeHtml(description)}" />
+    <meta property="og:url" content="${shareUrl}" />
+    <meta property="og:site_name" content="EndLess News" />
+    <meta property="og:image" content="${image}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="${escapeHtml(title)}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtml(title)}" />
+    <meta name="twitter:description" content="${escapeHtml(description)}" />
+    <meta name="twitter:image" content="${image}" />
+    <meta name="twitter:image:alt" content="${escapeHtml(title)}" />
+    <meta name="twitter:site" content="@EndLessNews" />
+    <meta name="description" content="${escapeHtml(description)}" />
+    <title>${escapeHtml(title)} - EndLess News</title>
+    <link rel="canonical" href="${articleUrl}" />
+    <meta http-equiv="refresh" content="3;url=${articleUrl}" />
+    <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}.share-card{max-width:600px;width:100%;background:#1a1a1a;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5)}.share-image{width:100%;height:340px;object-fit:cover;display:block}.share-content{padding:24px}.share-logo{display:flex;align-items:center;gap:8px;margin-bottom:16px}.share-logo-icon{width:32px;height:32px;background:#e11d48;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:18px}.share-logo-text{font-size:18px;font-weight:700}.share-logo-text span{color:#e11d48}.share-headline{font-size:22px;font-weight:700;line-height:1.4;margin-bottom:20px;color:#fff}.share-cta{display:inline-flex;align-items:center;gap:8px;background:#e11d48;color:#fff;padding:14px 28px;border-radius:12px;text-decoration:none;font-weight:600;font-size:16px;transition:transform .2s,box-shadow .2s}.share-cta:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(225,29,72,0.4)}.share-redirect{margin-top:20px;text-align:center;color:#888;font-size:14px}.share-redirect a{color:#e11d48;text-decoration:none}.share-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;margin-left:8px}@keyframes spin{to{transform:rotate(360deg)}}@media(max-width:480px){.share-headline{font-size:18px}.share-image{height:240px}}</style>
+</head>
+<body>
+    <div class="share-card">
+        <img class="share-image" src="${image}" alt="${escapeHtml(title)}" />
+        <div class="share-content">
+            <div class="share-logo"><div class="share-logo-icon">E</div><div class="share-logo-text">End<span>Less</span> News</div></div>
+            <h1 class="share-headline">${escapeHtml(title)}</h1>
+            <a class="share-cta" href="${articleUrl}">${readMore} →</a>
+            <div class="share-redirect">${redirectText} <span class="share-spinner"></span><br><a href="${articleUrl}">${clickHere}</a></div>
+        </div>
+    </div>
+    <script>setTimeout(function(){window.location.href='${articleUrl}'},3000)</script>
+</body>
+</html>`;
+}
+
+function saveSharePage(article) {
+    var html = generateSharePage(article);
+    localStorage.setItem('share_page_' + article.id, html);
+    console.log('✅ Share page saved for article:', article.id);
+}
+
+// ── Toast ──
+function showToast(msg, type) {
+    type = type || 'success';
+    var toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.className = 'toast ' + type + ' show';
+    setTimeout(function() { toast.classList.remove('show'); }, 3000);
+}
+
+// ── Mobile Sidebar ──
+function toggleSidebar() {
+    var sidebar = document.getElementById('admin-sidebar');
+    var overlay = document.getElementById('sidebar-overlay');
+    var menuBtn = document.getElementById('header-menu-btn');
+    if (!sidebar) return;
+    var isOpen = sidebar.classList.contains('open');
+    if (isOpen) {
+        sidebar.classList.remove('open');
+        if (overlay) overlay.classList.remove('open');
+        if (menuBtn) menuBtn.classList.remove('open');
+    } else {
+        sidebar.classList.add('open');
+        if (overlay) overlay.classList.add('open');
+        if (menuBtn) menuBtn.classList.add('open');
+    }
+}
+
+function closeSidebar() {
+    var sidebar = document.getElementById('admin-sidebar');
+    var overlay = document.getElementById('sidebar-overlay');
+    var menuBtn = document.getElementById('header-menu-btn');
+    if (sidebar) sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
+    if (menuBtn) menuBtn.classList.remove('open');
+}
+
+// ── Page Navigation ──
+function showPage(page) {
+    console.log('showPage called:', page);
+    currentPage = page;
+    
+    // CRITICAL FIX: Wait for data initialization before showing page
+    if (!dataInitialized) {
+        console.log('Data not initialized yet, initializing now...');
+        initData().then(function() {
+            showPageContinue(page);
+        }).catch(function() {
+            // Even if Firebase fails, continue with localStorage data
+            showPageContinue(page);
+        });
+        return;
+    }
+    
+    showPageContinue(page);
+    // CRITICAL FIX: Force render when switching to news page
+    if (page === 'news') {
+        setTimeout(renderNewsTable, 50);
+    }
+}
+
+function showPageContinue(page) {
+    document.querySelectorAll('.page-content').forEach(function(p) { p.classList.add('hidden'); });
+    var targetPage = document.getElementById('page-' + page);
+    if (targetPage) {
+        targetPage.classList.remove('hidden');
+        console.log('Showing page:', 'page-' + page);
+    } else {
+        console.error('Page not found:', 'page-' + page);
+    }
+    document.querySelectorAll('.nav-item').forEach(function(n) {
+        n.classList.toggle('active', n.dataset.page === page);
+    });
+    document.querySelectorAll('.nav-item-mobile').forEach(function(n) {
+        n.classList.toggle('active', n.dataset.page === page);
+    });
+    var pageTitle = document.getElementById('page-title');
+    if (pageTitle) pageTitle.textContent = page.charAt(0).toUpperCase() + page.slice(1);
+    
+    // CRITICAL FIX: Always render tables when showing page
+    if (page === 'dashboard') renderDashboard();
+    if (page === 'analytics') renderAnalyticsPage();
+    if (page === 'news') renderNewsTable();
+    if (page === 'ads') renderAdsTable();
+    if (page === 'categories') renderCategoriesTable();
+    
+    if (window.innerWidth <= 768) closeSidebar();
+    window.scrollTo(0, 0);
+}
+
+// ── Language Tab Switching ──
+function switchNewsLang(lang) {
+    currentNewsLang = lang;
+    document.querySelectorAll('.lang-tab').forEach(function(tab) {
+        tab.classList.toggle('active', tab.dataset.lang === lang);
+    });
+    document.querySelectorAll('.lang-input').forEach(function(inp) {
+        inp.style.display = inp.id.endsWith('-' + lang) ? 'block' : 'none';
+    });
+    document.querySelectorAll('.lang-textarea').forEach(function(ta) {
+        ta.style.display = ta.id.endsWith('-' + lang) ? 'block' : 'none';
+    });
+    // Also handle excerpt textareas
+    document.querySelectorAll('.lang-excerpt').forEach(function(ex) {
+        ex.style.display = ex.id.endsWith('-' + lang) ? 'block' : 'none';
+    });
+    // Toggle content wrappers (English full content area)
+    document.querySelectorAll('.lang-content-wrapper').forEach(function(wrapper) {
+        wrapper.style.display = wrapper.dataset.lang === lang ? 'block' : 'none';
+    });
+}
+
+// ── HTML Escape ──
+let analyticsChart = null;
+
+function escapeHtml(text) {
+    if (!text) return '';
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// ── Dashboard Renderer ──
+function renderDashboard() {
+    var cleanNews = adminNews.filter(function(n) { return !isUntitledOrGarbage(n); });
+    var published = cleanNews.filter(function(n) { return n.status === 'published'; });
+
+    var statTotalNews = document.getElementById('stat-total-news');
+    var statPublished = document.getElementById('stat-published');
+    var statActiveAds = document.getElementById('stat-active-ads');
+    var statCategories = document.getElementById('stat-categories');
+    var recentNewsTable = document.getElementById('recent-news-table');
+    var recentAdsTable = document.getElementById('recent-ads-table');
+
+    if (statTotalNews) statTotalNews.textContent = cleanNews.length;
+    if (statPublished) statPublished.textContent = published.length;
+    if (statActiveAds) statActiveAds.textContent = adminAds.filter(function(a) { return a.active; }).length;
+    if (statCategories) statCategories.textContent = adminCats.length;
+
+    if (recentNewsTable) {
+        recentNewsTable.innerHTML = published.slice(0, 5).map(function(n) {
+            return '<tr><td>' + escapeHtml(n.title_en || n.title) + '</td><td>' +
+                escapeHtml(n.category_en || n.category) + '</td><td>' +
+                new Date(n.date).toLocaleDateString() + '</td><td><span class="badge badge-green">Published</span></td></tr>';
         }).join('');
     }
 
-    if (!processedContent.includes('<') || !processedContent.includes('>')) {
-        const paragraphs = processedContent.split(/\n\n|\n/).filter(p => p.trim());
-        processedContent = paragraphs.map(p => `<p>${p.trim()}</p>`).join('');
-    }
-
-    // 📰 Inject in-article ads between paragraphs (before rendering)
-    processedContent = injectInArticleAds(processedContent);
-    if (typeof DEBUG !== 'undefined' && DEBUG) console.log('In-article ads — toggle check: ads eligible =', getInArticleAds().length);
-
-    body.innerHTML = `
-        <div class="modal-article">
-            <div class="gallery-wrap" id="gallery-wrap">
-                <img id="gal-main-img" src="${escapeHtml(article.image)}" alt="${escapeHtml(getLocalized(article, 'title'))}" loading="eager">
-                ${(() => {
-                    const g = [article.image].concat(Array.isArray(article.images) ? article.images.filter(u => u && u !== article.image) : []);
-                    window._gal = { imgs: g, idx: 0 };
-                    return g.length > 1 ? `
-                <button class="gal-arrow gal-prev" onclick="galNav(-1)" aria-label="Previous">‹</button>
-                <button class="gal-arrow gal-next" onclick="galNav(1)" aria-label="Next">›</button>
-                <span class="gal-count" id="gal-count">1/${g.length}</span>` : '';
-                })()}
-            </div>
-            <div class="modal-body">
-                <span class="category">${escapeHtml(getLocalized(article, 'category'))}</span>
-                <h1>${escapeHtml(getLocalized(article, 'title'))}</h1>
-                <div class="meta-bar">
-                    <span>${IC.user} ${escapeHtml(getLocalized(article, 'author'))}</span>
-                    <span>${IC.calendar} ${new Date(article.date).toLocaleDateString()}</span>
-                    <span>${IC.tag} ${escapeHtml(getLocalized(article, 'category'))}</span>
-                    <span id="reaction-wrap" style="display:inline-flex;align-items:center;"></span>
-                    <span>${IC.clock} ${readingTime(processedContent)} ${currentLang === 'ta' ? 'நிமிடம்' : 'min read'}</span>
-                    <button onclick="toggleSaveArticle('${article.id}')" id="save-btn-${article.id}" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 12px;cursor:pointer;font-size:0.8rem;color:var(--text-muted);white-space:nowrap;display:inline-flex;align-items:center;gap:4px;">${IC.bookmark} ${isArticleSaved(article.id) ? (currentLang === 'ta' ? 'சேமித்தது' : 'Saved') : (currentLang === 'ta' ? 'சேமி' : 'Save')}</button>
-                    <span style="margin-left:auto;display:flex;gap:4px;">
-                        <button onclick="adjustFontSize(-1)" title="Smaller" style="background:none;border:1px solid var(--border);border-radius:6px;width:30px;height:30px;cursor:pointer;color:var(--text);font-size:0.75rem;">A-</button>
-                        <button onclick="adjustFontSize(0)" title="Normal" style="background:none;border:1px solid var(--border);border-radius:6px;width:30px;height:30px;cursor:pointer;color:var(--text);font-size:0.85rem;">A</button>
-                        <button onclick="adjustFontSize(1)" title="Bigger" style="background:none;border:1px solid var(--border);border-radius:6px;width:30px;height:30px;cursor:pointer;color:var(--text);font-size:1rem;">A+</button>
-                    </span>
-                </div>
-                <button onclick="shareArticle('${article.id}')" style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.5rem;background:linear-gradient(135deg, var(--primary, #e11d48), var(--primary-hover, #be123c));color:#fff;border:none;border-radius:999px;font-size:0.9rem;font-weight:700;cursor:pointer;margin:1rem 0;font-family:inherit;box-shadow:0 4px 15px rgba(225,29,72,0.3);">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-                    ${TRANSLATIONS[currentLang].share_article || 'Share'}
-                </button>
-                <div class="article-text">
-                    ${processedContent}
-                </div>
-                ${(() => {
-                    const rel = getRelatedArticles(article, 3);
-                    return rel.length ? `<div style="margin-top:2.5rem;padding-top:1.5rem;border-top:2px solid var(--border);">
-                        <h3 style="font-family:var(--font-heading);font-size:1.15rem;margin-bottom:1rem;color:var(--text);">${currentLang === 'ta' ? '🔥 தொடர்புடைய செய்திகள்' : '🔥 Related News'}</h3>
-                        <div class="rel-grid">${rel.map(relatedArticleHtml).join('')}</div>
-                    </div>` : '';
-                })()}
-                ${videoBlockHtml(article)}
-            </div>
-        </div>
-    `;
-
-    modal.classList.add('open');
-    document.body.style.overflow = 'hidden';
-
-    // 📱 Layer: BACK button closes this modal (not the site)
-    pushLayer('article', closeModal);
-
-    // 📊 Track article view
-    analyticsTrack('view', id);
-
-    // ❤️ Reaction UI (like + long-press emoji panel)
-    setTimeout(function() {
-        var wrap = document.getElementById('reaction-wrap');
-        if (wrap) buildReactionUI(wrap, String(id));
-    }, 60);
-
-    // 🖼️ Swipe left/right on gallery image to change photo (mobile)
-    (function() {
-        var wrap = document.getElementById('gallery-wrap');
-        if (!wrap || !window._gal || window._gal.imgs.length < 2) return;
-        var tx = 0;
-        wrap.addEventListener('touchstart', function(e) { tx = e.changedTouches[0].clientX; }, { passive: true });
-        wrap.addEventListener('touchend', function(e) {
-            var dx = e.changedTouches[0].clientX - tx;
-            if (Math.abs(dx) > 50) galNav(dx < 0 ? 1 : -1);
-        }, { passive: true });
-    })();
-
-    // 📊 Track article view (fire-and-forget — never blocks UX)
-    try {
-        var vw = new XMLHttpRequest();
-        vw.open('POST', 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents/analytics:commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA');
-        vw.setRequestHeader('Content-Type', 'application/json');
-        var todayKey = new Date().toISOString().slice(0, 10);
-        var mob = window.innerWidth < 768;
-        vw.send(JSON.stringify({ writes: [
-            { transform: { document: 'projects/endless-news/databases/(default)/documents/analytics/totals', fieldTransforms: [{ fieldPath: 'views', increment: { integerValue: 1 } }, { fieldPath: mob ? 'mobile' : 'desktop', increment: { integerValue: 1 } }] } },
-            { transform: { document: 'projects/endless-news/databases/(default)/documents/analytics/daily_' + todayKey, fieldTransforms: [{ fieldPath: 'views', increment: { integerValue: 1 } }] } }
-        ]}));
-    } catch (e) { /* silent */ }
-
-    if (isTouchDevice) {
-        modal.addEventListener('touchstart', handleTouchStart, { passive: true });
-        modal.addEventListener('touchend', handleTouchEnd, { passive: true });
+    if (recentAdsTable) {
+        recentAdsTable.innerHTML = adminAds.filter(function(a) { return a.active; }).slice(0, 5).map(function(a) {
+            return '<tr><td>' + escapeHtml(a.title_en || a.title) + '</td><td>' +
+                escapeHtml(a.position) + '</td><td><span class="badge badge-green">Active</span></td></tr>';
+        }).join('');
     }
 }
 
-// 📑 MY SAVED ARTICLES — premium page (live language toggle, theme-aware)
-function openSavedPage() {
-    var ov = document.getElementById('saved-page-ov');
-    if (!ov) {
-        ov = document.createElement('div');
-        ov.id = 'saved-page-ov';
-        ov.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:2000;overflow-y:auto;';
-        ov.innerHTML = '<div style="max-width:900px;margin:0 auto;padding:20px;">' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">' +
-            '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
-            '<h2 id="sv-title" style="font-family:var(--font-heading);font-size:1.5rem;color:var(--text);margin:0;display:flex;align-items:center;gap:8px;"><span style="color:#e11d48;display:inline-flex;">' + IC.bookmark + '</span><span id="sv-title-text"></span></h2>' +
-            '<span id="sv-count" style="background:var(--primary);color:#fff;font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:999px;"></span>' +
-            '</div>' +
-            '<div style="display:flex;gap:8px;align-items:center;">' +
-            '<button id="sv-lang-ta" style="padding:6px 14px;border-radius:999px;border:2px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-weight:700;font-size:0.8rem;">தமிழ்</button>' +
-            '<button id="sv-lang-en" style="padding:6px 14px;border-radius:999px;border:2px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-weight:700;font-size:0.8rem;">English</button>' +
-            '<button id="sv-close-btn" style="padding:8px 20px;border:2px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text);cursor:pointer;font-weight:600;">✕</button>' +
-            '</div></div>' +
-            '<div id="sv-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem;"></div></div>';
-        document.body.appendChild(ov);
-        var svx = document.getElementById('sv-close-btn');
-        if (svx) svx.addEventListener('click', function() { ov.style.display = 'none'; document.body.style.overflow = ''; });
-        ov.addEventListener('click', function(e) { if (e.target === ov) { ov.style.display = 'none'; document.body.style.overflow = ''; } });
-        // 🌐 Saved page-oda OWN language toggle (real-time)
-        document.getElementById('sv-lang-ta').addEventListener('click', function() { _svLang = 'ta'; renderSavedPage(); });
-        document.getElementById('sv-lang-en').addEventListener('click', function() { _svLang = 'en'; renderSavedPage(); });
-    }
-    _svLang = currentLang; // default = site language
-    ov.style.display = 'block';
-    document.body.style.overflow = 'hidden';
-    renderSavedPage();
-}
+function renderAnalyticsPage() {
+    // ═══════════════════════════════════════════════════════════
+    // REAL ANALYTICS — data from Firestore 'analytics' collection
+    // Tracks: article views, shares, daily totals
+    // ═══════════════════════════════════════════════════════════
+    var totalViewsEl = document.getElementById('stat-total-views');
+    var adClicksEl = document.getElementById('stat-ad-clicks');
+    var mobileEl = document.getElementById('stat-mobile-users');
+    var countryEl = document.getElementById('stat-top-country');
 
-let _svLang = 'ta';
-function renderSavedPage() {
-    var saved = getSavedArticles();
-    var L = _svLang || 'ta';
-    var t = document.getElementById('sv-title');
-    if (t) { var tt = document.getElementById('sv-title-text'); if (tt) tt.textContent = L === 'ta' ? 'சேமித்த செய்திகள்' : 'My Saved Articles'; }
-    var c = document.getElementById('sv-count');
-    if (c) c.textContent = saved.length + (L === 'ta' ? ' செய்திகள்' : ' articles');
-    // Language buttons active state
-    var bta = document.getElementById('sv-lang-ta'), ben = document.getElementById('sv-lang-en');
-    if (bta) { bta.style.background = L === 'ta' ? 'var(--primary)' : 'var(--surface)'; bta.style.color = L === 'ta' ? '#fff' : 'var(--text)'; bta.style.borderColor = L === 'ta' ? 'var(--primary)' : 'var(--border)'; }
-    if (ben) { ben.style.background = L === 'en' ? 'var(--primary)' : 'var(--surface)'; ben.style.color = L === 'en' ? '#fff' : 'var(--text)'; ben.style.borderColor = L === 'en' ? 'var(--primary)' : 'var(--border)'; }
-    var grid = document.getElementById('sv-grid');
-    if (!grid) return;
-    var arts = saved.map(function(id) { return newsData.find(function(n) { return String(n.id) === String(id); }); }).filter(Boolean);
-    grid.innerHTML = arts.length ? arts.map(function(a) {
-        return '<article class="article-card" onclick="document.getElementById(\'saved-page-ov\').style.display=\'none\';document.body.style.overflow=\'\';openArticle(\'' + a.id + '\')" style="cursor:pointer;">' +
-            '<img src="' + escapeHtml(a.image) + '" alt="' + escapeHtml(getLocalized(a, 'title')) + '" loading="lazy">' +
-            '<div class="card-body"><div class="meta"><span class="cat">' + escapeHtml(getLocalized(a, 'category')) + '</span><span>' + formatDate(a.date) + '</span></div>' +
-            '<h3>' + escapeHtml(getLocalized(a, 'title')) + '</h3>' +
-            '<button onclick="event.stopPropagation();toggleSaveArticle(\'' + a.id + '\');renderSavedPage()" style="margin-top:8px;background:none;border:1px solid var(--border);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:0.75rem;color:var(--text-muted);display:inline-flex;align-items:center;gap:5px;">' + IC.trash + ' ' + (L === 'ta' ? 'அகற்று' : 'Remove') + '</button>' +
-            '</div></article>';
-    }).join('') : '<p style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:3rem;">' + (L === 'ta' ? 'இன்னும் எதுவும் சேமிக்கப்படவில்லை' : 'Nothing saved yet') + '</p>';
-}
+    // Fallback values while loading
+    if (totalViewsEl) totalViewsEl.textContent = '…';
+    if (adClicksEl) adClicksEl.textContent = '…';
+    if (mobileEl) mobileEl.textContent = '…';
+    if (countryEl) countryEl.textContent = '…';
 
-function closeModal() {
-    const modal = document.getElementById('article-modal');
-    if (!modal) return;
+    var ctx = document.getElementById('analytics-chart');
+    if (ctx && analyticsChart) { analyticsChart.destroy(); analyticsChart = null; }
 
-    modal.classList.remove('open');
-    document.body.style.overflow = '';
-
-    modal.removeEventListener('touchstart', handleTouchStart);
-    modal.removeEventListener('touchend', handleTouchEnd);
-
-    // 📱 Sync back-button layer stack
-    layerClosed('article');
-}
-
-function shareArticle(id) {
-    const article = findArticleById(id);
-    if (!article) {
-        alert('Article not found!');
+    if (!db) {
+        if (totalViewsEl) totalViewsEl.textContent = 'N/A';
+        if (adClicksEl) adClicksEl.textContent = 'N/A';
+        if (mobileEl) mobileEl.textContent = 'N/A';
+        if (countryEl) countryEl.textContent = 'No DB';
         return;
     }
-    // 📊 Track share (modal open = share intent)
-    analyticsTrack('share', id);
 
-    // 📊 Track share (fire-and-forget)
-    try {
-        var sw = new XMLHttpRequest();
-        sw.open('POST', 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents/analytics:commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA');
-        sw.setRequestHeader('Content-Type', 'application/json');
-        var shareToday = new Date().toISOString().slice(0, 10);
-        sw.send(JSON.stringify({ writes: [
-            { transform: { document: 'projects/endless-news/databases/(default)/documents/analytics/totals', fieldTransforms: [{ fieldPath: 'shares', increment: { integerValue: 1 } }] } },
-            { transform: { document: 'projects/endless-news/databases/(default)/documents/analytics/daily_' + shareToday, fieldTransforms: [{ fieldPath: 'shares', increment: { integerValue: 1 } }] } }
-        ]}));
-    } catch (e) { /* silent */ }
+    db.collection('analytics').doc('totals').get().then(function(doc) {
+        var t = doc.exists ? doc.data() : {};
+        var views = (t.views || 0) + (t.localViews || 0);
+        var shares = (t.shares || 0) + (t.localShares || 0);
+        var mobile = t.mobile || 0, desktop = t.desktop || 0;
+        var totalDevices = mobile + desktop;
+        var mobilePct = totalDevices > 0 ? Math.round(mobile / totalDevices * 100) + '%' : '—';
 
-    let shareOverlay = document.getElementById('share-modal-overlay');
-    if (!shareOverlay) {
-        shareOverlay = document.createElement('div');
-        shareOverlay.id = 'share-modal-overlay';
-        shareOverlay.className = 'modal-overlay';
-        shareOverlay.innerHTML = `
-            <div class="modal-content share-modal-content" onclick="event.stopPropagation()">
-                <div class="share-modal-header">
-                    <h3>${TRANSLATIONS[currentLang].share_article || 'Share Article'}</h3>
-                    <button class="modal-close" onclick="closeShareModal()" aria-label="Close">&times;</button>
-                </div>
-                <div class="share-modal-body">
-                    <div class="share-grid">
-                        <button class="share-btn" data-platform="facebook" onclick="performShare('facebook')">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
-                            <span>Facebook</span>
-                        </button>
-                        <button class="share-btn" data-platform="whatsapp" onclick="performShare('whatsapp')">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
-                            <span>WhatsApp</span>
-                        </button>
-                        <button class="share-btn" data-platform="telegram" onclick="performShare('telegram')">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                            <span>Telegram</span>
-                        </button>
-                        <button class="share-btn" data-platform="x" onclick="performShare('x')">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l11.733 16h4.267l-11.733 -16z"></path><path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772"></path></svg>
-                            <span>X</span>
-                        </button>
-                    </div>
-                    <div class="share-copy-section">
-                        <p class="share-copy-label">Or copy link</p>
-                        <div class="share-copy-box">
-                            <input type="text" id="share-link-input" readonly>
-                            <button class="btn-copy-link" onclick="copyShareLink()">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                                <span>Copy</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(shareOverlay);
-
-        shareOverlay.addEventListener('click', (e) => {
-            if (e.target === shareOverlay) closeShareModal();
-        });
-    }
-
-    shareOverlay.dataset.articleId = id;
-
-    const title = getLocalized(article, 'title') || 'EndLess News';
-        const cloudUrl = 'https://endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang) + '&v=2026'; // Worker Custom Domain
-    const linkInput = document.getElementById('share-link-input');
-    if (linkInput) linkInput.value = cloudUrl;
-
-    shareOverlay.classList.add('open');
-    document.body.style.overflow = 'hidden';
-    // 📱 BACK closes share card too
-    pushLayer('share', closeShareModal);
-}
-
-function closeShareModal() {
-    const shareOverlay = document.getElementById('share-modal-overlay');
-    if (shareOverlay) {
-        shareOverlay.classList.remove('open');
-        document.body.style.overflow = '';
-    }
-    layerClosed('share');
-}
-
-function performShare(platform) {
-    const shareOverlay = document.getElementById('share-modal-overlay');
-    const id = shareOverlay ? shareOverlay.dataset.articleId : null;
-    if (!id) return;
-
-    const article = findArticleById(id);
-    if (!article) return;
-
-    // 🔥 FIX: use localized title based on currently selected language (ta/en)
-    const title = getLocalized(article, 'title') || article.title_en || article.title || 'EndLess News';
-    // Professional share link via Worker Custom Domain — DNS-level direct to worker,
-    // no route matching needed. Dinamalar-style main domain ✅
-    const cloudUrl = 'https://endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang) + '&v=2026';
-
-    // Language-aware share text: Tamil selected → Tamil message, English → English
-    const shareText = currentLang === 'en'
-        ? (title + '\n\n📰 Read more on EndLess News:\n')
-        : (title + '\n\n📰 மேலும் படிக்க EndLess News:\n');
-
-    let shareUrl = '';
-
-    switch(platform) {
-        case 'facebook':
-            shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(cloudUrl)}&quote=${encodeURIComponent(title)}`;
-            break;
-        case 'whatsapp':
-            shareUrl = `https://wa.me/?text=${encodeURIComponent(shareText + cloudUrl)}`;
-            break;
-        case 'telegram':
-            shareUrl = `https://t.me/share/url?url=${encodeURIComponent(cloudUrl)}&text=${encodeURIComponent(title)}`;
-            break;
-        case 'x':
-            shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(cloudUrl)}`;
-            break;
-    }
-
-    if (shareUrl) {
-        const win = window.open(shareUrl, '_blank', 'width=600,height=500,top=100,left=100');
-        // Popup blocked → navigate in same tab instead of failing silently
-        if (!win) window.location.href = shareUrl;
-    }
-
-    closeShareModal();
-}
-
-function copyShareLink() {
-    const linkInput = document.getElementById('share-link-input');
-    if (!linkInput) return;
-
-    linkInput.select();
-    linkInput.setSelectionRange(0, 99999);
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(linkInput.value).then(() => {
-            const btn = document.querySelector('.btn-copy-link span');
-            if (btn) btn.textContent = 'Copied!';
-            setTimeout(() => { if (btn) btn.textContent = 'Copy'; }, 2000);
-        });
-    } else {
-        document.execCommand('copy');
-        const btn = document.querySelector('.btn-copy-link span');
-        if (btn) btn.textContent = 'Copied!';
-        setTimeout(() => { if (btn) btn.textContent = 'Copy'; }, 2000);
-    }
-}
-
-function fallbackCopy(text) {
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textarea);
-    alert('Link copied! Paste it on Facebook/WhatsApp.');
-}
-
-function handleTouchStart(e) {
-    touchStartY = e.changedTouches[0].screenY;
-    touchStartTime = Date.now();
-}
-
-function handleTouchEnd(e) {
-    const touchEndY = e.changedTouches[0].screenY;
-    const diff = touchStartY - touchEndY;
-    const duration = Date.now() - touchStartTime;
-    
-    // Stricter: swipe down > 150px AND must take at least 200ms (not a fast flick)
-    if (diff < -150 && duration > 200) {
-        const modalBody = document.querySelector('.modal-content');
-        // Must be exactly at top (scrollTop === 0), not just near top
-        if (modalBody && modalBody.scrollTop === 0) {
-            closeModal();
-        }
-    }
-}
-
-function filterCategory(cat) {
-    currentFilter = cat;
-    displayedCount = isMobile ? 4 : 6;
-
-    document.querySelectorAll('.nav-links a, .mobile-nav a').forEach(a => {
-        a.classList.toggle('active', a.dataset.cat === cat);
+        if (totalViewsEl) totalViewsEl.textContent = views.toLocaleString();
+        if (adClicksEl) adClicksEl.textContent = shares.toLocaleString();
+        if (mobileEl) mobileEl.textContent = mobilePct;
+        if (countryEl) countryEl.textContent = t.topCountry || '—';
+    }).catch(function() {
+        if (totalViewsEl) totalViewsEl.textContent = 'Error';
     });
 
-    const titleEl = document.getElementById('feed-title');
-    if (cat === 'All') {
-        titleEl.textContent = TRANSLATIONS[currentLang].latest_news;
-    } else {
-        const catObj = categoriesData.find(c => c.name_en === cat);
-        titleEl.textContent = catObj ? (currentLang === 'ta' ? catObj.name : catObj.name_en) : cat;
+    // Daily chart — last 7 days real data
+    var today = new Date();
+    var labels = [], keys = [];
+    for (var i = 6; i >= 0; i--) {
+        var dt = new Date(today); dt.setDate(dt.getDate() - i);
+        var key = dt.toISOString().slice(0, 10);
+        keys.push(key);
+        labels.push(dt.toLocaleDateString('en-GB', { weekday: 'short' }));
     }
 
-    renderFeed();
-
-    const feedSection = document.querySelector('.main-layout');
-    if (feedSection) {
-        const offset = feedSection.offsetTop - 80;
-        window.scrollTo({ top: offset, behavior: 'smooth' });
-    }
-}
-
-function handleSearch(e) {
-    searchQuery = e.target.value.trim();
-    displayedCount = isMobile ? 4 : 6;
-    renderFeed();
-}
-
-function loadMore() {
-    displayedCount += isMobile ? 4 : 6;
-    renderFeed();
-}
-
-function handleNewsletter(e) {
-    e.preventDefault();
-    const email = document.getElementById('newsletter-email').value;
-    if (email) {
-        alert('Thank you for subscribing! 🎉');
-        document.getElementById('newsletter-email').value = '';
-    }
-}
-
-function openMobileMenu() {
-    const mobileNav = document.getElementById('mobile-nav');
-    const mobileOverlay = document.getElementById('mobile-overlay');
-    if (mobileNav && mobileOverlay) {
-        mobileNav.classList.add('open');
-        mobileOverlay.classList.add('open');
-        document.body.style.overflow = 'hidden';
-        // 📱 BACK closes the menu drawer too
-        pushLayer('menu', closeMobileMenu);
-    }
-}
-
-function closeMobileMenu() {
-    const mobileNav = document.getElementById('mobile-nav');
-    const mobileOverlay = document.getElementById('mobile-overlay');
-    if (mobileNav && mobileOverlay) {
-        mobileNav.classList.remove('open');
-        mobileOverlay.classList.remove('open');
-        document.body.style.overflow = '';
-    }
-    layerClosed('menu');
-}
-
-// ═══════════════════════════════════════════════════════════════
-// 🌤️ REAL-TIME WEATHER — free, no API key, no payment
-// Open-Meteo (weather) + ipwho.is (location) — both free forever
-// Falls back to GPS if visitor grants permission
-// ═══════════════════════════════════════════════════════════════
-function initWeather() {
-    var weatherEl = document.getElementById('weather');
-    if (!weatherEl) return;
-
-    function wEmoji(code, isDay) {
-        // 🎨 Professional SVG icons — day/night aware
-        if (code === 0) return isDay ? IC.sun : IC.moon;
-        if (code <= 2) return isDay ? IC.cloudSun : IC.cloudMoon;
-        if (code === 3) return IC.cloud;
-        if (code === 45 || code === 48) return IC.fog;
-        if (code >= 51 && code <= 57) return IC.rain;
-        if (code >= 61 && code <= 67) return IC.rain;
-        if (code >= 71 && code <= 77) return IC.snow;
-        if (code >= 80 && code <= 82) return IC.rain;
-        if (code >= 85 && code <= 86) return IC.snow;
-        if (code >= 95) return IC.thunder;
-        return isDay ? IC.sun : IC.moon;
-    }
-
-    function show(lat, lon, city) {
-        fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat +
-              '&longitude=' + lon + '&current_weather=true')
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                if (!d.current_weather) return;
-                var t = Math.round(d.current_weather.temperature);
-                var isDay = d.current_weather.is_day === 1;
-                var loc = city ? ' ' + city : '';
-                weatherEl.innerHTML = wEmoji(d.current_weather.weathercode, isDay) + ' ' + t + '°C' + '<span style="opacity:0.85">' + loc + '</span>';
-                try {
-                    localStorage.setItem('endless_weather', JSON.stringify({
-                        t: t, code: d.current_weather.weathercode, isDay: isDay, city: city, ts: Date.now()
-                    }));
-                } catch (e) {}
-            }).catch(function() {});
-    }
-
-    // Show cached value instantly (30 min cache — fewer API calls)
-    try {
-        var cached = JSON.parse(localStorage.getItem('endless_weather'));
-        if (cached && Date.now() - cached.ts < 1800000) {
-            weatherEl.innerHTML = wEmoji(cached.code, cached.isDay) + ' ' + cached.t + '°C' +
-                (cached.city ? '<span style="opacity:0.85"> ' + cached.city + '</span>' : '');
-        }
-    } catch (e) {}
-
-    // IP-based location (no permission needed — automatic for every visitor)
-    fetch('https://ipwho.is/')
-        .then(function(r) { return r.json(); })
-        .then(function(ip) {
-            if (ip && ip.success && ip.latitude) {
-                show(ip.latitude, ip.longitude, ip.city || '');
+    Promise.all(keys.map(function(k) {
+        return db.collection('analytics').doc('daily_' + k).get().catch(function() { return null; });
+    })).then(function(docs) {
+        var data = docs.map(function(doc) {
+            return (doc && doc.exists) ? (doc.data().views || 0) : 0;
+        });
+        if (!ctx) return;
+        if (analyticsChart) analyticsChart.destroy();
+        analyticsChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: labels, datasets: [{
+                label: 'Page Views',
+                data: data,
+                fill: true,
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.4,
+                pointBackgroundColor: '#ef4444',
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }]},
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(200,200,200,0.1)' }, ticks: { color: '#a0a0b8', precision: 0 } },
+                    x: { grid: { display: false }, ticks: { color: '#a0a0b8' } }
+                },
+                plugins: { legend: { display: false } }
             }
-        }).catch(function() {});
-
-    // 📍 GPS refine — ALLOW pannalana exact location (Al Hasa stable-a irukkum)
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(function(pos) {
-            // Reverse geocode for city name (nominatim — free)
-            fetch('https://nominatim.openstreetmap.org/reverse?lat=' + pos.coords.latitude +
-                  '&lon=' + pos.coords.longitude + '&format=json')
-                .then(function(r) { return r.json(); })
-                .then(function(g) {
-                    var city = (g.address && (g.address.city || g.address.town || g.address.county)) || '';
-                    show(pos.coords.latitude, pos.coords.longitude, city);
-                })
-                .catch(function() { show(pos.coords.latitude, pos.coords.longitude, ''); });
-        }, function() { /* denied — IP location stays */ }, { timeout: 8000, enableHighAccuracy: true });
-    }
+        });
+    });
 }
 
-function initTheme() {
-    const savedTheme = localStorage.getItem('endless_theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    if (savedTheme) {
-        document.documentElement.setAttribute('data-theme', savedTheme);
-    } else if (prefersDark) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-    }
+// ═══════════════════════════════════════════════════════════
+// TRACKING — called from main website (scripts.js)
+// ═══════════════════════════════════════════════════════════
+async function trackAnalyticsEvent(type, articleId) {
+    if (!db) return;
+    var today = new Date().toISOString().slice(0, 10);
+    var isMobile = window.innerWidth < 768;
+    try {
+        var totalsRef = db.collection('analytics').doc('totals');
+        var dailyRef = db.collection('analytics').doc('daily_' + today);
+        var totalsDoc = await totalsRef.get();
+        if (!totalsDoc.exists) {
+            await totalsRef.set({ views: 0, shares: 0, mobile: 0, desktop: 0 });
+        }
+        var upd = {};
+        upd[type === 'share' ? 'shares' : 'views'] = firebase.firestore.FieldValue.increment(1);
+        upd[isMobile ? 'mobile' : 'desktop'] = firebase.firestore.FieldValue.increment(1);
+        await totalsRef.update(upd);
+        var dailyDoc = await dailyRef.get();
+        if (!dailyDoc.exists) await dailyRef.set({ views: 0, shares: 0, date: today });
+        var dUpd = {};
+        dUpd[type === 'share' ? 'shares' : 'views'] = firebase.firestore.FieldValue.increment(1);
+        await dailyRef.update(dUpd);
+    } catch (e) { /* silent — don't break UX */ }
 }
+function renderNewsTable() {
+    dbg('>>> renderNewsTable called. adminNews.length =', adminNews.length);
+    
+    // CRITICAL FIX: Reload admin news from storage before rendering
+    reloadAdminNewsFromStorage();
 
-function toggleTheme() {
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    if (isDark) {
-        document.documentElement.removeAttribute('data-theme');
-        localStorage.setItem('endless_theme', 'light');
+    if (adminNews.length > 0) {
+        dbg('>>> First item id:', adminNews[0].id, 'title:', (adminNews[0].title || '').substring(0, 30));
+    }
+
+    // If admin news was empty, ensure default data is always loaded.
+    if (adminNews.length === 0) {
+        dbg('>>> adminNews is empty after localStorage load, restoring DEFAULT_NEWS');
+        adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
+        saveNews();
+    }
+
+    var tbody = document.getElementById('news-table-body');
+    var mobileCards = document.getElementById('news-mobile-cards');
+    if (!tbody && !mobileCards) {
+        console.error('news-table-body not found');
+        return;
+    }
+
+      var searchInput = document.getElementById('news-search');
+    if (searchInput && searchInput.value && searchInput.value.indexOf('@') !== -1) searchInput.value = '';
+    var search = searchInput ? searchInput.value.toLowerCase() : '';
+
+    var filtered = adminNews.filter(function(n) {
+        return !isUntitledOrGarbage(n);
+    });
+
+    dbg('>>> After filter, filtered.length =', filtered.length);
+
+    if (search) {
+        filtered = filtered.filter(function(n) {
+            return (n.title && n.title.toLowerCase().indexOf(search) !== -1) ||
+                (n.title_en && n.title_en.toLowerCase().indexOf(search) !== -1)
+
+        });
+    }
+
+    var btnEditStyle = 'display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:#3b82f6;color:#fff;cursor:pointer;font-size:16px;margin-right:6px;transition:all 0.2s;';
+    var btnDeleteStyle = 'display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:#ef4444;color:#fff;cursor:pointer;font-size:16px;transition:all 0.2s;';
+    var btnEditHover = 'this.style.background=\'#2563eb\';this.style.transform=\'scale(1.05)\';';
+    var btnEditOut = 'this.style.background=\'#3b82f6\';this.style.transform=\'scale(1)\';';
+    var btnDeleteHover = 'this.style.background=\'#dc2626\';this.style.transform=\'scale(1.05)\';';
+    var btnDeleteOut = 'this.style.background=\'#ef4444\';this.style.transform=\'scale(1)\';';
+
+    // ❤️ Likes column header — inject once after Date th
+    (function ensureLikesHeader() {
+        var thead = document.querySelector('#page-news thead tr');
+        if (!thead || document.getElementById('th-likes')) return;
+        var ths = thead.querySelectorAll('th');
+        var dateTh = null;
+        ths.forEach(function(th) { if ((th.textContent || '').trim() === 'Date') dateTh = th; });
+        var th = document.createElement('th');
+        th.id = 'th-likes'; th.textContent = '❤️ Likes';
+        if (dateTh) dateTh.after(th); else thead.appendChild(th);
+    })();
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:#6b7280;">No articles found. Click "+ Add New Article" to create one.</td></tr>';
     } else {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        localStorage.setItem('endless_theme', 'dark');
-    }
-}
+        tbody.innerHTML = filtered.map(function(n) {
+            var langs = [];
+            if (n.title) langs.push('<span class="badge badge-lang">TA</span>');
+            if (n.title_en) langs.push('<span class="badge badge-lang">EN</span>');
 
-function handleHeaderScroll() {
-    const header = document.querySelector('.main-header');
-    if (header) {
-        if (window.scrollY > 10) {
-            header.classList.add('scrolled');
+            var dateStr = n.date ? new Date(n.date).toLocaleDateString() : 'N/A';
+            var imgSrc = escapeHtml(n.image || '');
+            var placeholder = 'https://via.placeholder.com/60x40?text=No+Image';
+            return '<tr><td><img src="' + imgSrc + '" alt="" onerror="this.src=\'' + placeholder + '\'" style="width:60px;height:40px;object-fit:cover;border-radius:4px;"></td>' +
+                '<td><strong>' + escapeHtml(n.title_en || n.title || '') + '</strong><br><small style="color:#6b7280;">' + escapeHtml(n.title || '') + '</small></td>' +
+                '<td>' + escapeHtml(n.category_en || n.category || '') + '</td>' +
+                '<td>' + escapeHtml(n.author_en || n.author || '') + '</td>' +
+                '<td>' + dateStr + '</td>' +
+                '<td class="likes-cell" data-aid="' + escapeHtml(String(n.id)) + '" style="white-space:nowrap;">…</td>' +
+                '<td>' + langs.join('') + '</td>' +
+                '<td><span class="badge ' + (n.status === 'published' ? 'badge-green' : 'badge-gray') + '">' + (n.status || 'draft') + '</span></td>' +
+                '<td><button class="btn-icon btn-edit" style="' + btnEditStyle + '" onmouseover="' + btnEditHover + '" onmouseout="' + btnEditOut + '" onclick="editNews(' + n.id + ')" title="Edit">&#9999;&#65039;</button>' +
+                '<button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onmouseover="' + btnDeleteHover + '" onmouseout="' + btnDeleteOut + '" onclick="deleteNews(' + n.id + ')" title="Delete">&#128465;&#65039;</button></td></tr>';
+        }).join('');
+    }
+
+    // ❤️ Populate like counts per article (likes collection)
+    if (db && tbody) {
+        tbody.querySelectorAll('.likes-cell').forEach(function(cell) {
+            var aid = cell.dataset.aid;
+            db.collection('likes').doc(String(aid)).get().then(function(doc) {
+                var f = doc.exists ? doc.data() : {};
+                var total = 0, parts = [];
+                var rcols = { like: '#1877F2', love: '#F33E58', haha: '#F7B125', wow: '#F7B125', sad: '#F7B125', angry: '#E9710F' };
+                Object.keys(rcols).forEach(function(k) {
+                    var v = parseInt(f[k]) || 0;
+                    if (v > 0) { total += v; parts.push('<span style="color:' + rcols[k] + ';display:inline-flex;vertical-align:-2px;">' + IC.heart + '</span>' + v); }
+                });
+                cell.innerHTML = total > 0 ? parts.join(' ') : '0';
+            }).catch(function() { cell.textContent = '0'; });
+        });
+    }
+
+    if (mobileCards) {
+        if (filtered.length === 0) {
+            mobileCards.innerHTML = '<div style="text-align:center;padding:2rem;color:#6b7280;">No articles found.</div>';
         } else {
-            header.classList.remove('scrolled');
+            mobileCards.innerHTML = filtered.map(function(n) {
+                var dateStr = n.date ? new Date(n.date).toLocaleDateString() : 'N/A';
+                var imgSrc = escapeHtml(n.image || '');
+                var placeholder = 'https://via.placeholder.com/60x40?text=No+Image';
+                return '<div class="mobile-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin-bottom:1rem;">' +
+                    '<div class="card-header" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">' +
+                    '<img src="' + imgSrc + '" alt="" onerror="this.src=\'' + placeholder + '\'" style="width:60px;height:40px;object-fit:cover;border-radius:4px;">' +
+                    '<div class="card-title" style="font-weight:600;font-size:0.95rem;">' + escapeHtml(n.title_en || n.title || 'Untitled') + '</div></div>' +
+                    '<div class="card-meta" style="display:flex;flex-wrap:wrap;gap:0.5rem;font-size:0.8rem;color:#6b7280;margin-bottom:0.75rem;">' +
+                    '<span>' + escapeHtml(n.category_en || n.category || 'Uncategorized') + '</span><span>|</span>' +
+                    '<span>' + escapeHtml(n.author_en || n.author || 'Unknown') + '</span><span>|</span>' +
+                    '<span>' + dateStr + '</span><span>|</span>' +
+                    '<span class="badge ' + (n.status === 'published' ? 'badge-green' : 'badge-gray') + '">' + (n.status || 'draft') + '</span></div>' +
+                    '<div class="card-actions" style="display:flex;gap:0.5rem;">' +
+                    '<button style="' + btnEditStyle + 'width:44px;height:44px;" onmouseover="' + btnEditHover + '" onmouseout="' + btnEditOut + '" onclick="editNews(' + n.id + ')" title="Edit">&#9999;&#65039;</button>' +
+                    '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onmouseover="' + btnDeleteHover + '" onmouseout="' + btnDeleteOut + '" onclick="deleteNews(' + n.id + ')" title="Delete">&#128465;&#65039;</button></div></div>';
+            }).join('');
         }
     }
 }
 
-function handleResize() {
-    const newIsMobile = window.innerWidth < 640;
-    if (newIsMobile !== isMobile) {
-        isMobile = newIsMobile;
-        displayedCount = isMobile ? 4 : 6;
-        renderFeed();
-        renderHero();
+// ── Ads Table Renderer ──
+function renderAdsTable() {
+    var tbody = document.getElementById('ads-table-body');
+    var mobileCards = document.getElementById('ads-mobile-cards');
+    var filter = document.getElementById('ad-status-filter');
+    if (!tbody) return;
+
+    var filterValue = filter ? filter.value : 'all';
+
+    var displayAds = adminAds;
+    if (filterValue !== 'all') {
+        displayAds = adminAds.filter(function(a) {
+            return getAdStatus(a).status === filterValue;
+        });
+    }
+
+    var btnEditStyle = 'display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:#3b82f6;color:#fff;cursor:pointer;font-size:16px;margin-right:6px;';
+    var btnDeleteStyle = 'display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:#ef4444;color:#fff;cursor:pointer;font-size:16px;';
+
+    if (displayAds.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#6b7280;">No ads found. Click "+ Add New Ad" to create one.</td></tr>';
+    } else {
+        tbody.innerHTML = displayAds.map(function(a) {
+            var status = getAdStatus(a);
+            var start = a.startDate ? new Date(a.startDate) : null;
+            var end = a.endDate ? new Date(a.endDate) : null;
+            var startStr = start ? start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '-';
+            var endStr = end ? end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '-';
+            var imgSrc = escapeHtml(a.image || '');
+
+            return '<tr class="ad-row ' + status.status + '"><td><img src="' + imgSrc + '" alt="" style="width:80px;height:50px;object-fit:cover;border-radius:4px;" onerror="this.style.display=&quot;none&quot;"></td>' +
+                '<td><strong>' + escapeHtml(a.title_en || a.title || '') + '</strong><br><small style="color:#6b7280;">' + escapeHtml(a.title || '') + '</small></td>' +
+                '<td>' + escapeHtml(a.position || '') + '</td>' +
+                '<td><div class="duration-cell"><span class="duration-start">&#9654; ' + startStr + '</span><span class="duration-arrow">&rarr;</span><span class="duration-end">&#9632; ' + endStr + '</span></div></td>' +
+                '<td><span class="badge ' + status.className + '">' + status.label + '</span></td>' +
+                '<td><button class="btn-icon btn-edit" style="' + btnEditStyle + '" onclick="editAd(' + a.id + ')" title="Edit">&#9999;&#65039;</button>' +
+                '<button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onclick="deleteAd(' + a.id + ')" title="Delete">&#128465;&#65039;</button></td></tr>';
+        }).join('');
+    }
+
+    if (mobileCards) {
+        if (displayAds.length === 0) {
+            mobileCards.innerHTML = '<div style="text-align:center;padding:2rem;color:#6b7280;">No ads found.</div>';
+        } else {
+            mobileCards.innerHTML = displayAds.map(function(a) {
+                var status = getAdStatus(a);
+                var start = a.startDate ? new Date(a.startDate) : null;
+                var end = a.endDate ? new Date(a.endDate) : null;
+                var startStr = start ? start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '-';
+                var endStr = end ? end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '-';
+                var imgSrc = escapeHtml(a.image || '');
+
+                return '<div class="mobile-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin-bottom:1rem;">' +
+                    '<div class="card-header" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">' +
+                    '<img src="' + imgSrc + '" alt="" style="width:80px;height:50px;object-fit:cover;border-radius:4px;" onerror="this.style.display=&quot;none&quot;">' +
+                    '<div class="card-title" style="font-weight:600;">' + escapeHtml(a.title_en || a.title || 'Untitled') + '</div></div>' +
+                    '<div class="card-meta" style="font-size:0.8rem;color:#6b7280;margin-bottom:0.75rem;">' +
+                    '<span>' + escapeHtml(a.position || 'Unknown') + '</span> | ' +
+                    '<span>' + startStr + ' &rarr; ' + endStr + '</span> | ' +
+                    '<span class="badge ' + status.className + '">' + status.label + '</span></div>' +
+                    '<div class="card-actions" style="display:flex;gap:0.5rem;">' +
+                    '<button style="' + btnEditStyle + 'width:44px;height:44px;" onclick="editAd(' + a.id + ')" title="Edit">&#9999;&#65039;</button>' +
+                    '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onclick="deleteAd(' + a.id + ')" title="Delete">&#128465;&#65039;</button></div></div>';
+            }).join('');
+        }
     }
 }
 
-function initLazyLoading() {
-    if ('IntersectionObserver' in window) {
-        const imgObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    if (img.dataset.src) {
-                        img.src = img.dataset.src;
-                        img.removeAttribute('data-src');
+// ── Categories Table Renderer ──
+function renderCategoriesTable() {
+    updateCategoryCounts();
+
+    var tbody = document.getElementById('categories-table-body');
+    var mobileCards = document.getElementById('categories-mobile-cards');
+    if (!tbody) return;
+
+    var btnDeleteStyle = 'display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:#ef4444;color:#fff;cursor:pointer;font-size:16px;';
+
+    if (adminCats.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:2rem;color:#6b7280;">No categories found.</td></tr>';
+    } else {
+        tbody.innerHTML = adminCats.map(function(c) {
+            var catId = escapeHtml(c.id || '');
+            return '<tr><td><strong>' + escapeHtml(c.name_en || '') + '</strong><br><small style="color:#6b7280;">' +
+                escapeHtml(c.name || '') + '</small></td>' +
+                '<td>' + c.count + '</td>' +
+                '<td><button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onclick="deleteCategory(\'' + catId + '\')" title="Delete">&#128465;&#65039;</button></td></tr>';
+        }).join('');
+    }
+
+    if (mobileCards) {
+        if (adminCats.length === 0) {
+            mobileCards.innerHTML = '<div style="text-align:center;padding:2rem;color:#6b7280;">No categories found.</div>';
+        } else {
+            mobileCards.innerHTML = adminCats.map(function(c) {
+                var catId = escapeHtml(c.id || '');
+                return '<div class="mobile-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin-bottom:1rem;">' +
+                    '<div class="card-title" style="font-weight:600;margin-bottom:0.5rem;">' + escapeHtml(c.name_en || '') + '</div>' +
+                    '<div class="card-meta" style="font-size:0.8rem;color:#6b7280;margin-bottom:0.75rem;">' +
+                    '<span>' + escapeHtml(c.name || '') + '</span> | ' +
+                    '<span>' + c.count + ' articles</span></div>' +
+                    '<div class="card-actions">' +
+                    '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onclick="deleteCategory(\'' + catId + '\')" title="Delete">&#128465;&#65039;</button></div></div>';
+            }).join('');
+        }
+    }
+}
+
+// ═══════════════════════════════════════
+// NEWS MODAL
+// ═══════════════════════════════════════
+// ☁️ CLOUDINARY AUTO-OPTIMIZE — OG/ WhatsApp-safe JPG on paste
+function optimizeCloudinary(url) {
+    if (!url) return url;
+    // res.cloudinary.com/{cloud}/image/upload/... → insert transform once
+    if (/res\.cloudinary\.com\/[^/]+\/image\/upload\//.test(url)
+        && !/\/image\/upload\/[^/]*(w_|q_|f_)/.test(url)) {
+        return url.replace('/image/upload/', '/image/upload/w_1200,q_80,f_jpg/');
+    }
+    return url; // already optimized OR not cloudinary → untouched
+}
+
+function attachCloudinaryOptimize(input, after) {
+    if (!input || input._clOpt) return;
+    input._clOpt = true;
+    var t = null;
+    input.addEventListener('input', function() {
+        clearTimeout(t);
+        t = setTimeout(function() {
+            var v = input.value.trim();
+            var opt = optimizeCloudinary(v);
+            if (opt !== v) {
+                input.value = opt;
+                if (typeof showToast === 'function') showToast('Image auto-optimized for sharing!', 'success');
+                if (after) after(opt);
+            }
+        }, 600);
+    });
+}
+
+function ensureImageOptimize() {
+    attachCloudinaryOptimize(document.getElementById('news-image-url'), function() {
+        if (typeof viewImageUrl === 'function') viewImageUrl(); // refresh preview
+    });
+}
+
+// 🎬 VIDEO LINK — YT/FB/Vimeo/Cloudinary/MP4 + auto-thumbnail
+function videoInfoFor(url) {
+    if (!url) return null;
+    var m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{6,})/);
+    if (m) return { type: 'youtube', id: m[1], thumb: 'https://i.ytimg.com/vi/' + m[1] + '/hqdefault.jpg', embed: 'https://www.youtube-nocookie.com/embed/' + m[1] };
+    m = url.match(/vimeo\.com\/(\d+)/);
+    if (m) return { type: 'vimeo', id: m[1], thumb: null, embed: 'https://player.vimeo.com/video/' + m[1] };
+    m = url.match(/dailymotion\.com\/video\/([\w]+)/);
+    if (m) return { type: 'dm', id: m[1], thumb: 'https://www.dailymotion.com/thumbnail/video/' + m[1] };
+    if (/facebook\.com|fb\.watch/.test(url)) return { type: 'fb', thumb: null };
+    // ☁️ Cloudinary video → poster frame auto-derive (so_0 = first frame as jpg)
+    if (/res\.cloudinary\.com\/.*\/video\/upload\//.test(url)) {
+        var t = url.replace('/video/upload/', '/video/upload/so_0/').replace(/\.(mp4|webm|mov|ogg)(\?.*)?$/i, '.jpg');
+        return { type: 'direct', thumb: t };
+    }
+    if (/\.(mp4|webm|ogg|mov)(\?|#|$)/i.test(url)) return { type: 'direct', thumb: null };
+    return { type: 'link', thumb: null };
+}
+
+function fillThumbFromVideo(thumbUrl) {
+    if (!thumbUrl) return;
+    var imgUrl = document.getElementById('news-image-url');
+    var photoData = document.getElementById('news-photo-data');
+    var hasUploaded = photoData && photoData.value;
+    if (imgUrl && !imgUrl.value.trim() && !hasUploaded) {
+        imgUrl.value = thumbUrl;
+        if (typeof viewImageUrl === 'function') viewImageUrl();
+        showToast('🎬 Thumbnail auto-set from video!', 'success');
+    }
+}
+
+function ensureVideoLinkUI() {
+    if (document.getElementById('news-video-link')) return;
+    var anchor = document.getElementById('news-video-data');
+    if (!anchor) return;
+    var group = anchor.closest('.form-group');
+    if (!group || !group.parentNode) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'form-group';
+    wrap.innerHTML =
+        '<label>🎬 Video Link (optional — YouTube / Facebook / Cloudinary / MP4)</label>' +
+        '<input type="text" id="news-video-link" placeholder="https://youtube.com/watch?v=... or https://res.cloudinary.com/.../video.mp4" ' +
+        'style="width:100%;padding:0.65rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-size:1rem;">' +
+        '<small style="display:block;color:#9ca3af;font-size:0.78rem;margin-top:4px;">Paste a video link — the player embeds in the article and the thumbnail auto-fills the main image.</small>';
+    group.parentNode.insertBefore(wrap, group.nextSibling);
+    var input = document.getElementById('news-video-link');
+    var timer = null;
+    input.addEventListener('input', function() {
+        clearTimeout(timer);
+        timer = setTimeout(function() {
+            var info = videoInfoFor(input.value.trim());
+            if (!info) return;
+            if (info.thumb) {
+                fillThumbFromVideo(info.thumb);
+            } else if (info.type === 'vimeo') {
+                // Vimeo thumbnail via public oEmbed
+                fetch('https://vimeo.com/api/oembed.json?url=' + encodeURIComponent(input.value.trim()))
+                    .then(function(r) { return r.json(); })
+                    .then(function(j) { if (j && j.thumbnail_url) fillThumbFromVideo(j.thumbnail_url); })
+                    .catch(function() {});
+            }
+        }, 500);
+    });
+}
+
+// 🖼️ GALLERY — multi-image support for articles
+function ensureGalleryUI() {
+    if (document.getElementById('gallery-rows')) return;
+    var anchor = document.getElementById('news-image-url');
+    if (!anchor) return;
+    var group = anchor.closest('.form-group');
+    if (!group || !group.parentNode) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'form-group';
+    wrap.innerHTML =
+        '<label>🖼️ Gallery Images (optional — slideshow inside article)</label>' +
+        '<div id="gallery-rows"></div>' +
+        '<button type="button" id="btn-add-gallery" style="padding:0.5rem 1rem;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;font-weight:600;font-size:0.85rem;cursor:pointer;">＋ Add Image URL</button>' +
+        '<small style="display:block;color:#9ca3af;font-size:0.78rem;margin-top:4px;">Add extra images — readers swipe/click through them in the article.</small>';
+    group.parentNode.insertBefore(wrap, group.nextSibling);
+    document.getElementById('btn-add-gallery').addEventListener('click', function() { addGalleryRow(); });
+}
+
+function addGalleryRow(url) {
+    var rows = document.getElementById('gallery-rows');
+    if (!rows) return;
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center;';
+    row.innerHTML =
+        '<input type="text" class="gal-url" placeholder="https://example.com/image2.jpg" ' +
+        'style="flex:1;padding:0.6rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;min-width:0;">' +
+        '<button type="button" class="gal-del" title="Remove" ' +
+        'style="width:38px;height:38px;flex-shrink:0;border:none;border-radius:6px;background:#fee2e2;color:#991b1b;font-size:16px;cursor:pointer;">✕</button>';
+    var galInput = row.querySelector('.gal-url');
+    galInput.value = url || '';
+    attachCloudinaryOptimize(galInput);
+    row.querySelector('.gal-del').addEventListener('click', function() { row.remove(); });
+    rows.appendChild(row);
+}
+
+function clearGalleryRows() {
+    var rows = document.getElementById('gallery-rows');
+    if (rows) rows.innerHTML = '';
+}
+
+function getGalleryUrls() {
+    var out = [];
+    var inputs = document.querySelectorAll('#gallery-rows .gal-url');
+    for (var i = 0; i < inputs.length; i++) {
+        var v = optimizeCloudinary(inputs[i].value.trim());
+        if (v) out.push(v);
+    }
+    return out;
+}
+
+function loadGalleryRows(news) {
+    clearGalleryRows();
+    if (news && Array.isArray(news.images)) {
+        news.images.forEach(function(u) { if (u) addGalleryRow(u); });
+    }
+}
+
+function openNewsModal(isEdit) {
+    // 📱 Mobile: Enter key in inputs must NOT submit/close modal (keyboard "Go" button)
+    var nf = document.getElementById('news-form');
+    if (nf) { nf.setAttribute('novalidate', 'novalidate'); nf.setAttribute('onsubmit', 'return false;'); }
+    setTimeout(function() {
+        var modal = document.getElementById('news-modal');
+        if (!modal || modal._enterGuard) return;
+        modal._enterGuard = true;
+        modal.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        }, true); // capture phase — stops mobile submit before any handler
+    }, 60);
+    isEdit = isEdit || false;
+    var modal = document.getElementById('news-modal');
+    var modalTitle = document.getElementById('news-modal-title');
+    var catSelect = document.getElementById('news-category');
+
+    if (modal) modal.classList.add('open');
+    if (modalTitle) modalTitle.textContent = isEdit ? 'Edit Article' : 'Add Article';
+
+    if (catSelect) {
+        catSelect.innerHTML = adminCats.map(function(c) {
+            return '<option value="' + escapeHtml(c.name_en || '') + '">' + escapeHtml(c.name_en || '') + '</option>';
+        }).join('');
+    }
+
+    if (!isEdit) {
+        editingNewsId = null;
+        var newsIdInput = document.getElementById('news-id');
+        if (newsIdInput) newsIdInput.value = '';
+
+               ['ta', 'en'].forEach(function(lang) {
+            var titleInp = document.getElementById('news-title-' + lang);
+            var excerptInp = document.getElementById('news-excerpt-' + lang);
+            var authorInp = document.getElementById('news-author-' + lang);
+            var contentTa = document.getElementById('news-content-' + lang);
+            if (titleInp) titleInp.value = '';
+            if (excerptInp) excerptInp.value = '';
+            if (authorInp) authorInp.value = '';
+            if (contentTa) contentTa.value = '';
+        });
+
+        var imageUrl = document.getElementById('news-image-url');
+        var photoData = document.getElementById('news-photo-data');
+        var videoData = document.getElementById('news-video-data');
+        var photoPreview = document.getElementById('news-photo-preview');
+        var videoPreview = document.getElementById('news-video-preview');
+        var featured = document.getElementById('news-featured');
+        var trending = document.getElementById('news-trending');
+        var status = document.getElementById('news-status');
+
+        if (imageUrl) imageUrl.value = '';
+        if (photoData) photoData.value = '';
+        if (videoData) videoData.value = '';
+        if (photoPreview) photoPreview.src = '';
+        var photoWrap = document.getElementById('photo-preview-wrap');
+        var photoPlaceholder = document.getElementById('photo-placeholder');
+        if (photoWrap) photoWrap.style.display = 'none';
+        if (photoPlaceholder) photoPlaceholder.style.display = 'block';
+        if (videoPreview) videoPreview.style.display = 'none';
+        if (featured) featured.checked = false;
+        if (trending) trending.checked = false;
+        if (status) status.checked = true;
+
+        // Set default date to now
+        var dateInput = document.getElementById('news-date');
+        if (dateInput) {
+            var now = new Date();
+            var yyyy = now.getFullYear();
+            var mm = String(now.getMonth() + 1).padStart(2, '0');
+            var dd = String(now.getDate()).padStart(2, '0');
+            var hh = String(now.getHours()).padStart(2, '0');
+            var min = String(now.getMinutes()).padStart(2, '0');
+            dateInput.value = yyyy + '-' + mm + '-' + dd + 'T' + hh + ':' + min;
+        }
+
+        clearGalleryRows();
+        ensureGalleryUI(); // gallery UI inject (first open)
+        ensureVideoLinkUI();
+        ensureImageOptimize();
+        var vlink = document.getElementById('news-video-link');
+        if (vlink) vlink.value = '';
+        switchNewsLang('ta');
+    } else {
+        ensureGalleryUI();
+        ensureVideoLinkUI();
+        ensureImageOptimize();
+    }
+}
+
+function closeNewsModal() {
+    var modal = document.getElementById('news-modal');
+    if (modal) modal.classList.remove('open');
+}
+
+function editNews(id) {
+    var news = adminNews.find(function(n) {
+        return n.id == id;
+    });
+    if (!news) {
+        showToast('Article not found', 'error');
+        return;
+    }
+
+    editingNewsId = id;
+    openNewsModal(true);
+
+    var newsIdInput = document.getElementById('news-id');
+    var catSelect = document.getElementById('news-category');
+
+    if (newsIdInput) newsIdInput.value = news.id;
+    if (catSelect) catSelect.value = news.category_en || news.category || '';
+
+        var fields = {
+        'news-title': ['title', 'title_en'],
+        'news-excerpt': ['excerpt', 'excerpt_en'],
+        'news-author': ['author', 'author_en'],
+        'news-content': ['content', 'content_en']
+    };
+
+    ['ta', 'en', 'si'].forEach(function(lang, idx) {
+        Object.keys(fields).forEach(function(prefix) {
+            var keys = fields[prefix];
+            var el = document.getElementById(prefix + '-' + lang);
+            if (!el) return;
+            el.value = news[keys[idx]] || '';
+        });
+    });
+
+    var imageUrl = document.getElementById('news-image-url');
+    var featured = document.getElementById('news-featured');
+    var trending = document.getElementById('news-trending');
+    var status = document.getElementById('news-status');
+    var photoPreview = document.getElementById('news-photo-preview');
+    var videoPreview = document.getElementById('news-video-preview');
+
+    if (imageUrl) imageUrl.value = news.image || '';
+    if (featured) featured.checked = !!news.featured;
+    if (trending) trending.checked = !!news.trending;
+    if (status) status.checked = news.status !== 'draft'; // legacy articles (no status) default to PUBLISHED
+
+    if (news.image && photoPreview) {
+        photoPreview.src = news.image;
+        var wrap = document.getElementById('photo-preview-wrap');
+        var placeholder = document.getElementById('photo-placeholder');
+        if (wrap) wrap.style.display = 'block';
+        if (placeholder) placeholder.style.display = 'none';
+    }
+
+    // Set date input with original publish date
+    var dateInput = document.getElementById('news-date');
+    if (dateInput && news.date) {
+        var d = new Date(news.date);
+        var yyyy = d.getFullYear();
+        var mm = String(d.getMonth() + 1).padStart(2, '0');
+        var dd = String(d.getDate()).padStart(2, '0');
+        var hh = String(d.getHours()).padStart(2, '0');
+        var min = String(d.getMinutes()).padStart(2, '0');
+        var dateStr = yyyy + '-' + mm + '-' + dd + 'T' + hh + ':' + min;
+        dateInput.value = dateStr;
+        dateInput.dataset.originalDate = dateStr; // Store for comparison
+    }
+    if (news.video && videoPreview) {
+        videoPreview.src = news.video;
+        videoPreview.style.display = 'block';
+    }
+    ensureGalleryUI();
+    ensureVideoLinkUI();
+    loadGalleryRows(news);
+    var _vl = document.getElementById('news-video-link');
+    if (_vl) _vl.value = news.videoLink || '';
+    switchNewsLang('ta');
+}
+
+async function saveNewsItem() {
+    var catSelect = document.getElementById('news-category');
+    var category = catSelect ? catSelect.value : '';
+    var catObj = adminCats.find(function(c) {
+        return c.name_en === category;
+    });
+
+    var excerpt_ta_el = document.getElementById('news-excerpt-ta');
+    var excerpt_en_el = document.getElementById('news-excerpt-en');
+
+    var title_ta_el = document.getElementById('news-title-ta');
+    var title_en_el = document.getElementById('news-title-en');
+    var author_ta_el = document.getElementById('news-author-ta');
+    var author_en_el = document.getElementById('news-author-en');
+    var content_ta_el = document.getElementById('news-content-ta');
+    var content_en_el = document.getElementById('news-content-en');
+    var imageUrl_el = document.getElementById('news-image-url');
+    var photoData_el = document.getElementById('news-photo-data');
+    var videoData_el = document.getElementById('news-video-data');
+    var featured_el = document.getElementById('news-featured');
+    var trending_el = document.getElementById('news-trending');
+    var status_el = document.getElementById('news-status');
+
+    var title_ta = title_ta_el ? title_ta_el.value.trim() : '';
+    var title_en = title_en_el ? title_en_el.value.trim() : '';
+
+    var author_ta = author_ta_el ? author_ta_el.value.trim() : '';
+    var author_en = author_en_el ? author_en_el.value.trim() : '';
+    var content_ta = content_ta_el ? content_ta_el.value.trim() : '';
+    var content_en = content_en_el ? content_en_el.value.trim() : '';
+    var imageUrl = imageUrl_el ? imageUrl_el.value.trim() : '';
+    imageUrl = optimizeCloudinary(imageUrl); // ☁️ guarantee optimized
+    var photoData = photoData_el ? photoData_el.value : '';
+    var videoData = videoData_el ? videoData_el.value : '';
+    var _vlEl = document.getElementById('news-video-link');
+    var videoLinkVal = _vlEl ? _vlEl.value.trim() : '';
+    var featured = featured_el ? featured_el.checked : false;
+    var trending = trending_el ? trending_el.checked : false;
+    var status = status_el ? (status_el.checked ? 'published' : 'draft') : 'draft';
+
+    var excerpt_ta = excerpt_ta_el ? excerpt_ta_el.value.trim() : '';
+    var excerpt_en = excerpt_en_el ? excerpt_en_el.value.trim() : '';
+
+    if (!title_ta || !category || !author_ta || !content_ta) {
+        showToast('Please fill all required Tamil fields', 'error');
+        switchNewsLang('ta');
+        return;
+    }
+
+    var newsItem = {
+        id: editingNewsId || Date.now(),
+        title: title_ta,
+        title_en: title_en || title_ta,
+
+
+        excerpt: excerpt_ta,
+        excerpt_en: excerpt_en || excerpt_ta,
+
+
+        content: content_ta,
+        content_en: content_en || content_ta,
+
+        category: catObj ? catObj.name : category,
+        category_en: catObj ? catObj.name_en : category,
+
+        author: author_ta,
+        author_en: author_en || author_ta,
+
+        date: (function() {
+            var dateInput = document.getElementById('news-date');
+            var inputVal = dateInput ? dateInput.value : '';
+
+            if (editingNewsId) {
+                // EDITING: Preserve original publish date unless user explicitly changed it
+                var original = adminNews.find(function(n) { return n.id == editingNewsId; });
+                if (original && original.date) {
+                    var origD = new Date(original.date);
+                    var origStr = origD.getFullYear() + '-' + 
+                        String(origD.getMonth() + 1).padStart(2, '0') + '-' + 
+                        String(origD.getDate()).padStart(2, '0') + 'T' + 
+                        String(origD.getHours()).padStart(2, '0') + ':' + 
+                        String(origD.getMinutes()).padStart(2, '0');
+                    // If input matches original or is empty, preserve original date
+                    if (!inputVal || inputVal === origStr) {
+                        return original.date;
                     }
-                    imgObserver.unobserve(img);
                 }
-            });
-        }, { rootMargin: '50px' });
+                // User changed the date
+                return inputVal ? new Date(inputVal).toISOString() : new Date().toISOString();
+            } else {
+                // NEW ARTICLE: Use selected date or current date
+                return inputVal ? new Date(inputVal).toISOString() : new Date().toISOString();
+            }
+        })(),
+        lastModified: new Date().toISOString(),
+        images: getGalleryUrls(), // 🖼️ gallery slideshow images
+        videoLink: videoLinkVal,  // 🎬 external video (YT/FB/Vimeo/MP4)
+        image: photoData || imageUrl || (function(){
+            var g = getGalleryUrls();
+            if (g.length) return g[0];
+            var vi = videoInfoFor(videoLinkVal);   // 🎬 video-thumb fallback
+            if (vi && vi.thumb) return vi.thumb;
+            return 'https://via.placeholder.com/800x400?text=EndLess+News';
+        })(),
+        video: videoData,
+        featured: featured,
+        trending: trending,
+        status: status
 
-        document.querySelectorAll('img[data-src]').forEach(img => imgObserver.observe(img));
+    };
+
+    if (editingNewsId) {
+        var idx = adminNews.findIndex(function(n) {
+            return n.id == editingNewsId;
+        });
+        if (idx !== -1) {
+            adminNews[idx] = Object.assign({}, adminNews[idx], newsItem, { id: editingNewsId });
+        }
+    } else {
+        adminNews.unshift(newsItem);
+    }
+
+    saveNews();
+    updateCategoryCounts();
+
+    if (db) {
+        try {
+            // Save the news item to Firebase FIRST before syncing
+            await db.collection('news').doc(String(newsItem.id)).set(newsItem);
+            dbg('News item saved to Firebase:', newsItem.id);
+        } catch (err) {
+            console.warn('Firebase write failed:', err); showToast('⚠️ Cloud save FAILED — login again & republish!', 'error');
+        }
+    }
+
+    // Generate share page for this article
+    saveSharePage(newsItem);
+
+    closeNewsModal();
+    renderNewsTable();
+    renderDashboard();
+
+    var missing = [];
+    if (!title_en) missing.push('English');
+
+    if (missing.length > 0 && !editingNewsId) {
+        showToast('Article saved! Note: Missing ' + missing.join(', ') + ' title - filled with Tamil');
+    } else {
+        showToast(editingNewsId ? 'Article updated!' : 'Article published!');
     }
 }
 
-function initTicker() {
-    const ticker = document.getElementById('ticker-content');
-    if (!ticker) return;
+async function deleteNews(id) {
+    if (!confirm('Delete this article?')) return;
+    adminNews = adminNews.filter(function(n) {
+        return n.id != id;
+    });
+    saveNews();
+    updateCategoryCounts();
 
-    // 🔥 FIX: old JS transform FIGHT with CSS animation (CSS won → fixed slow 30s).
-    // Now: CSS animation only, with dynamic duration ≈ 90px/sec → fast & smooth.
-    // Re-measure after every render (setLanguage/feed changes headline lengths).
-    function setSpeed() {
-        requestAnimationFrame(function() {
-            var w = ticker.scrollWidth;
-            if (w > 100) {
-                var secs = Math.max(12, w / 90); // ~90px per second
-                ticker.style.animationDuration = secs.toFixed(1) + 's';
+    if (db) {
+        try {
+            await db.collection('news').doc(String(id)).delete();
+        } catch (err) {
+            console.warn('Firebase delete failed:', err);
+        }
+    }
+
+    renderNewsTable();
+    renderDashboard();
+    renderCategoriesTable();
+    showToast('Article deleted');
+}
+
+// ── Ad Duration Helpers ──
+function getAdStatus(ad) {
+    var now = new Date();
+    var start = ad.startDate ? new Date(ad.startDate) : null;
+    var end = ad.endDate ? new Date(ad.endDate) : null;
+
+    if (!start || !end) {
+        return { status: 'active', label: 'Active', className: 'badge-green' };
+    }
+
+    if (end < now) {
+        return { status: 'expired', label: 'Expired', className: 'badge-red' };
+    } else if (start > now) {
+        var daysUntil = Math.ceil((start - now) / (1000 * 60 * 60 * 24));
+        return { status: 'scheduled', label: 'In ' + daysUntil + 'd', className: 'badge-blue' };
+    } else {
+        var daysLeft = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+        return { status: 'active', label: daysLeft + 'd left', className: 'badge-green' };
+    }
+}
+
+function updateDurationPreview() {
+    var startInput = document.getElementById('ad-start-date');
+    var endInput = document.getElementById('ad-end-date');
+    var badge = document.getElementById('duration-badge');
+
+    if (!startInput || !endInput || !badge) return;
+
+    if (!startInput.value || !endInput.value) {
+        badge.textContent = 'Select dates to see duration';
+        badge.className = 'duration-badge';
+        return;
+    }
+
+    var start = new Date(startInput.value);
+    var end = new Date(endInput.value);
+    var now = new Date();
+
+    if (end <= start) {
+        badge.textContent = 'End date must be after start date!';
+        badge.className = 'duration-badge error';
+        return;
+    }
+
+    var diffMs = end - start;
+    var diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    var diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
+
+    var durationText = '';
+    if (diffDays >= 1) {
+        durationText = diffDays + ' day' + (diffDays > 1 ? 's' : '');
+    } else {
+        durationText = diffHours + ' hour' + (diffHours > 1 ? 's' : '');
+    }
+
+    var statusText = '';
+    var badgeClass = 'duration-badge';
+
+    if (end < now) {
+        statusText = ' (Will be EXPIRED)';
+        badgeClass += ' expired';
+    } else if (start > now) {
+        var daysUntil = Math.ceil((start - now) / (1000 * 60 * 60 * 24));
+        statusText = ' (Starts in ' + daysUntil + ' day' + (daysUntil > 1 ? 's' : '') + ')';
+        badgeClass += ' scheduled';
+    } else {
+        var daysLeft = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+        statusText = ' (' + daysLeft + ' day' + (daysLeft > 1 ? 's' : '') + ' left)';
+        badgeClass += ' active';
+    }
+
+    badge.textContent = 'Duration: ' + durationText + statusText;
+    badge.className = badgeClass;
+}
+
+// ═══════════════════════════════════════
+// AD MODAL
+// ═══════════════════════════════════════
+function ensureAdMobileImgUI() {
+    if (document.getElementById('ad-mobile-image')) return;
+    var anchor = document.getElementById('ad-image');
+    if (!anchor) return;
+    var group = anchor.closest('.form-group');
+    if (!group || !group.parentNode) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'form-group';
+    wrap.innerHTML =
+        '<label>Mobile Image URL (optional — phones show this instead)</label>' +
+        '<input type="text" id="ad-mobile-image" placeholder="https://.../mobile-banner.jpg" ' +
+        'style="width:100%;padding:0.65rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-size:1rem;">' +
+        '<small style="display:block;color:#9ca3af;font-size:0.78rem;margin-top:4px;">💡 If empty, all devices use the main image. If set, mobile users see THIS, desktop users see the main one.</small>';
+    group.parentNode.insertBefore(wrap, group.nextSibling);
+}
+
+// 📊 AD ANALYTICS — Manage Ads toolbar-la button; real-time stats modal
+function ensureAdAnalyticsUI() {
+    if (document.getElementById('btn-ad-analytics')) return;
+    var toolbar = document.querySelector('#page-ads .page-toolbar');
+    if (!toolbar) return;
+    var b = document.createElement('button');
+    b.id = 'btn-ad-analytics';
+    b.className = 'btn-secondary';
+    b.type = 'button';
+    b.style.marginLeft = 'auto';
+    b.innerHTML = (typeof IC !== 'undefined' ? IC.chart : '📊') + ' Ad Analytics';
+    toolbar.appendChild(b);
+    b.addEventListener('click', openAdAnalytics);
+}
+
+async function openAdAnalytics() {
+    var ov = document.getElementById('ad-analytics-ov');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'ad-analytics-ov';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:18px;';
+        ov.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:680px;width:100%;max-height:88vh;overflow-y:auto;padding:24px;position:relative;">' +
+            '<button id="aa-close" style="position:absolute;top:14px;right:14px;width:34px;height:34px;border:none;border-radius:50%;background:#f3f4f6;color:#374151;font-size:16px;cursor:pointer;">✕</button>' +
+            '<h3 style="font-size:1.2rem;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:8px;">' + (typeof IC !== 'undefined' ? IC.chart : '') + ' Ad Performance Analytics</h3>' +
+            '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:20px;">' +
+            '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;text-align:center;"><div style="font-size:1.6rem;font-weight:800;color:#0f172a;" id="aa-impr">—</div><div style="font-size:0.75rem;color:#64748b;font-weight:600;">IMPRESSIONS</div></div>' +
+            '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;text-align:center;"><div style="font-size:1.6rem;font-weight:800;color:#0f172a;" id="aa-clicks">—</div><div style="font-size:0.75rem;color:#64748b;font-weight:600;">CLICKS</div></div>' +
+            '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:14px;text-align:center;"><div style="font-size:1.6rem;font-weight:800;color:#dc2626;" id="aa-ctr">—</div><div style="font-size:0.75rem;color:#991b1b;font-weight:600;">CTR %</div></div>' +
+            '</div>' +
+            '<div style="margin-bottom:16px;"><canvas id="aa-chart" height="120"></canvas></div>' +
+            '<h4 style="font-size:0.95rem;font-weight:700;margin-bottom:10px;">Top Performing Ads</h4>' +
+            '<div class="table-scroll" style="border:1px solid #e2e8f0;border-radius:10px;"><table class="data-table compact"><thead><tr><th>Ad</th><th>Position</th><th>Impr.</th><th>Clicks</th><th>CTR</th></tr></thead><tbody id="aa-top"><tr><td colspan="5" style="text-align:center;color:#94a3b8;">Loading…</td></tr></tbody></table></div>' +
+            '<div style="margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;">' +
+            '<h4 style="font-size:0.95rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px;">' + (typeof IC !== 'undefined' ? IC.users : '👥') + ' Active Campaigns & Contacts</h4>' +
+            '<div class="table-scroll" style="border:1px solid #e2e8f0;border-radius:10px;max-height:200px;overflow-y:auto;"><table class="data-table compact"><thead><tr><th>Ad</th><th>Client</th><th>Contact</th><th>Duration</th><th>Days Left</th><th>Earned (est.)</th></tr></thead><tbody id="aa-campaigns"><tr><td colspan="6" style="text-align:center;color:#94a3b8;">Loading…</td></tr></tbody></table></div></div>' +
+            '<div style="margin-top:16px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 14px;font-size:0.82rem;color:#0c4a6e;">' +
+            '<strong>💡 Tip:</strong> Ad edit pannum bodhu client name, phone, rate add pannunga — ithu auto-track aagum. Daily rate × active days = estimated earnings.</div>' +
+            '<p style="color:#94a3b8;font-size:0.75rem;margin-top:12px;">Click tracking — website-la ad click pannum bodhu auto-count aagum. Duration: admin-la set panna start/end date.</p></div>';
+        document.body.appendChild(ov);
+        document.getElementById('aa-close').addEventListener('click', function() { ov.style.display = 'none'; });
+        ov.addEventListener('click', function(e) { if (e.target === ov) ov.style.display = 'none'; });
+    }
+    ov.style.display = 'flex';
+    if (!db) return;
+    try {
+        var totals = await db.collection('ad_analytics').doc('totals').get();
+        var t = totals.exists ? totals.data() : {};
+        document.getElementById('aa-impr').textContent = (t.impressions || 0).toLocaleString();
+        document.getElementById('aa-clicks').textContent = (t.clicks || 0).toLocaleString();
+        var ctr = (t.impressions || 0) > 0 ? ((t.clicks || 0) / t.impressions * 100).toFixed(1) : '0.0';
+        document.getElementById('aa-ctr').textContent = ctr + '%';
+        // Daily chart (last 7 days)
+        var days = [], keys = [];
+        for (var i = 6; i >= 0; i--) {
+            var dt = new Date(); dt.setDate(dt.getDate() - i);
+            keys.push(dt.toISOString().slice(0, 10));
+            days.push(dt.toLocaleDateString('en-GB', { weekday: 'short' }));
+        }
+        var docs = await Promise.all(keys.map(function(k) { return db.collection('ad_analytics').doc('daily_' + k).get().catch(function() { return null; }); }));
+        var data = docs.map(function(x) { return x && x.exists ? (x.data().impressions || 0) : 0; });
+        var ctx = document.getElementById('aa-chart');
+        if (ctx && typeof Chart !== 'undefined') {
+            if (window._aaChart) window._aaChart.destroy();
+            window._aaChart = new Chart(ctx, { type: 'bar', data: { labels: days, datasets: [{ data: data, backgroundColor: '#dc2626', borderRadius: 6 }] }, options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } });
+        }
+        // Top ads
+        var snap = await db.collection('ad_analytics').where('impressions', '>', 0).get().catch(function() { return { docs: [] }; });
+        var rows = snap.docs.filter(function(doc) { return doc.id.indexOf('ad_') === 0; }).map(function(doc) {
+            var v = doc.data();
+            return { id: doc.id.replace('ad_', ''), imp: v.impressions || 0, clk: v.clicks || 0 };
+        }).sort(function(a, b) { return b.imp - a.imp; }).slice(0, 5);
+        var adNames = {};
+        (typeof adminAds !== 'undefined' ? adminAds : []).forEach(function(a) { adNames[String(a.id)] = a.title_en || a.title || 'Ad #' + a.id; });
+        // 💼 Active campaigns — client, contact, duration, earnings
+        try {
+            var now = new Date();
+            var campRows = (typeof adminAds !== 'undefined' ? adminAds : []).filter(function(a) {
+                return a && a.active !== false && (!a.endDate || new Date(a.endDate) >= now);
+            }).map(function(a) {
+                var start = a.startDate ? new Date(a.startDate) : null;
+                var end = a.endDate ? new Date(a.endDate) : null;
+                var daysLeft = end ? Math.max(0, Math.ceil((end - now) / 86400000)) : '∞';
+                var totalDays = start && end ? Math.max(1, Math.ceil((end - start) / 86400000)) : 30;
+                var rate = parseFloat(a.dailyRate) || 0;
+                var activeDays = start ? Math.max(0, Math.min(totalDays, Math.floor((now - start) / 86400000))) : 0;
+                var earned = rate > 0 ? 'Rs.' + (rate * activeDays).toLocaleString() : '—';
+                return {
+                    name: (a.title_en || a.title || 'Ad').replace(/</g, '&lt;').substring(0, 24),
+                    client: (a.clientName || a.client || '—').replace(/</g, '&lt'),
+                    contact: (a.clientPhone || a.clientEmail || '—').replace(/</g, '&lt'),
+                    dur: (start ? start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—') + ' → ' + (end ? end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '∞'),
+                    left: daysLeft,
+                    earned: earned
+                };
+            });
+            document.getElementById('aa-campaigns').innerHTML = campRows.length ? campRows.map(function(c) {
+                return '<tr><td><strong>' + c.name + '</strong></td><td>' + c.client + '</td><td>' + c.contact + '</td><td style="white-space:nowrap;">' + c.dur + '</td><td>' + (c.left === '∞' ? '∞' : c.left + 'd') + '</td><td style="color:#059669;font-weight:700;">' + c.earned + '</td></tr>';
+            }).join('') : '<tr><td colspan="6" style="text-align:center;color:#94a3b8;">No active campaigns</td></tr>';
+        } catch (e) {}
+
+        // Top ads
+        document.getElementById('aa-top').innerHTML = rows.length ? rows.map(function(r) {
+            return '<tr><td><strong>' + String(adNames[r.id] || 'Ad #' + r.id).replace(/</g, '&lt;').substring(0, 30) + '</strong></td><td>—</td><td>' + r.imp + '</td><td>' + r.clk + '</td><td>' + (r.imp > 0 ? (r.clk / r.imp * 100).toFixed(1) : '0.0') + '%</td></tr>';
+        }).join('') : '<tr><td colspan="5" style="text-align:center;color:#94a3b8;">No ad data yet — clicks start tracking automatically.</td></tr>';
+    } catch (e) {}
+}
+
+// 💼 CLIENT FIELDS — ad modal-la contact + rate (sponsor tracking)
+function ensureAdClientUI() {
+    if (document.getElementById('ad-client-name')) return;
+    var anchor = document.getElementById('ad-link');
+    if (!anchor) return;
+    var group = anchor.closest('.form-group');
+    if (!group || !group.parentNode) return;
+    var wrap = document.createElement('div');
+    wrap.innerHTML =
+        '<div class="form-row" style="margin-top:0.75rem;">' +
+        '<div class="form-group" style="margin-bottom:0.6rem;"><label>Client / Company Name</label><input type="text" id="ad-client-name" placeholder="e.g., Jaffna Electronics" style="width:100%;padding:0.6rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;"></div>' +
+        '<div class="form-group" style="margin-bottom:0.6rem;"><label>Contact (Phone / Email)</label><input type="text" id="ad-client-contact" placeholder="077xxxxxxx or email" style="width:100%;padding:0.6rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;"></div>' +
+        '</div>' +
+        '<div class="form-group" style="margin-bottom:0;"><label>Daily Rate (Rs. — for earnings estimate)</label><input type="number" id="ad-daily-rate" placeholder="e.g., 150" min="0" style="width:100%;padding:0.6rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;"></div>';
+    group.parentNode.insertBefore(wrap, group.nextSibling);
+}
+
+// 🎯 PER-AD in-article toggle — each ad-ku thaniya tick (Ad modal-la)
+function ensureAdInArticleChk() {
+    if (document.getElementById('ad-inarticle')) return;
+    var anchor = document.getElementById('ad-active');
+    if (!anchor) return;
+    var group = anchor.closest('.form-group');
+    if (!group || !group.parentNode) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'form-group';
+    wrap.innerHTML = '<label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-weight:600;">' +
+        '<input type="checkbox" id="ad-inarticle" style="width:18px;height:18px;cursor:pointer;">' +
+        ' 📰 Show in Articles <small style="color:#9ca3af;font-weight:400;">(paragraphs-ku nadula varum)</small></label>';
+    group.parentNode.insertBefore(wrap, group.nextSibling);
+}
+
+function openAdModal(isEdit) {
+    isEdit = isEdit || false;
+    ensureAdMobileImgUI(); // 📱 mobile image field
+    ensureAdInArticleChk(); // 🎯 per-ad in-article tick
+    ensureAdAnalyticsUI(); // 📊 Ad Analytics button
+    ensureAdClientUI(); // 💼 client fields
+
+    // 📐 Exact banner sizes guide (injected — updates the static info box)
+    var _sizeInfo = document.querySelector('.ad-size-info');
+    if (_sizeInfo) {
+        _sizeInfo.innerHTML =
+            '<strong>📐 Exact Banner Sizes (width × height, pixels):</strong><br>' +
+            '• <b>Header:</b> 1200 × 200<br>' +
+            '• <b>Sidebar:</b> 720 × 560 (add multiple — stacks with gap)<br>' +
+            '• <b>Inline:</b> 1200 × 240<br>' +
+            '• <b>Article View:</b> 1200 × 390';
+    }
+    // 🎯 Position options — injected (includes Article View slot for sponsors)
+    var _pos = document.getElementById('ad-position');
+    if (_pos && !_pos.querySelector('option[value="modal"]')) {
+        _pos.innerHTML =
+            '<option value="header">Header Banner (top of site)</option>' +
+            '<option value="sidebar">Sidebar — Right Rail (stacks multiple)</option>' +
+            '<option value="inline">Inline (between articles)</option>' +
+            '<option value="modal">Article View (inside article popup)</option>';
+    }
+    var modal = document.getElementById('ad-modal');
+    var modalTitle = document.getElementById('ad-modal-title');
+
+    if (modal) modal.classList.add('open');
+    if (modalTitle) modalTitle.textContent = isEdit ? 'Edit Advertisement' : 'Add Advertisement';
+
+    if (!isEdit) {
+        editingAdId = null;
+        var adId = document.getElementById('ad-id');
+        var titleTa = document.getElementById('ad-title-ta');
+        var titleEn = document.getElementById('ad-title-en');
+        var link = document.getElementById('ad-link');
+        var position = document.getElementById('ad-position');
+        var image = document.getElementById('ad-image');
+        var imagePreview = document.getElementById('ad-image-preview');
+        var active = document.getElementById('ad-active');
+        var startDate = document.getElementById('ad-start-date');
+        var endDate = document.getElementById('ad-end-date');
+
+        if (adId) adId.value = '';
+        if (titleTa) titleTa.value = '';
+        if (titleEn) titleEn.value = '';
+        if (link) link.value = '';
+        if (position) position.value = 'header';
+        if (image) image.value = '';
+        if (imagePreview) imagePreview.style.display = 'none';
+        var mImg = document.getElementById('ad-mobile-image');
+        if (mImg) mImg.value = '';
+        var iaChk = document.getElementById('ad-inarticle');
+        if (iaChk) iaChk.checked = false; // 🎯 default OFF
+        if (active) active.checked = true;
+
+        // Set default dates: start = now, end = now + 7 days
+        var now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        var nextWeek = new Date(now);
+        nextWeek.setDate(nextWeek.getDate() + 7);
+
+        if (startDate) startDate.value = now.toISOString().slice(0, 16);
+        if (endDate) endDate.value = nextWeek.toISOString().slice(0, 16);
+        updateDurationPreview();
+    }
+}
+
+function closeAdModal() {
+    var modal = document.getElementById('ad-modal');
+    if (modal) modal.classList.remove('open');
+}
+
+function editAd(id) {
+    var ad = adminAds.find(function(a) {
+        return a.id == id;
+    });
+    if (!ad) {
+        showToast('Ad not found', 'error');
+        return;
+    }
+
+    editingAdId = id;
+    openAdModal(true);
+
+    var adId = document.getElementById('ad-id');
+    var titleTa = document.getElementById('ad-title-ta');
+    var titleEn = document.getElementById('ad-title-en');
+    var link = document.getElementById('ad-link');
+    var position = document.getElementById('ad-position');
+    var image = document.getElementById('ad-image');
+    var active = document.getElementById('ad-active');
+    var imagePreview = document.getElementById('ad-image-preview');
+    var startDate = document.getElementById('ad-start-date');
+    var endDate = document.getElementById('ad-end-date');
+
+    if (adId) adId.value = ad.id;
+    if (titleTa) titleTa.value = ad.title || '';
+    if (titleEn) titleEn.value = ad.title_en || '';
+    if (link) link.value = ad.link || '';
+    if (position) position.value = ad.position || 'header';
+    if (image) image.value = ad.image || '';
+    if (active) active.checked = !!ad.active;
+
+    // Populate duration fields
+    if (ad.startDate && startDate) {
+        var sd = new Date(ad.startDate);
+        sd.setMinutes(sd.getMinutes() - sd.getTimezoneOffset());
+        startDate.value = sd.toISOString().slice(0, 16);
+    }
+    if (ad.endDate && endDate) {
+        var ed = new Date(ad.endDate);
+        ed.setMinutes(ed.getMinutes() - ed.getTimezoneOffset());
+        endDate.value = ed.toISOString().slice(0, 16);
+    }
+    updateDurationPreview();
+
+    if (ad.image && imagePreview) {
+        imagePreview.src = ad.image;
+        imagePreview.style.display = 'block';
+    }
+    var _mImg = document.getElementById('ad-mobile-image');
+    if (_mImg) _mImg.value = ad.mobileImage || '';
+    var _ia = document.getElementById('ad-inarticle');
+    if (_ia) _ia.checked = !!ad.inArticle; // 🎯 per-ad flag restore
+    var _cn = document.getElementById('ad-client-name');
+    if (_cn) _cn.value = ad.clientName || '';
+    var _cc = document.getElementById('ad-client-contact');
+    if (_cc) _cc.value = ad.clientPhone || '';
+    var _dr = document.getElementById('ad-daily-rate');
+    if (_dr) _dr.value = ad.dailyRate || '';
+}
+
+async function saveAdItem() {
+    var title_ta_el = document.getElementById('ad-title-ta');
+    var title_en_el = document.getElementById('ad-title-en');
+
+    var link_el = document.getElementById('ad-link');
+    var position_el = document.getElementById('ad-position');
+    var image_el = document.getElementById('ad-image');
+    var active_el = document.getElementById('ad-active');
+
+    var title_ta = title_ta_el ? title_ta_el.value.trim() : '';
+    var title_en = title_en_el ? title_en_el.value.trim() : '';
+
+    var link = link_el ? link_el.value.trim() : '';
+    var position = position_el ? position_el.value : 'header';
+    var image = image_el ? image_el.value.trim() : 'https://via.placeholder.com/600x200?text=Ad';
+    var active = active_el ? active_el.checked : false;
+
+        if (!title_ta || !link) {
+        showToast('Please fill Tamil title and link', 'error');
+        return;
+    }
+
+    var startDate_el = document.getElementById('ad-start-date');
+    var endDate_el = document.getElementById('ad-end-date');
+    var startDateVal = startDate_el ? startDate_el.value : '';
+    var endDateVal = endDate_el ? endDate_el.value : '';
+
+    if (!startDateVal || !endDateVal) {
+        showToast('Please select start and end dates', 'error');
+        return;
+    }
+
+    var startDateObj = new Date(startDateVal);
+    var endDateObj = new Date(endDateVal);
+
+    if (endDateObj <= startDateObj) {
+        showToast('End date must be after start date!', 'error');
+        return;
+    }
+
+    var _mImgEl = document.getElementById('ad-mobile-image');
+    var mobileImg = _mImgEl ? _mImgEl.value.trim() : '';
+    var adItem = {
+        id: editingAdId || Date.now(),
+        title: title_ta,
+        title_en: title_en || title_ta,
+        link: link,
+        image: image,
+        mobileImage: mobileImg || null, // 📱 optional mobile-only image
+        inArticle: (document.getElementById('ad-inarticle') || {}).checked === true, // 🎯 per-ad tick
+        clientName: (document.getElementById('ad-client-name') || {}).value || '',
+        clientPhone: (document.getElementById('ad-client-contact') || {}).value || '',
+        dailyRate: parseFloat((document.getElementById('ad-daily-rate') || {}).value) || 0,
+        position: position,
+        active: active,
+        startDate: startDateObj.toISOString(),
+        endDate: endDateObj.toISOString()
+    };
+
+    if (editingAdId) {
+        var idx = adminAds.findIndex(function(a) {
+            return a.id == editingAdId;
+        });
+        if (idx !== -1) {
+            adminAds[idx] = Object.assign({}, adminAds[idx], adItem, { id: editingAdId });
+        }
+    } else {
+        adminAds.push(adItem);
+    }
+
+    saveAds();
+
+    if (db) {
+        try {
+            await db.collection('ads').doc(String(adItem.id)).set(adItem);
+        } catch (err) {
+            console.warn('Firebase ad sync failed:', err);
+        }
+    }
+
+    closeAdModal();
+    renderAdsTable();
+    renderDashboard();
+    showToast(editingAdId ? 'Ad updated!' : 'Ad saved!');
+}
+
+async function deleteAd(id) {
+    if (!confirm('Delete this ad?')) return;
+    adminAds = adminAds.filter(function(a) {
+        return a.id != id;
+    });
+    saveAds();
+
+    if (db) {
+        try {
+            await db.collection('ads').doc(String(id)).delete();
+        } catch (err) {
+            console.warn('Firebase ad delete failed:', err);
+        }
+    }
+
+    renderAdsTable();
+    renderDashboard();
+    showToast('Ad deleted');
+}
+
+// ═══════════════════════════════════════
+// CATEGORY MODAL
+// ═══════════════════════════════════════
+function openCatModal() {
+    var modal = document.getElementById('cat-modal');
+    if (modal) modal.classList.add('open');
+
+    var nameTa = document.getElementById('cat-name-ta');
+    var nameEn = document.getElementById('cat-name-en');
+
+    if (nameTa) nameTa.value = '';
+    if (nameEn) nameEn.value = '';
+    if (nameSi) nameSi.value = '';
+}
+
+function closeCatModal() {
+    var modal = document.getElementById('cat-modal');
+    if (modal) modal.classList.remove('open');
+}
+
+async function saveCategory() {
+    var name_ta_el = document.getElementById('cat-name-ta');
+    var name_en_el = document.getElementById('cat-name-en');
+
+
+    var name_ta = name_ta_el ? name_ta_el.value.trim() : '';
+    var name_en = name_en_el ? name_en_el.value.trim() : '';
+
+
+    if (!name_en) {
+        showToast('English category name is required', 'error');
+        return;
+    }
+
+    var id = name_en.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    var catItem = {
+        id: id,
+        name: name_ta || name_en,
+        name_en: name_en,
+
+        count: 0
+    };
+
+    adminCats.push(catItem);
+    saveCats();
+
+    if (db) {
+        try {
+            await db.collection('categories').doc(String(id)).set(catItem);
+        } catch (err) {
+            console.warn('Firebase category sync failed:', err);
+        }
+    }
+
+    closeCatModal();
+    renderCategoriesTable();
+    renderDashboard();
+    showToast('Category added!');
+}
+
+async function deleteCategory(id) {
+    if (!confirm('Delete this category?')) return;
+    adminCats = adminCats.filter(function(c) {
+        return c.id !== id;
+    });
+    saveCats();
+
+    if (db) {
+        try {
+            await db.collection('categories').doc(String(id)).delete();
+        } catch (err) {
+            console.warn('Firebase category delete failed:', err);
+        }
+    }
+
+    renderCategoriesTable();
+    renderDashboard();
+    showToast('Category deleted');
+}
+
+
+// ── Delete Uploaded Photo ──
+function deleteUploadedPhoto() {
+    var fileInput = document.getElementById('news-photo-file');
+    var photoData = document.getElementById('news-photo-data');
+    var previewWrap = document.getElementById('photo-preview-wrap');
+    var previewImg = document.getElementById('news-photo-preview');
+    var placeholder = document.getElementById('photo-placeholder');
+
+    if (fileInput) fileInput.value = '';
+    if (photoData) photoData.value = '';
+    if (previewImg) previewImg.src = '';
+    if (previewWrap) previewWrap.style.display = 'none';
+    if (placeholder) placeholder.style.display = 'block';
+    showToast('Photo removed', 'success');
+}
+
+// ── View Image from URL ──
+function viewImageUrl() {
+    var urlInput = document.getElementById('news-image-url');
+    var previewWrap = document.getElementById('url-image-preview-wrap');
+    var previewImg = document.getElementById('url-image-preview');
+    var url = urlInput ? urlInput.value.trim() : '';
+
+    if (!url) {
+        showToast('Please enter an image URL first', 'error');
+        return;
+    }
+
+    previewImg.src = url;
+    previewImg.onerror = function() {
+        previewWrap.style.display = 'none';
+        showToast('Failed to load image. Check the URL.', 'error');
+    };
+    previewImg.onload = function() {
+        previewWrap.style.display = 'block';
+    };
+}
+
+// ═══════════════════════════════════════
+// FILE UPLOAD HANDLERS
+// ═══════════════════════════════════════
+function handleFileUpload(inputId, previewId, dataId, type) {
+    type = type || 'image';
+    var input = document.getElementById(inputId);
+    var preview = document.getElementById(previewId);
+    var dataInput = document.getElementById(dataId);
+
+    if (!input) return;
+
+    input.addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(event) {
+            if (dataInput) dataInput.value = event.target.result;
+            if (preview) {
+                preview.src = event.target.result;
+            }
+            var wrap = document.getElementById('photo-preview-wrap');
+            var placeholder = document.getElementById('photo-placeholder');
+            if (wrap) wrap.style.display = 'block';
+            if (placeholder) placeholder.style.display = 'none';
+        };
+        reader.onerror = function() {
+            showToast('File read failed', 'error');
+        };
+        reader.readAsDataURL(file);
+    });
+
+    var uploadArea = input.closest('.upload-area');
+    if (uploadArea) {
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.style.borderColor = 'var(--admin-primary)';
+        });
+        uploadArea.addEventListener('dragleave', function() {
+            uploadArea.style.borderColor = '#d1d5db';
+        });
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#d1d5db';
+            var files = e.dataTransfer.files;
+            if (files.length > 0) {
+                input.files = files;
+                input.dispatchEvent(new Event('change'));
             }
         });
     }
-    setSpeed();
-    // Also re-speed after images/fonts load (width may change)
-    window.addEventListener('load', setSpeed);
 }
 
-function syncNewsFromStorage() {
-    var localNews = getNewsFromStorage();
-    if (localNews && localNews.length > 0) {
-        newsData = (localNews || []).filter(function(n) { return !isGarbagePost(n); });
-        dbg('News synced from localStorage:', newsData.length, 'articles');
-        renderHero();
-        renderFeed();
-        renderTrending();
-    }
-}
-
-function syncAdsFromStorage() {
-    var localAds = safeJSON('endless_ads', DEFAULT_ADS);
-    if (Array.isArray(localAds) && localAds.length > 0) {
-        adsData = localAds;
-        dbg('Ads synced:', adsData.length, 'ads');
-        renderAds();
-    }
-}
-
-function syncCategoriesFromStorage() {
-    var localCats = safeJSON('endless_categories', DEFAULT_CATEGORIES);
-    if (Array.isArray(localCats) && localCats.length > 0) {
-        categoriesData = localCats;
-        dbg('Categories synced:', categoriesData.length, 'categories');
-        renderCategories();
-        renderTrending();
-        renderFeed();
-    }
-}
-
-// ⚙️ FOOTER VISIBILITY — EASY TOGGLE: true = show, false = hide.
-// Neenga hide pannirukkura items-a future-la show pannanum na,
-// false → true nu maathunga mattum podhum! (Upload after change.)
-const FOOTER_VISIBILITY = {
-    about_us: true,
-    careers: false,      // 🔒 HIDDEN — future-la true pannunga
-    ethics: false,       // 🔒 HIDDEN — future-la true pannunga
-    contact: true,
-    advertise: true,
-    privacy: true,
-    terms: true
-};
-
-// 🔗 FOOTER LINKS — wire footer items to static pages (no index.html edit needed)
-function wireFooterLinks() {
-    var map = {
-        about_us: 'about.html', careers: 'careers.html', ethics: 'ethics.html',
-        contact: 'contact.html', advertise: 'advertise.html',
-        privacy: 'privacy.html', terms: 'terms.html'
-    };
-    Object.keys(map).forEach(function(key) {
-        var li = document.querySelector('footer [data-key="' + key + '"]');
-        if (!li) return;
-        // ⚙️ Toggle: hidden items are removed from footer
-        if (FOOTER_VISIBILITY[key] === false) {
-            li.style.display = 'none';
+// ═══════════════════════════════════════
+// RESET DATA
+// ═══════════════════════════════════════
+async function resetData() {
+    // 🔒 HARDENED: Real gate = Firebase Auth + Security Rules (server-side).
+    // Old fake password field removed — no client-side password to bypass.
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+        var _u = firebase.auth().currentUser;
+        if (!_u || _u.email !== 'endlessnewslk@gmail.com') {
+            showToast('Not authorized — login as admin first', 'error');
             return;
         }
-        li.style.display = '';
-        if (!li.querySelector('a')) {
-            var a = document.createElement('a');
-            a.href = map[key];
-            a.style.cssText = 'color:inherit;text-decoration:none;';
-            while (li.firstChild) a.appendChild(li.firstChild);
-            li.appendChild(a);
-        }
-    });
+    }
 
-    // 🏷️ FOOTER SECTIONS — click filters that category on the main site.
-    // English & Tamil labels matched against categoriesData.
-    var footer = document.querySelector('footer');
-    if (!footer) return;
-    var sectionH = null;
-    footer.querySelectorAll('h4').forEach(function(h) {
-        var t = (h.textContent || '').trim();
-        if (t === 'பிரிவுகள்' || t === 'Sections') sectionH = h;
-    });
-    if (!sectionH) return;
-    var ul = sectionH.parentElement.querySelector('ul');
-    if (!ul) return;
-    Array.prototype.forEach.call(ul.children, function(li) {
-        if (li.querySelector('a')) return;
-        var label = (li.textContent || '').trim();
-        var hit = categoriesData.find(function(c) {
-            return c.name_en === label || c.name === label;
-        });
-        li.style.cursor = 'pointer';
-        li.setAttribute('role', 'button');
-        li.setAttribute('tabindex', '0');
-        function go() {
-            var target = hit ? (hit.name_en || label) : label;
-            // ⚡ From ANY page (About/Contact/...) → jump to home + filter
-            if (!document.getElementById('news-grid')) {
-                var sep = location.search ? '&' : '?';
-                location.href = 'index.html' + sep + 'cat=' + encodeURIComponent(target);
-                return;
-            }
-            filterCategory(target);
+    if (!confirm('WARNING: This will erase all data and restore defaults. Continue?')) return;
+
+    localStorage.removeItem('endless_news');
+    localStorage.removeItem('endless_ads');
+    localStorage.removeItem('endless_categories');
+
+    adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
+    adminAds = JSON.parse(JSON.stringify(DEFAULT_ADS));
+    adminCats = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+
+    saveNews();
+    saveAds();
+    saveCats();
+
+    if (db) {
+        try {
+            var batch = db.batch();
+            adminNews.forEach(function(n) {
+                batch.set(db.collection('news').doc(String(n.id)), n);
+            });
+            adminAds.forEach(function(a) {
+                batch.set(db.collection('ads').doc(String(a.id)), a);
+            });
+            adminCats.forEach(function(c) {
+                batch.set(db.collection('categories').doc(String(c.id)), c);
+            });
+            await batch.commit();
+        } catch (err) {
+            console.warn('Firebase batch write failed:', err);
         }
-        li.addEventListener('click', go);
-        li.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
-        });
-    });
+    }
+
+    if (passwordInput) passwordInput.value = '';
+
+    renderDashboard();
+    renderNewsTable();
+    renderAdsTable();
+    renderCategoriesTable();
+    showToast('Data reset to defaults');
 }
 
-// 🔥 FORCE SW UPDATE: stale service workers serve old files on mobile.
-// Check for a new SW on every load; reload ONCE when it takes control.
-(function forceSwUpdate() {
-    if (!('serviceWorker' in navigator)) return;
-    var reloaded = false;
-    navigator.serviceWorker.getRegistrations().then(function(regs) {
-        regs.forEach(function(reg) { reg.update(); });
-    });
-    navigator.serviceWorker.addEventListener('controllerchange', function() {
-        if (!reloaded) { reloaded = true; window.location.reload(); }
-    });
-})();
+// ═══════════════════════════════════════
+// EVENT LISTENERS
+// ═══════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function() {
+    initData().then(function() {
 
-setTimeout(function() { if (window._hideSplash) window._hideSplash(); }, 6000);
+    var headerMenuBtn = document.getElementById('header-menu-btn');
+    var sidebarOverlay = document.getElementById('sidebar-overlay');
 
-document.addEventListener('DOMContentLoaded', async () => {
-    // 🚀 PHASE 0.5 — Defer non-critical heavy engines until browser is IDLE.
-    // Ads/analytics/sw-update must never delay the first interactive paint.
-    var _defer = (window.requestIdleCallback || function(cb) { setTimeout(cb, 1200); });
-    _defer(function() {
-        try { renderAds(); } catch (e) {}
-        try { initAdSenseSlots && initAdSenseSlots(); } catch (e) {}
-        try { initTicker(); } catch (e) {}
-    });
+    if (headerMenuBtn) headerMenuBtn.addEventListener('click', toggleSidebar);
+    if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
 
-    // 🚀 PHASE 1 — INSTANT UI: date/weather/theme/language run FIRST.
-    // Even if Firebase hangs/blocks, the page is alive and interactive.
-    try { renderDate(); } catch (e) {}
-    try { initTheme(); } catch (e) {}
-    try { initWeather(); } catch (e) {}
-    try { setLanguage(currentLang); } catch (e) {}
-    // 🔄 After language switch re-renders modal, restore article font zoom (A+/A-)
-    setTimeout(applyArticleFontScale, 150);
-    try { wireFooterLinks(); } catch (e) {}
-
-    // 🚀 PHASE 2 — DATA: hard 15s timeout. If we already instant-rendered from
-    // cache, refresh SILENTLY in background (no skeleton re-flash, minnal feel).
-    var _hadInstant = window._instantRendered;
-    try {
-        if (_hadInstant) {
-            await withTimeout(loadAllNewsData(), 15000);
-            hideLoading();
-            renderHero(); renderFeed(); renderTrending();
-            renderCategories(); renderAds(); renderTicker();
-        } else {
-            await withTimeout(loadAllNewsData(), 15000);
-        }
-        if (window._hideSplash) window._hideSplash();
-    } catch (e) {
-        if (window._hideSplash) window._hideSplash();
-        console.warn('Data load failed or timed out:', e && e.message);
-        try {
-            isDataLoaded = true;
-            hideLoading();
-            renderHero(); renderFeed(); renderTrending();
-            renderCategories(); renderAds(); renderTicker();
-        } catch (_) {}
-        var _g = document.getElementById('news-grid');
-        if (_g && !_g.querySelector('.article-card')) {
-            _g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2.5rem 1rem;color:var(--text-muted)">⚠️ Live data connect aaga la — internet check pannunga illai refresh (Ctrl+Shift+R)</div>';
-        }
-    }
-
-    if (newsData.length === 0) {
-        dbg('ℹ️ No articles found in Firebase. Publish from admin panel.');
-    }
-    const yearEl = document.getElementById('year');
-    if (yearEl) yearEl.textContent = new Date().getFullYear();
-
-    renderDate(); // 📅 respects saved language (ta/en)
-
-    initWeather(); // 🌤️ real-time weather by visitor location
-    wireNewsletterBox(); // 📬 newsletter subscribe
-
-    initTheme();
-    setLanguage(currentLang);
-
-    document.querySelectorAll('.lang-btn').forEach(btn => {
-        btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
-    });
-
-    document.querySelectorAll('.nav-links a, .mobile-nav a').forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            filterCategory(link.dataset.cat);
-            closeMobileMenu();
+    document.querySelectorAll('.nav-item').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            showPage(btn.dataset.page);
         });
     });
 
-        const searchInput = document.getElementById('search-input');
-    if (searchInput) {
-        const feedTitle = document.getElementById('feed-title');
-        
-        const debouncedSearch = debounce((e) => {
-            searchQuery = e.target.value.trim();
-            displayedCount = isMobile ? 4 : 6;
-            renderFeed();
-        
-            // 3. Update title with result count
-            const feedTitle = document.getElementById('feed-title');
-            if (feedTitle && feedTitle.dataset.original) {
-            if (!searchQuery) {
-            feedTitle.textContent = feedTitle.dataset.original;
-            } else {
-            const q = searchQuery.toLowerCase();
-            const count = newsData.filter(n => 
-            (n.status !== 'draft') && !isGarbagePost(n) && (
-            (n.title && n.title.toLowerCase().includes(q)) ||
-            (n.title_en && n.title_en.toLowerCase().includes(q)) ||
-            
-            (n.excerpt && n.excerpt.toLowerCase().includes(q)) ||
-            (n.excerpt_en && n.excerpt_en.toLowerCase().includes(q))
-            )
-            ).length;
-            feedTitle.textContent = `🔍 "${searchQuery}" — ${count} result${count !== 1 ? 's' : ''}`;
-            }
-            }
-        }, 300);
-        searchInput.addEventListener('input', (e) => {
-            // 1. Immediate feedback — show "Searching..." instantly
-            if (feedTitle) {
-                if (!feedTitle.dataset.original) feedTitle.dataset.original = feedTitle.textContent;
-                feedTitle.innerHTML = `<span class="search-indicator">🔍 Searching<span>.</span><span>.</span><span>.</span></span>`;
-            }
-            // 2. Debounced actual search
-            debouncedSearch(e);
+    document.querySelectorAll('.nav-item-mobile').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            showPage(btn.dataset.page);
         });
-    }
-    
-    // Debounced search function
-
-    const loadMoreBtn = document.getElementById('load-more-btn');
-    if (loadMoreBtn) {
-        loadMoreBtn.addEventListener('click', () => {
-            displayedCount += isMobile ? 4 : 6;
-            renderFeed();
-        });
-    }
-
-    const modalClose = document.getElementById('modal-close');
-    if (modalClose) {
-        modalClose.addEventListener('click', closeModal);
-    }
-
-    const articleModal = document.getElementById('article-modal');
-    if (articleModal) {
-        articleModal.addEventListener('click', (e) => {
-            if (e.target === articleModal) closeModal();
-        });
-    }
-
-    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-    const closeMobile = document.getElementById('close-mobile');
-    const mobileOverlay = document.getElementById('mobile-overlay');
-
-    if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', openMobileMenu);
-    if (closeMobile) closeMobile.addEventListener('click', closeMobileMenu);
-    if (mobileOverlay) mobileOverlay.addEventListener('click', closeMobileMenu);
-
-    const themeToggle = document.getElementById('theme-toggle');
-    if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
-
-    let scrollTicking = false;
-    window.addEventListener('scroll', () => {
-        if (!scrollTicking) {
-            window.requestAnimationFrame(() => {
-                handleHeaderScroll();
-                scrollTicking = false;
-            });
-            scrollTicking = true;
-        }
     });
 
-    window.addEventListener('resize', debounce(handleResize, 250));
+    var btnAddNews = document.getElementById('btn-add-news');
+    var closeNewsModalBtn = document.getElementById('close-news-modal');
+    var cancelNews = document.getElementById('cancel-news');
+    var saveNewsBtn = document.getElementById('save-news');
 
-    // 🎨 Sidebar h3 icons — 🔥📂📬 → professional SVG (index.html touch pannama)
-    try {
-        var iconH3 = [
-            ['trending', IC.flame, '#e11d48'],
-            ['categories', IC.tag, '#4f46e5'],
-            ['newsletter', IC.mail, '#059669']
-        ];
-        iconH3.forEach(function(cfg) {
-            document.querySelectorAll('h3[data-key="' + cfg[0] + '"]').forEach(function(h) {
-                if (h.dataset.iconDone) return;
-                h.dataset.iconDone = '1';
-                h.style.display = 'flex'; h.style.alignItems = 'center'; h.style.gap = '7px';
-                h.innerHTML = '<span style="color:' + cfg[2] + ';display:inline-flex;flex-shrink:0;">' + cfg[1] + '</span><span>' + h.textContent.trim() + '</span>';
-            });
-        });
-        // Ad placeholder emojis (📢) — SVG megaphone
-        document.querySelectorAll('.ad-slot-placeholder span').forEach(function(sp) {
-            if (sp.textContent.trim() === '📢') { sp.innerHTML = IC.megaphone; sp.style.cssText = 'display:inline-flex;color:var(--text-subtle);'; }
-        });
-        // Newsletter heading inside box (static h3 without data-key in some versions)
-    } catch (e) {}
+    if (btnAddNews) btnAddNews.addEventListener('click', function() { openNewsModal(); });
+    if (closeNewsModalBtn) closeNewsModalBtn.addEventListener('click', closeNewsModal);
+    if (cancelNews) cancelNews.addEventListener('click', closeNewsModal);
+    if (saveNewsBtn) saveNewsBtn.addEventListener('click', saveNewsItem);
 
-    // 📌 CHROME-STYLE NAV — scroll DOWN = hide, scroll UP = show (premium UX)
-    // (Same pattern as Google Chrome mobile — saves screen while reading)
-    try {
-        var hdr = document.querySelector('.main-header');
-        if (hdr && !hdr.dataset.navDone) {
-            hdr.dataset.navDone = '1';
-            hdr.style.position = 'fixed';
-            hdr.style.top = '0';
-            hdr.style.left = '0';
-            hdr.style.right = '0';
-            hdr.style.zIndex = '500';
-            hdr.style.transition = 'transform .28s ease, box-shadow .28s ease';
-            var lastY = 0;
-            window.addEventListener('scroll', function() {
-                var y = window.scrollY;
-                if (y < 60) {
-                    // Top-la irukum bodhu — EPPovum show
-                    hdr.style.transform = 'translateY(0)';
-                    hdr.style.boxShadow = 'none';
-                } else if (y > lastY + 4) {
-                    // Scroll DOWN — hide (nav eh!)
-                    hdr.style.transform = 'translateY(-110%)';
-                } else if (y < lastY - 4) {
-                    // Scroll UP — show (chrome maari thirumba varum!)
-                    hdr.style.transform = 'translateY(0)';
-                    hdr.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)';
+    document.querySelectorAll('.lang-tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            switchNewsLang(tab.dataset.lang);
+        });
+    });
+
+    var btnAddAd = document.getElementById('btn-add-ad');
+    var closeAdModalBtn = document.getElementById('close-ad-modal');
+    var cancelAd = document.getElementById('cancel-ad');
+    var saveAdBtn = document.getElementById('save-ad');
+    var adStartDate = document.getElementById('ad-start-date');
+    var adEndDate = document.getElementById('ad-end-date');
+    var adStatusFilter = document.getElementById('ad-status-filter');
+
+    if (btnAddAd) btnAddAd.addEventListener('click', function() { openAdModal(); });
+    if (closeAdModalBtn) closeAdModalBtn.addEventListener('click', closeAdModal);
+    if (cancelAd) cancelAd.addEventListener('click', closeAdModal);
+    if (saveAdBtn) saveAdBtn.addEventListener('click', saveAdItem);
+
+    var adStartDate = document.getElementById('ad-start-date');
+    var adEndDate = document.getElementById('ad-end-date');
+    var adStatusFilter = document.getElementById('ad-status-filter');
+
+    if (adStartDate) adStartDate.addEventListener('change', updateDurationPreview);
+    if (adEndDate) adEndDate.addEventListener('change', updateDurationPreview);
+    if (adStatusFilter) adStatusFilter.addEventListener('change', renderAdsTable);
+    if (adStartDate) adStartDate.addEventListener('change', updateDurationPreview);
+    if (adEndDate) adEndDate.addEventListener('change', updateDurationPreview);
+    if (adStatusFilter) adStatusFilter.addEventListener('change', renderAdsTable);
+
+    var btnAddCat = document.getElementById('btn-add-cat');
+    var closeCatModalBtn = document.getElementById('close-cat-modal');
+    var cancelCat = document.getElementById('cancel-cat');
+    var saveCatBtn = document.getElementById('save-cat');
+
+    if (btnAddCat) btnAddCat.addEventListener('click', openCatModal);
+    if (closeCatModalBtn) closeCatModalBtn.addEventListener('click', closeCatModal);
+    if (cancelCat) cancelCat.addEventListener('click', closeCatModal);
+    if (saveCatBtn) saveCatBtn.addEventListener('click', saveCategory);
+
+    handleFileUpload('news-photo-file', 'news-photo-preview', 'news-photo-data', 'image');
+    handleFileUpload('news-video-file', 'news-video-preview', 'news-video-data', 'video');
+
+    var adImageFile = document.getElementById('ad-image-file');
+    if (adImageFile) {
+        adImageFile.addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(event) {
+                var adImage = document.getElementById('ad-image');
+                var adImagePreview = document.getElementById('ad-image-preview');
+                if (adImage) adImage.value = event.target.result;
+                if (adImagePreview) {
+                    adImagePreview.src = event.target.result;
+                    adImagePreview.style.display = 'block';
                 }
-                lastY = y;
-            }, { passive: true });
-            // Body padding — fixed header keezha content hide aaga koodathu
-            function padBody() {
-                var h = hdr.offsetHeight || 60;
-                document.body.style.paddingTop = h + 'px';
-            }
-            padBody();
-            window.addEventListener('resize', padBody);
-            window.addEventListener('load', padBody);
-        }
-    } catch (e) {}
-
-    // 🔖 Mobile menu-la "My Saved" link inject (index.html touch pannama)
-    try {
-        var mnav = document.getElementById('mobile-nav');
-        var mul = mnav && mnav.querySelector('ul');
-        if (mul && !document.getElementById('mnav-saved-link')) {
-            var li = document.createElement('li');
-            li.id = 'mnav-saved-link';
-            li.innerHTML = "<a href='#' style='color:#e11d48;font-weight:700;display:inline-flex;align-items:center;gap:5px;' onclick='event.preventDefault();closeMobileMenu();openSavedPage();'>" + IC.bookmark + " <span class='sv-label'>" + (currentLang === 'ta' ? 'சேமித்தவை' : 'Saved') + "</span></a>";
-            mul.appendChild(li);
-        }
-    } catch (e) {}
-
-    const urlParams = new URLSearchParams(window.location.search);
-    // 🏷️ Footer cross-page jump: ?cat=World → auto-filter that category
-    const urlCat = urlParams.get('cat');
-    if (urlCat && typeof filterCategory === 'function') {
-        setTimeout(function() { filterCategory(urlCat); }, 400);
-    }
-    // 🔥 Share-language chain: ?lang=en/ta from shared links must set the site language
-    const urlLang = urlParams.get('lang');
-    if (urlLang && (urlLang === 'ta' || urlLang === 'en') && urlLang !== currentLang) {
-        setLanguage(urlLang);
-    }
-    const sharedArticleId = urlParams.get('article');
-    if (sharedArticleId && !document.getElementById('article-modal')?.classList.contains('open')) {
-        setTimeout(() => openArticle(sharedArticleId), 800);
+            };
+            reader.onerror = function() {
+                showToast('Image upload failed', 'error');
+            };
+            reader.readAsDataURL(file);
+        });
     }
 
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'endless_news') {
-            syncNewsFromStorage();
-        } else if (e.key === 'endless_ads') {
-            syncAdsFromStorage();
-        } else if (e.key === 'endless_categories') {
-            syncCategoriesFromStorage();
-        }
+    var newsSearch = document.getElementById('news-search');
+    if (newsSearch) newsSearch.addEventListener('input', renderNewsTable);
+
+    var btnResetData = document.getElementById('btn-reset-data');
+    if (btnResetData) btnResetData.addEventListener('click', resetData);
+
+    document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) overlay.classList.remove('open');
+        });
     });
 
-        // 🔥 Firebase-only: No periodic localStorage sync needed
-    // Website reads directly from Firebase on every load
-    dbg('✅ Firebase-only mode active. No localStorage polling.');
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 768) closeSidebar();
+    });
 
-    initLazyLoading();
-    initTicker();
+    var touchStartX = 0;
+    var sidebar = document.getElementById('admin-sidebar');
+    if (sidebar) {
+        sidebar.addEventListener('touchstart', function(e) {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+
+        sidebar.addEventListener('touchend', function(e) {
+            var touchEndX = e.changedTouches[0].screenX;
+            if (touchStartX - touchEndX > 100) closeSidebar();
+        }, { passive: true });
+    }
+
+    // CRITICAL FIX: Render dashboard immediately after init
+    renderDashboard();
+    
+    // CRITICAL FIX: If current page is news, render it too
+    if (currentPage === 'news') {
+        renderNewsTable();
+    }
+
+    // Add event listeners for copy buttons
+    document.querySelectorAll('.btn-copy').forEach(button => {
+        button.addEventListener('click', () => {
+            const lang = button.dataset.lang;
+            const content = document.getElementById('news-content-' + lang).value;
+            navigator.clipboard.writeText(content).then(() => {
+                showToast('Content copied!', 'success');
+            }, () => {
+                showToast('Failed to copy content.', 'error');
+            });
+        });
+    });
+    }).catch(function(err) {
+        console.error('initData failed:', err);
+        // Ensure data is loaded even if initData fails
+        reloadAdminNewsFromStorage();
+        if (adminNews.length === 0) {
+            adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
+            saveNews();
+        }
+        renderDashboard();
+        if (currentPage === 'news') renderNewsTable();
+    });
 });
