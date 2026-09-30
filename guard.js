@@ -424,11 +424,22 @@ function showLoadingOverlay(message) {
  * @param {object} user - User object
  */
 function updateUserUI(user) {
-    // Update admin header user display
+    // 🎨 PREMIUM USER DISPLAY — E-logo avatar (illa Google photo) + real name + email
     const userDisplay = document.querySelector('.admin-user span');
     if (userDisplay && user.email) {
         const displayName = user.displayName || user.email.split('@')[0];
-        userDisplay.innerHTML = '👤 <strong>' + displayName + '</strong> <small style="color:#9ca3af;">(' + user.email + ')</small>';
+        const photo = user.photoURL || '';
+        var avatar;
+        if (photo) {
+            // Google profile photo irundha — atha kaatum
+            avatar = '<img src="' + photo + '" alt="" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:2px solid #dc2626;vertical-align:-7px;margin-right:6px;">';
+        } else {
+            // Illa — unga E logo badge (brand red)
+            avatar = '<span style="display:inline-flex;width:26px;height:26px;background:linear-gradient(135deg,#e11d48,#be123c);border-radius:8px;align-items:center;justify-content:center;font-family:Georgia,serif;font-weight:900;font-size:14px;color:#fff;vertical-align:-7px;margin-right:6px;box-shadow:0 2px 6px rgba(225,29,72,0.4);">E</span>';
+        }
+        userDisplay.innerHTML = avatar + '<strong style="color:var(--text,#111827);">' + displayName + '</strong> <small style="color:#9ca3af;">(' + user.email + ')</small>';
+        userDisplay.parentElement.style.display = 'flex';
+        userDisplay.parentElement.style.alignItems = 'center';
     }
 
     // Add logout button to sidebar if not exists
