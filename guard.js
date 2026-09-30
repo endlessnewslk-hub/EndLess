@@ -424,22 +424,75 @@ function showLoadingOverlay(message) {
  * @param {object} user - User object
  */
 function updateUserUI(user) {
-    // 🎨 PREMIUM USER DISPLAY — E-logo avatar (illa Google photo) + real name + email
-    const userDisplay = document.querySelector('.admin-user span');
-    if (userDisplay && user.email) {
+    // 🎨 GOOGLE-STYLE PROFILE MENU — compact E logo + "EndLess" in header,
+    // click → premium dropdown card (photo, name, email, actions)
+    const userBox = document.querySelector('.admin-user');
+    if (userBox && user.email && !document.getElementById('profile-btn')) {
         const displayName = user.displayName || user.email.split('@')[0];
         const photo = user.photoURL || '';
-        var avatar;
+        var avatarHtml;
         if (photo) {
-            // Google profile photo irundha — atha kaatum
-            avatar = '<img src="' + photo + '" alt="" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:2px solid #dc2626;vertical-align:-7px;margin-right:6px;">';
+            avatarHtml = '<img src="' + photo + '" alt="" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:2px solid #dc2626;">';
         } else {
-            // Illa — unga E logo badge (brand red)
-            avatar = '<span style="display:inline-flex;width:26px;height:26px;background:linear-gradient(135deg,#e11d48,#be123c);border-radius:8px;align-items:center;justify-content:center;font-family:Georgia,serif;font-weight:900;font-size:14px;color:#fff;vertical-align:-7px;margin-right:6px;box-shadow:0 2px 6px rgba(225,29,72,0.4);">E</span>';
+            avatarHtml = '<span style="display:inline-flex;width:30px;height:30px;background:linear-gradient(135deg,#e11d48,#be123c);border-radius:9px;align-items:center;justify-content:center;font-family:Georgia,serif;font-weight:900;font-size:16px;color:#fff;box-shadow:0 2px 8px rgba(225,29,72,0.4);">E</span>';
         }
-        userDisplay.innerHTML = avatar + '<strong style="color:var(--text,#111827);">' + displayName + '</strong> <small style="color:#9ca3af;">(' + user.email + ')</small>';
-        userDisplay.parentElement.style.display = 'flex';
-        userDisplay.parentElement.style.alignItems = 'center';
+
+        // Compact header button
+        userBox.innerHTML =
+            '<button id="profile-btn" style="display:flex;align-items:center;gap:8px;padding:5px 12px 5px 6px;border:1.5px solid #e5e7eb;border-radius:999px;background:#fff;cursor:pointer;transition:all .2s;max-width:190px;overflow:hidden;" title="Account">' +
+            avatarHtml +
+            '<span style="font-weight:700;font-size:0.9rem;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + displayName + '</span>' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" style="width:12px;height:12px;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>' +
+            '</button>';
+
+        // Dropdown card (Google style)
+        var card = document.createElement('div');
+        card.id = 'profile-card';
+        card.style.cssText = 'display:none;position:fixed;top:64px;right:16px;width:300px;background:#fff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,0.15);z-index:99999;overflow:hidden;font-family:inherit;';
+        card.innerHTML =
+            '<div style="padding:22px 20px 16px;text-align:center;border-bottom:1px solid #f3f4f6;">' +
+                '<div style="margin-bottom:12px;">' +
+                    (photo
+                        ? '<img src="' + photo + '" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid #dc2626;">'
+                        : '<span style="display:inline-flex;width:64px;height:64px;background:linear-gradient(135deg,#e11d48,#be123c);border-radius:18px;align-items:center;justify-content:center;font-family:Georgia,serif;font-weight:900;font-size:32px;color:#fff;box-shadow:0 6px 18px rgba(225,29,72,0.35);">E</span>') +
+                '</div>' +
+                '<div style="font-size:1.05rem;font-weight:700;color:#111827;">' + displayName + '</div>' +
+                '<div style="font-size:0.8rem;color:#6b7280;margin-top:2px;">' + user.email + '</div>' +
+                '<div style="margin-top:6px;"><span style="display:inline-block;background:#fef2f2;color:#dc2626;font-size:0.65rem;font-weight:700;padding:2px 10px;border-radius:999px;letter-spacing:0.05em;">ADMINISTRATOR</span></div>' +
+            '</div>' +
+            '<div style="padding:8px;">' +
+                '<a href="index.html" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;color:#374151;text-decoration:none;font-size:0.88rem;font-weight:600;transition:background .15s;">' +
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" style="width:18px;height:18px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>' +
+                    'View Main Website</a>' +
+                '<button id="pc-signout" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:none;border-radius:10px;background:none;color:#dc2626;font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left;transition:background .15s;">' +
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>' +
+                    'Sign Out</button>' +
+            '</div>';
+        document.body.appendChild(card);
+
+        // Hover effects (clean, no inline handlers)
+        card.querySelectorAll('a,button').forEach(function(el) {
+            el.addEventListener('mouseenter', function() { this.style.background = this.id === 'pc-signout' ? '#fef2f2' : '#f9fafb'; });
+            el.addEventListener('mouseleave', function() { this.style.background = ''; });
+        });
+        // Toggle
+        var btn = document.getElementById('profile-btn');
+        btn.addEventListener('click', function(ev) {
+            ev.stopPropagation();
+            card.style.display = card.style.display === 'none' ? 'block' : 'none';
+        });
+        document.addEventListener('click', function(ev) {
+            if (card.style.display === 'block' && !card.contains(ev.target)) {
+                card.style.display = 'none';
+            }
+        });
+        document.getElementById('pc-signout').addEventListener('click', function() {
+            if (typeof logout === 'function') logout();
+        });
+        // Header box sizing
+        userBox.style.display = 'flex';
+        userBox.style.alignItems = 'center';
+        userBox.style.maxWidth = '200px';
     }
 
     // Add logout button to sidebar if not exists
