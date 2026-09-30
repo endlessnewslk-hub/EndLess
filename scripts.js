@@ -189,6 +189,9 @@ function wireNewsletterBox() {
         '.hero-main:hover img{transform:scale(1.08);}',
         /* 🏷️ Hide static HTML ad labels — adCard prints its own translated label */
         '.ad-slot-label{display:none!important;}',
+        /* 💻 DESKTOP header ad cap — romba perusa vara koodathu, clean wide-banner look */
+        '@media(min-width:1024px){#ad-slot-header img,#header-ad-container img{max-height:140px!important;object-fit:cover!important;width:100%;}}',
+        '@media(min-width:1024px){#header-ad-container{max-height:160px!important;overflow:hidden;}}',
         /* 🔗 RELATED ARTICLES — clean card grid (premium look) */
         '.rel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}',
         '.rel-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:transform .25s,box-shadow .25s;}',
