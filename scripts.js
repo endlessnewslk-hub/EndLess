@@ -2388,24 +2388,43 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Newsletter heading inside box (static h3 without data-key in some versions)
     } catch (e) {}
 
-    // 📌 STICKY NAV — header scroll pannalum follow aagum (desktop + mobile)
-    // (CSS sticky fails in edge cases — force it via JS with inline styles)
+    // 📌 CHROME-STYLE NAV — scroll DOWN = hide, scroll UP = show (premium UX)
+    // (Same pattern as Google Chrome mobile — saves screen while reading)
     try {
         var hdr = document.querySelector('.main-header');
-        if (hdr && !hdr.dataset.stickyDone) {
-            hdr.dataset.stickyDone = '1';
-            hdr.style.position = 'sticky';
+        if (hdr && !hdr.dataset.navDone) {
+            hdr.dataset.navDone = '1';
+            hdr.style.position = 'fixed';
             hdr.style.top = '0';
+            hdr.style.left = '0';
+            hdr.style.right = '0';
             hdr.style.zIndex = '500';
-            hdr.style.background = getComputedStyle(document.documentElement).getPropertyValue('--surface') || '#13131f';
-            // Scroll shadow for premium feel
+            hdr.style.transition = 'transform .28s ease, box-shadow .28s ease';
+            var lastY = 0;
             window.addEventListener('scroll', function() {
-                if (window.scrollY > 8) {
-                    hdr.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)';
-                } else {
+                var y = window.scrollY;
+                if (y < 60) {
+                    // Top-la irukum bodhu — EPPovum show
+                    hdr.style.transform = 'translateY(0)';
                     hdr.style.boxShadow = 'none';
+                } else if (y > lastY + 4) {
+                    // Scroll DOWN — hide (nav eh!)
+                    hdr.style.transform = 'translateY(-110%)';
+                } else if (y < lastY - 4) {
+                    // Scroll UP — show (chrome maari thirumba varum!)
+                    hdr.style.transform = 'translateY(0)';
+                    hdr.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)';
                 }
+                lastY = y;
             }, { passive: true });
+            // Body padding — fixed header keezha content hide aaga koodathu
+            function padBody() {
+                var h = hdr.offsetHeight || 60;
+                document.body.style.paddingTop = h + 'px';
+            }
+            padBody();
+            window.addEventListener('resize', padBody);
+            window.addEventListener('load', padBody);
         }
     } catch (e) {}
 
