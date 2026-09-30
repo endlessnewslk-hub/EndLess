@@ -517,6 +517,7 @@ function sweepTextNodes(root) {
         if (!text) return;
         var parent = node.parentElement;
         if (!parent || parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE' || parent.closest('svg')) return;
+        if (parent.closest('.sidebar-nav')) return; // sidebar = iconifyAdmin (consistent brand red)
         var found = [];
         Object.keys(EMOJI_MAP).forEach(function(em) {
             if (text.indexOf(em) !== -1 && IC[EMOJI_MAP[em]]) {
@@ -543,8 +544,8 @@ function sweepAllEmojis() {
     if (_sweeping) return;
     _sweeping = true;
     try {
+        iconifyAdmin(); // FIRST — sidebar/stats/panels with consistent brand red
         sweepTextNodes(document.getElementById('admin-dashboard') || document.body);
-        iconifyAdmin();
     } catch (e) {}
     _sweeping = false;
     _sweepCount++;
@@ -588,6 +589,23 @@ var _origRenderCats = typeof renderCategoriesTable === 'function' ? renderCatego
 if (_origRenderNews) { renderNewsTable = function() { _origRenderNews.apply(this, arguments); swapActionButtons(document.getElementById('page-news')); }; }
 if (_origRenderAds) { renderAdsTable = function() { _origRenderAds.apply(this, arguments); swapActionButtons(document.getElementById('page-ads')); }; }
 if (_origRenderCats) { renderCategoriesTable = function() { _origRenderCats.apply(this, arguments); swapActionButtons(document.getElementById('page-categories')); }; }
+// 🧹 MODAL SWEEPS — Add/Edit article + ad modal open pannum bodhu emoji labels-a sweep pannum
+var _origOpenNews = typeof openNewsModal === 'function' ? openNewsModal : null;
+if (_origOpenNews) {
+    openNewsModal = function() {
+        _origOpenNews.apply(this, arguments);
+        setTimeout(function() {
+            sweepTextNodes(document.getElementById('news-modal'));
+        }, 200);
+    };
+}
+var _origOpenAd = typeof openAdModal === 'function' ? openAdModal : null;
+if (_origOpenAd) {
+    openAdModal = function() {
+        _origOpenAd.apply(this, arguments);
+        setTimeout(function() { sweepTextNodes(document.getElementById('ad-modal')); }, 200);
+    };
+}
 
 // 🛡️ Global toast guard — any function calling showToast must not crash
 if (typeof window.showToast !== 'function') {
