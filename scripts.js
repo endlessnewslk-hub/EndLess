@@ -2388,6 +2388,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Newsletter heading inside box (static h3 without data-key in some versions)
     } catch (e) {}
 
+    // 📌 STICKY NAV — header scroll pannalum follow aagum (desktop + mobile)
+    // (CSS sticky fails in edge cases — force it via JS with inline styles)
+    try {
+        var hdr = document.querySelector('.main-header');
+        if (hdr && !hdr.dataset.stickyDone) {
+            hdr.dataset.stickyDone = '1';
+            hdr.style.position = 'sticky';
+            hdr.style.top = '0';
+            hdr.style.zIndex = '500';
+            hdr.style.background = getComputedStyle(document.documentElement).getPropertyValue('--surface') || '#13131f';
+            // Scroll shadow for premium feel
+            window.addEventListener('scroll', function() {
+                if (window.scrollY > 8) {
+                    hdr.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)';
+                } else {
+                    hdr.style.boxShadow = 'none';
+                }
+            }, { passive: true });
+        }
+    } catch (e) {}
+
     // 🔖 Mobile menu-la "My Saved" link inject (index.html touch pannama)
     try {
         var mnav = document.getElementById('mobile-nav');
