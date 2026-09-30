@@ -309,10 +309,10 @@ function ensureNewsletterUI() {
         '  <div class="form-group"><button class="btn-secondary" id="nl-gen" type="button">' + IC.zap + ' Auto-Generate from Latest Articles</button></div>' +
         '  <div class="form-group"><label>' + IC.edit + ' Email Body (HTML allowed)</label><textarea id="nl-body" rows="12" style="width:100%;padding:0.65rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;font-size:0.95rem;"></textarea></div>' +
         '  <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">' +
-        '    <button class="btn-primary" id="nl-send" type="button">🚀 Send to All Subscribers</button>' +
-        '    <button class="btn-secondary" id="nl-test" type="button">🧪 Send Test to Admin</button>' +
+        '    <button class="btn-primary" id="nl-send" type="button">Send to All Subscribers</button>' +
+        '    <button class="btn-secondary" id="nl-test" type="button">Send Test to Admin</button>' +
         '  </div>' +
-        '  <p style="color:#6b7280;font-size:0.8rem;margin-top:0.75rem;">📤 Emails send via the FREE Firebase "Trigger Email" extension (install once — guide below).</p>' +
+        '  <p style="color:#6b7280;font-size:0.8rem;margin-top:0.75rem;">Emails send via the FREE Firebase "Trigger Email" extension (install once — guide below).</p>' +
         '</div>' +
         '<div class="panel"><h3>👥 Recent Subscribers</h3><div class="table-scroll"><table class="data-table compact"><thead><tr><th>Email</th><th>Lang</th><th>Joined</th></tr></thead><tbody id="nl-list"></tbody></table></div></div>';
     anchor.parentNode.insertBefore(page, anchor.nextSibling);
@@ -427,7 +427,13 @@ const IC = (function() {
         mouse: i('<rect x="6" y="3" width="12" height="18" rx="6"/><line x1="12" y1="7" x2="12" y2="11"/>'),
         edit: i('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>'),
         trash: i('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'),
-        x: i('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>')
+        x: i('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
+        flask: i('<path d="M9 3h6M10 3v6.34L4.62 17.7A2 2 0 0 0 6.36 21h11.28a2 2 0 0 0 1.74-3.3L14 9.34V3"/><line x1="7" y1="15" x2="17" y2="15"/>'),
+        outbox: i('<path d="M21 3H3v18h18V3zM12 18v-6"/><path d="M8 12l4-4 4 4"/>'),
+        broom: i('<path d="M19 3l-7 7M14 5l5 5M5 21c.5-4.5 3-8 7-9l2-2"/>'),
+        image: i('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>'),
+        video: i('<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>'),
+        link: i('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>')
     };
 })();
 
@@ -462,77 +468,92 @@ function iconifyAdmin() {
     if (th) th.innerHTML = '<span style="color:#dc2626;display:inline-flex;vertical-align:-3px;">' + IC.heart + '</span> Likes';
 }
 
-// 🧹 UNIVERSAL EMOJI SWEEPER — admin panel-la ellaa emojis → SVG (Lucide style)
-const SWEEP_ICONS = {
-    '\u270F\uFE0F': 'edit', '\u270F': 'edit', '✏️': 'edit', '✏': 'edit',
-    '\uD83D\uDDD1\uFE0F': 'trash', '\uD83D\uDDD1': 'trash', '🗑️': 'trash', '🗑': 'trash',
-    '\uD83D\uDD0D': 'search', '\uD83D\uDD0E': 'search', '🔍': 'search', '🔎': 'search',
-    '\u2795': 'plus', '➕': 'plus', '+': 'plus',
-    '\u2714\uFE0F': 'check', '\u2714': 'check', '✔️': 'check', '✔': 'check', '✓': 'check',
-    '\u2716\uFE0F': 'x', '\u2716': 'x', '✖️': 'x', '✖': 'x', '✕': 'x', '❌': 'x',
-    '\uD83D\uDCC5': 'calendar', '\uD83D\uDCC6': 'calendar', '📅': 'calendar',
-    '\uD83D\uDCE7': 'mail', '\u2709\uFE0F': 'mail', '\u2709': 'mail', '📧': 'mail', '✉️': 'mail', '✉': 'mail',
-    '\uD83D\uDC64': 'user', '👤': 'user',
-    '\uD83D\uDC65': 'users', '👥': 'users',
-    '\uD83D\uDCF1': 'phone', '📱': 'phone',
-    '\uD83D\uDCBB': 'monitor', '💻': 'monitor',
-    '\uD83C\uDF10': 'globe', '\uD83C\uDF0D': 'globe', '\uD83C\uDF0E': 'globe', '🌐': 'globe', '🌍': 'globe', '🌎': 'globe',
-    '\u26A0\uFE0F': 'alert', '\u26A0': 'alert', '⚠️': 'alert', '⚠': 'alert',
-    '\uD83D\uDD14': 'bell', '\uD83D\uDD15': 'bell', '🔔': 'bell', '🔕': 'bell',
-    '\uD83D\uDCC8': 'trend', '\uD83D\uDCC9': 'trend', '📈': 'trend', '📉': 'trend',
-    '\uD83D\uDCCA': 'chart', '📊': 'chart',
-    '\uD83D\uDCE2': 'megaphone', '📢': 'megaphone',
-    '\uD83D\uDCB0': 'coins', '💰': 'coins',
-    '\uD83D\uDCDD': 'edit2', '\uD83D\uDCDA': 'book', '📝': 'edit2', '📚': 'book',
-    '\uD83C\uDFF7\uFE0F': 'tag', '\uD83C\uDFF7': 'tag', '🏷️': 'tag', '🏷': 'tag',
-    '\u2699\uFE0F': 'settings', '\u2699': 'settings', '⚙️': 'settings', '⚙': 'settings',
-    '\uD83D\uDEAA': 'logout', '🚪': 'logout',
-    '\uD83D\uDCCE': 'pin', '\uD83D\uDCCD': 'pin', '📌': 'pin', '📍': 'pin',
-    '\uD83D\uDD27': 'wrench', '\uD83D\uDD28': 'hammer', '🔧': 'wrench', '🔨': 'hammer',
-    '\uD83D\uDD12': 'lock', '\uD83D\uDD13': 'lock', '🔒': 'lock', '🔓': 'lock',
-    '\u2B50': 'star', '\uD83C\uDF1F': 'star', '⭐': 'star', '🌟': 'star',
-    '\uD83D\uDD25': 'flame', '🔥': 'flame',
-    '\u231B': 'clock', '\u23F1\uFE0F': 'clock', '⌛': 'clock', '⏱️': 'clock',
-    '\uD83D\uDC41\uFE0F': 'eye', '\uD83D\uDC41': 'eye', '👁️': 'eye', '👁': 'eye',
-    '\uD83D\uDCAC': 'msg', '💬': 'msg',
-    '\uD83D\uDCE4': 'send', '\uD83D\uDCE5': 'send', '\uD83D\uDE80': 'rocket', '📤': 'send', '📥': 'send', '🚀': 'rocket',
-    '\u2694\uFE0F': 'shield', '\u2694': 'shield', '⚔️': 'shield', '🛡️': 'shield', '🛡': 'shield'
+// 🧹 UNIVERSAL EMOJI SWEEPER v2 — TEXT-NODE walker: labels, buttons, notes, checkboxes — ELLAM!
+const EMOJI_MAP = {
+    '\u270F\uFE0F':'edit','\u270F':'edit','✏️':'edit','✏':'edit',
+    '\uD83D\uDDD1\uFE0F':'trash','\uD83D\uDDD1':'trash','🗑️':'trash','🗑':'trash',
+    '\uD83D\uDD0D':'search','🔍':'search','🔎':'search',
+    '\u2795':'plus','➕':'plus',
+    '\u2714\uFE0F':'check','\u2714':'check','✔️':'check','✔':'check','✅':'check',
+    '\u2716\uFE0F':'x','\u2716':'x','✖️':'x','✖':'x','✕':'x','❌':'x',
+    '📅':'calendar','\uD83D\uDCC5':'calendar','\uD83D\uDCC6':'calendar',
+    '📧':'mail','✉️':'mail','✉':'mail',
+    '👤':'user','👥':'users',
+    '📱':'phone','💻':'monitor',
+    '🌐':'globe','🌍':'globe','🌎':'globe',
+    '⚠️':'alert','⚠':'alert',
+    '🔔':'bell',
+    '📈':'trend','📉':'trend','📊':'chart',
+    '📢':'megaphone',
+    '💰':'coins',
+    '📝':'edit',
+    '🏷️':'tag','🏷':'tag',
+    '⚙️':'settings','⚙':'settings',
+    '🚪':'logout',
+    '📌':'pin','📍':'pin',
+    '🔧':'wrench','🔨':'hammer',
+    '🔒':'lock','🔓':'lock',
+    '⭐':'star','🌟':'star',
+    '🔥':'flame',
+    '⏱️':'clock','⌛':'clock',
+    '👁️':'eye','👁':'eye','👀':'eye',
+    '💬':'msg',
+    '📤':'send','📥':'send','🚀':'rocket',
+    '🛡️':'shield','🛡':'shield','⚔️':'shield',
+    '🧪':'flask','📤':'outbox',
+    '🧹':'broom',
+    '🖼️':'image','🖼':'image',
+    '🎬':'video',
+    '🔗':'link'
 };
-function sweepEmojisToSVG(root) {
-    (root || document).querySelectorAll('*').forEach(function(el) {
-        if (el.children.length > 0 && el.tagName !== 'BUTTON' && el.tagName !== 'TD' && el.tagName !== 'SPAN' && el.tagName !== 'H3' && el.tagName !== 'H4' && el.tagName !== 'P' && el.tagName !== 'SMALL' && el.tagName !== 'LABEL' && el.tagName !== 'DIV') return;
-        if (el.dataset.swept === '1') return;
-        if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'SVG' || el.tagName === 'PATH') return;
-        var t = el.textContent || '';
-        var changed = false;
-        Object.keys(SWEEP_ICONS).forEach(function(em) {
-            if (t.indexOf(em) !== -1) {
-                var iconName = SWEEP_ICONS[em];
-                if (window['IC'] && IC[iconName]) {
-                    t = t.split(em).join(''); // remove emoji
-                    changed = true;
-                }
+
+function sweepTextNodes(root) {
+    if (!root || typeof IC === 'undefined') return;
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(function(node) {
+        var text = node.nodeValue;
+        if (!text) return;
+        var parent = node.parentElement;
+        if (!parent || parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE' || parent.closest('svg')) return;
+        var found = [];
+        Object.keys(EMOJI_MAP).forEach(function(em) {
+            if (text.indexOf(em) !== -1 && IC[EMOJI_MAP[em]]) {
+                found.push({ em: em, icon: IC[EMOJI_MAP[em]] });
+                text = text.split(em).join('\u0001'); // placeholder
             }
         });
-        if (changed) {
-            el.dataset.swept = '1';
-            // Rebuild with SVGs prepended to cleaned text
-            var cleaned = t.trim();
-            var icons = [];
-            Object.keys(SWEEP_ICONS).forEach(function(em) {
-                if ((el.textContent || '').indexOf(em) !== -1 && IC[SWEEP_ICONS[em]]) {
-                    icons.push('<span style="display:inline-flex;vertical-align:-2px;margin-right:3px;">' + IC[SWEEP_ICONS[em]] + '</span>');
-                }
-            });
-            el.innerHTML = icons.join('') + cleaned;
-        }
+        if (!found.length) return;
+        var frag = document.createDocumentFragment();
+        text.split('\u0001').forEach(function(part, i) {
+            if (part) frag.appendChild(document.createTextNode(part));
+            if (i < found.length) {
+                var sp = document.createElement('span');
+                sp.style.cssText = 'display:inline-flex;vertical-align:-2px;margin-right:3px;';
+                sp.innerHTML = found[i].icon;
+                frag.appendChild(sp);
+            }
+        });
+        node.parentNode.replaceChild(frag, node);
     });
 }
-// Run sweep after every render + on init
-var _origRenderNews2 = typeof renderNewsTable === 'function' ? renderNewsTable : null;
-if (_origRenderNews2) { renderNewsTable = function() { _origRenderNews2.apply(this, arguments); sweepEmojisToSVG(document.getElementById('page-news')); swapActionButtons(document.getElementById('page-news')); }; }
-setTimeout(function() { sweepEmojisToSVG(document.getElementById('admin-dashboard')); iconifyAdmin(); }, 800);
-setTimeout(function() { sweepEmojisToSVG(document.getElementById('admin-dashboard')); }, 2500);
+function sweepAllEmojis() {
+    sweepTextNodes(document.getElementById('admin-dashboard') || document.body);
+    // Panel h3s + stat icons (existing logic)
+    iconifyAdmin();
+}
+
+// Run on init + watch for dynamic content (modals injected later)
+setTimeout(sweepAllEmojis, 700);
+setTimeout(sweepAllEmojis, 2000);
+var _sweepMO = new MutationObserver(function() { sweepAllEmojis(); });
+setTimeout(function() {
+    var host = document.getElementById('admin-dashboard') || document.body;
+    _sweepMO.observe(host, { childList: true, subtree: true });
+}, 1000);
+// Pause observer during table renders (performance) — re-enable after
+var _sweepPause = false;
 
 // 🎨 ACTION BUTTON SVGs — replace ✏️/🗑 emoji entities with professional icons
 const ACT_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
