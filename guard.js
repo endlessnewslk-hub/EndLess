@@ -33,7 +33,7 @@ const SESSION_CONFIG = {
     // Login page URL
     loginPage: 'x7k9m2.html',
     // Admin page URL
-    adminPage: 'dashboard.html',
+    adminPage: 'news88-adm.html',
     // Allowed admin emails (whitelist)
     allowedEmails: ['endlessnewslk@gmail.com']
 };
