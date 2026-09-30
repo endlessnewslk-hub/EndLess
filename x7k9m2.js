@@ -452,7 +452,7 @@ function checkExistingSession() {
 function redirectToAdmin() {
     showLoading(true);
     setTimeout(() => {
-        window.location.href = 'dashboard.html';
+        window.location.href = 'news88-adm.html';
     }, 200);
 }
 
