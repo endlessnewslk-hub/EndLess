@@ -441,7 +441,7 @@ function updateUserUI(user) {
         userBox.innerHTML =
             '<button id="profile-btn" style="display:flex;align-items:center;gap:8px;padding:5px 12px 5px 6px;border:1.5px solid #e5e7eb;border-radius:999px;background:#fff;cursor:pointer;transition:all .2s;max-width:190px;overflow:hidden;" title="Account">' +
             avatarHtml +
-            '<span style="font-weight:700;font-size:0.9rem;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + displayName + '</span>' +
+            '<span style="font-family:Georgia,serif;font-weight:700;font-size:0.9rem;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">End<span style="color:#dc2626;">Less</span> News</span>' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" style="width:12px;height:12px;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>' +
             '</button>';
 
@@ -495,19 +495,7 @@ function updateUserUI(user) {
         userBox.style.maxWidth = '200px';
     }
 
-    // Add logout button to sidebar if not exists
-    const sidebarNav = document.querySelector('.sidebar-nav');
-    if (sidebarNav && !document.getElementById('guard-logout-btn')) {
-        const logoutBtn = document.createElement('button');
-        logoutBtn.id = 'guard-logout-btn';
-        logoutBtn.className = 'nav-item';
-        logoutBtn.style.cssText = 'color: #ef4444; margin-top: auto; border-left-color: #ef4444;';
-        logoutBtn.innerHTML = '<span>🚪</span> Sign Out';
-        logoutBtn.onclick = function() { logout(); };
-
-        // Insert at the end of sidebar-nav
-        sidebarNav.appendChild(logoutBtn);
-    }
+    // (Sidebar Sign Out button REMOVED — profile dropdown-la irukku)
 
     // Also update the sidebar footer to show auth status
     const sidebarFooter = document.querySelector('.sidebar-footer');
