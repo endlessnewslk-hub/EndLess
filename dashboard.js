@@ -116,7 +116,11 @@ function renderAnalyticsPage() {
     db.collection('analytics').get().then(function(snap) {
         var tops = [];
         snap.docs.forEach(function(doc) {
-            if (doc.id.indexOf('articles/') === 0 || doc.id.split('_')[0] === 'article') {
+            if (doc.id.indexOf('articles_') === 0) {
+                var v = doc.data().views || 0;
+                var id = doc.id.replace('articles_', '');
+                if (v > 0 && id) tops.push({ id: id, views: v });
+            } else if (doc.id.indexOf('articles/') === 0 || doc.id.split('_')[0] === 'article') {
                 var v = doc.data().views || 0;
                 var id = doc.id.replace('articles/', '').replace('article_', '');
                 if (v > 0 && id) tops.push({ id: id, views: v });

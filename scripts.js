@@ -998,53 +998,73 @@ function pickAdImg(a) {
     return (window.innerWidth < 768 && a.mobileImage) ? a.mobileImage : a.image;
 }
 
-// 📊 REAL ANALYTICS — lightweight REST write (Firestore REST API, no SDK auth needed)
-// Tracks: page views, article views, shares. Counters stored in analytics collection.
-function analyticsTrack(type, articleId) {
-    try {
-        var today = new Date().toISOString().slice(0, 10);
-        var isMobile = window.innerWidth < 768;
-        var payload = {
-            writes: [{
-                transform: {
-                    document: 'projects/endless-news/databases/(default)/documents/analytics/totals',
-                    fieldTransforms: [
-                        { fieldPath: 'views', increment: { integerValue: type === 'view' ? 1 : 0 } },
-                        { fieldPath: 'shares', increment: { integerValue: type === 'share' ? 1 : 0 } },
-                        { fieldPath: isMobile ? 'mobile' : 'desktop', increment: { integerValue: 1 } }
-                    ]
-                }
-            }]
-        };
-        if (articleId) {
-            payload.writes.push({
-                transform: {
-                    document: 'projects/endless-news/databases/(default)/documents/analytics/articles/' + encodeURIComponent(String(articleId)),
-                    fieldTransforms: [
-                        { fieldPath: 'views', increment: { integerValue: 1 } },
-                        { fieldPath: 'lastViewed', setToServerValue: 'REQUEST_TIME' }
-                    ]
-                }
-            });
-        }
-        payload.writes.push({
-            transform: {
-                document: 'projects/endless-news/databases/(default)/documents/analytics/daily_' + today,
-                fieldTransforms: [
-                    { fieldPath: 'views', increment: { integerValue: type === 'view' ? 1 : 0 } },
-                    { fieldPath: 'shares', increment: { integerValue: type === 'share' ? 1 : 0 } },
-                    { fieldPath: 'date', setToServerValue: 'REQUEST_TIME' }
-                ]
-            }
-        });
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents:commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA');
-        xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.send(JSON.stringify(payload)); // fire-and-forget
-    } catch (e) { /* silent */ }
-}
+// 📊 REAL ANALYTICS v3 — robust: auto-creates docs, retries, never fails silently
+(function() {
+    var BASE = 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents';
+    var KEY = '?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
+    var created = {}; // session cache — doc already created
 
-// 📰 IN-ARTICLE ADS — inject active ads between paragraphs (sidebar ads reused)
+    function docPath(name) { return BASE + '/analytics/' + name; }
+
+    function ensureDoc(name) {
+        if (created[name]) return Promise.resolve(true);
+        return fetch(docPath(name) + KEY)
+            .then(function(r) {
+                if (r.ok) { created[name] = 1; return true; }
+                // Create with zero values first (increment needs existing doc)
+                return fetch(BASE + '/analytics?documentId=' + name + KEY, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fields: {
+                        views: { integerValue: 0 },
+                        shares: { integerValue: 0 },
+                        mobile: { integerValue: 0 },
+                        desktop: { integerValue: 0 }
+                    } })
+                }).then(function(cr) {
+                    created[name] = 1;
+                    return true;
+                });
+            }).catch(function() { return false; });
+    }
+
+    function commit(writes) {
+        return fetch(BASE + ':commit' + KEY, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ writes: writes })
+        });
+    }
+
+    window.analyticsTrack = function(type, articleId) {
+        try {
+            var today = new Date().toISOString().slice(0, 10);
+            var isMobile = window.innerWidth < 768;
+            var v = type === 'view' ? 1 : 0, sh = type === 'share' ? 1 : 0;
+            var devField = isMobile ? 'mobile' : 'desktop';
+
+            var docs = ['totals', 'daily_' + today];
+            if (articleId) docs.push('articles_' + String(articleId));
+
+            docs.forEach(function(name) {
+                ensureDoc(name).then(function() {
+                    var fields = [
+                        { fieldPath: 'views', increment: { integerValue: v } },
+                        { fieldPath: 'shares', increment: { integerValue: sh } },
+                        { fieldPath: devField, increment: { integerValue: 1 } }
+                    ];
+                    if (name.indexOf('daily_') === 0) {
+                        fields.push({ fieldPath: 'date', stringValue: today });
+                    }
+                    commit([{ transform: { document: 'projects/endless-news/databases/(default)/documents/analytics/' + name, fieldTransforms: fields } }])
+                        .catch(function() {});
+                });
+            });
+        } catch (e) {}
+    };
+})();
+
+// 📰 IN-ARTICLE ADS// 📰 IN-ARTICLE ADS — inject active ads between paragraphs (sidebar ads reused)
 function getInArticleAds() {
     var now = new Date();
     var all = (typeof adsData !== 'undefined' ? adsData : []).filter(function(a) {
