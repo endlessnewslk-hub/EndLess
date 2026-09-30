@@ -433,6 +433,14 @@ function updateUserUI(user) {
             mLink.href = 'admin-manifest.json';
             document.head.appendChild(mLink);
             document.title = 'EndLess Admin';
+            // 🖼️ Force icon links — Windows/Edge picks these for shortcuts
+            var fav32 = document.createElement('link');
+            fav32.rel = 'icon'; fav32.type = 'image/png'; fav32.sizes = '32x32';
+            fav32.href = 'favicon-32x32.png?v=3'; // cache-bust v=3
+            document.head.appendChild(fav32);
+            var apple = document.createElement('link');
+            apple.rel = 'apple-touch-icon'; apple.href = 'admin-icon-180.png?v=3';
+            document.head.appendChild(apple);
         }
     } catch (e) {}
 
