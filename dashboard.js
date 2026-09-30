@@ -2058,6 +2058,80 @@ function ensureAdMobileImgUI() {
     group.parentNode.insertBefore(wrap, group.nextSibling);
 }
 
+// 📊 AD ANALYTICS — Manage Ads toolbar-la button; real-time stats modal
+function ensureAdAnalyticsUI() {
+    if (document.getElementById('btn-ad-analytics')) return;
+    var toolbar = document.querySelector('#page-ads .page-toolbar');
+    if (!toolbar) return;
+    var b = document.createElement('button');
+    b.id = 'btn-ad-analytics';
+    b.className = 'btn-secondary';
+    b.type = 'button';
+    b.style.marginLeft = 'auto';
+    b.innerHTML = (typeof IC !== 'undefined' ? IC.chart : '📊') + ' Ad Analytics';
+    toolbar.appendChild(b);
+    b.addEventListener('click', openAdAnalytics);
+}
+
+async function openAdAnalytics() {
+    var ov = document.getElementById('ad-analytics-ov');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'ad-analytics-ov';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:18px;';
+        ov.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:680px;width:100%;max-height:88vh;overflow-y:auto;padding:24px;position:relative;">' +
+            '<button id="aa-close" style="position:absolute;top:14px;right:14px;width:34px;height:34px;border:none;border-radius:50%;background:#f3f4f6;color:#374151;font-size:16px;cursor:pointer;">✕</button>' +
+            '<h3 style="font-size:1.2rem;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:8px;">' + (typeof IC !== 'undefined' ? IC.chart : '') + ' Ad Performance Analytics</h3>' +
+            '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:20px;">' +
+            '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;text-align:center;"><div style="font-size:1.6rem;font-weight:800;color:#0f172a;" id="aa-impr">—</div><div style="font-size:0.75rem;color:#64748b;font-weight:600;">IMPRESSIONS</div></div>' +
+            '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;text-align:center;"><div style="font-size:1.6rem;font-weight:800;color:#0f172a;" id="aa-clicks">—</div><div style="font-size:0.75rem;color:#64748b;font-weight:600;">CLICKS</div></div>' +
+            '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:14px;text-align:center;"><div style="font-size:1.6rem;font-weight:800;color:#dc2626;" id="aa-ctr">—</div><div style="font-size:0.75rem;color:#991b1b;font-weight:600;">CTR %</div></div>' +
+            '</div>' +
+            '<div style="margin-bottom:16px;"><canvas id="aa-chart" height="120"></canvas></div>' +
+            '<h4 style="font-size:0.95rem;font-weight:700;margin-bottom:10px;">Top Performing Ads</h4>' +
+            '<div class="table-scroll" style="border:1px solid #e2e8f0;border-radius:10px;"><table class="data-table compact"><thead><tr><th>Ad</th><th>Position</th><th>Impr.</th><th>Clicks</th><th>CTR</th></tr></thead><tbody id="aa-top"><tr><td colspan="5" style="text-align:center;color:#94a3b8;">Loading…</td></tr></tbody></table></div>' +
+            '<p style="color:#94a3b8;font-size:0.75rem;margin-top:14px;">💡 Click tracking — website-la ad click pannum bodhu auto-count aagum.</p></div>';
+        document.body.appendChild(ov);
+        document.getElementById('aa-close').addEventListener('click', function() { ov.style.display = 'none'; });
+        ov.addEventListener('click', function(e) { if (e.target === ov) ov.style.display = 'none'; });
+    }
+    ov.style.display = 'flex';
+    if (!db) return;
+    try {
+        var totals = await db.collection('ad_analytics').doc('totals').get();
+        var t = totals.exists ? totals.data() : {};
+        document.getElementById('aa-impr').textContent = (t.impressions || 0).toLocaleString();
+        document.getElementById('aa-clicks').textContent = (t.clicks || 0).toLocaleString();
+        var ctr = (t.impressions || 0) > 0 ? ((t.clicks || 0) / t.impressions * 100).toFixed(1) : '0.0';
+        document.getElementById('aa-ctr').textContent = ctr + '%';
+        // Daily chart (last 7 days)
+        var days = [], keys = [];
+        for (var i = 6; i >= 0; i--) {
+            var dt = new Date(); dt.setDate(dt.getDate() - i);
+            keys.push(dt.toISOString().slice(0, 10));
+            days.push(dt.toLocaleDateString('en-GB', { weekday: 'short' }));
+        }
+        var docs = await Promise.all(keys.map(function(k) { return db.collection('ad_analytics').doc('daily_' + k).get().catch(function() { return null; }); }));
+        var data = docs.map(function(x) { return x && x.exists ? (x.data().impressions || 0) : 0; });
+        var ctx = document.getElementById('aa-chart');
+        if (ctx && typeof Chart !== 'undefined') {
+            if (window._aaChart) window._aaChart.destroy();
+            window._aaChart = new Chart(ctx, { type: 'bar', data: { labels: days, datasets: [{ data: data, backgroundColor: '#dc2626', borderRadius: 6 }] }, options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } });
+        }
+        // Top ads
+        var snap = await db.collection('ad_analytics').where('impressions', '>', 0).get().catch(function() { return { docs: [] }; });
+        var rows = snap.docs.filter(function(doc) { return doc.id.indexOf('ad_') === 0; }).map(function(doc) {
+            var v = doc.data();
+            return { id: doc.id.replace('ad_', ''), imp: v.impressions || 0, clk: v.clicks || 0 };
+        }).sort(function(a, b) { return b.imp - a.imp; }).slice(0, 5);
+        var adNames = {};
+        (typeof adminAds !== 'undefined' ? adminAds : []).forEach(function(a) { adNames[String(a.id)] = a.title_en || a.title || 'Ad #' + a.id; });
+        document.getElementById('aa-top').innerHTML = rows.length ? rows.map(function(r) {
+            return '<tr><td><strong>' + String(adNames[r.id] || 'Ad #' + r.id).replace(/</g, '&lt;').substring(0, 30) + '</strong></td><td>—</td><td>' + r.imp + '</td><td>' + r.clk + '</td><td>' + (r.imp > 0 ? (r.clk / r.imp * 100).toFixed(1) : '0.0') + '%</td></tr>';
+        }).join('') : '<tr><td colspan="5" style="text-align:center;color:#94a3b8;">No ad data yet — clicks start tracking automatically.</td></tr>';
+    } catch (e) {}
+}
+
 // 🎯 PER-AD in-article toggle — each ad-ku thaniya tick (Ad modal-la)
 function ensureAdInArticleChk() {
     if (document.getElementById('ad-inarticle')) return;
@@ -2077,6 +2151,7 @@ function openAdModal(isEdit) {
     isEdit = isEdit || false;
     ensureAdMobileImgUI(); // 📱 mobile image field
     ensureAdInArticleChk(); // 🎯 per-ad in-article tick
+    ensureAdAnalyticsUI(); // 📊 Ad Analytics button
 
     // 📐 Exact banner sizes guide (injected — updates the static info box)
     var _sizeInfo = document.querySelector('.ad-size-info');

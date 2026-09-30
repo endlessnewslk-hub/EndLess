@@ -883,6 +883,8 @@ function renderCategories() {
 }
 
 function renderAds() {
+    // 📊 Impression tracking (one per render cycle)
+    try { adTrack(null, 'view'); } catch (e) {}
     // 🔥 Only ads that are (a) active AND (b) inside their start/end date window
     var now = new Date();
     const activeAds = adsData.filter(function(a) {
@@ -1064,7 +1066,48 @@ function pickAdImg(a) {
     };
 })();
 
-// 📰 IN-ARTICLE ADS// 📰 IN-ARTICLE ADS — inject active ads between paragraphs (sidebar ads reused)
+// 📰 IN-ARTICLE ADS// 📊 AD TRACKING — impressions (view) + clicks (ad tap) → ad_analytics collection
+function adTrack(adId, type) {
+    try {
+        var today = new Date().toISOString().slice(0, 10);
+        var base = 'projects/endless-news/databases/(default)/documents/ad_analytics';
+        var key = '?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
+        var url = 'https://firestore.googleapis.com/v1/' + base;
+        var ensure = function(name) {
+            return fetch(url + '/' + name + key).then(function(r) {
+                if (r.ok) return true;
+                return fetch(url + '?documentId=' + name + key, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fields: { impressions: { integerValue: 0 }, clicks: { integerValue: 0 } } })
+                }).then(function() { return true; });
+            }).catch(function() { return false; });
+        };
+        var bump = function(name, imp, clk) {
+            ensure(name).then(function() {
+                fetch(url + ':commit' + key, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ writes: [{ transform: { document: base + '/' + name, fieldTransforms: [
+                        { fieldPath: 'impressions', increment: { integerValue: imp } },
+                        { fieldPath: 'clicks', increment: { integerValue: clk } }
+                    ] } }] })
+                }).catch(function() {});
+            });
+        };
+        var im = type === 'view' ? 1 : 0, cl = type === 'click' ? 1 : 0;
+        bump('totals', im, cl);
+        bump('daily_' + today, im, cl);
+        if (adId) bump('ad_' + String(adId), im, cl);
+    } catch (e) {}
+}
+// Auto-click on all ad links (event delegation — works for all slots incl. dynamic)
+document.addEventListener('click', function(e) {
+    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a) return;
+    var wrap = a.closest('.feed-ad-slot, #ad-slot-header, #ad-slot-sidebar, #ad-slot-inline, #ad-slot-modal, [class*="ad-"]');
+    if (wrap) adTrack(a.dataset.adId || null, 'click');
+}, true);
+
+// 📰 IN-ARTICLE ADS — inject active ads between paragraphs (sidebar ads reused)
 function getInArticleAds() {
     var now = new Date();
     var all = (typeof adsData !== 'undefined' ? adsData : []).filter(function(a) {
