@@ -441,7 +441,7 @@ function updateUserUI(user) {
         userBox.innerHTML =
             '<button id="profile-btn" style="display:flex;align-items:center;gap:8px;padding:5px 12px 5px 6px;border:1.5px solid #e5e7eb;border-radius:999px;background:#fff;cursor:pointer;transition:all .2s;max-width:190px;overflow:hidden;" title="Account">' +
             avatarHtml +
-            '<span style="font-family:Georgia,serif;font-weight:700;font-size:0.9rem;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">End<span style="color:#dc2626;">Less</span> News</span>' +
+            '<span style="font-weight:700;font-size:0.88rem;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">endlessnews</span>' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" style="width:12px;height:12px;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>' +
             '</button>';
 
@@ -456,7 +456,7 @@ function updateUserUI(user) {
                         ? '<img src="' + photo + '" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid #dc2626;">'
                         : '<span style="display:inline-flex;width:64px;height:64px;background:linear-gradient(135deg,#e11d48,#be123c);border-radius:18px;align-items:center;justify-content:center;font-family:Georgia,serif;font-weight:900;font-size:32px;color:#fff;box-shadow:0 6px 18px rgba(225,29,72,0.35);">E</span>') +
                 '</div>' +
-                '<div style="font-size:1.05rem;font-weight:700;color:#111827;">' + displayName + '</div>' +
+                '<div style="font-family:Georgia,serif;font-size:1.05rem;font-weight:700;color:#111827;">End<span style="color:#dc2626;">Less</span> News</div>' +
                 '<div style="font-size:0.8rem;color:#6b7280;margin-top:2px;">' + user.email + '</div>' +
                 '<div style="margin-top:6px;"><span style="display:inline-block;background:#fef2f2;color:#dc2626;font-size:0.65rem;font-weight:700;padding:2px 10px;border-radius:999px;letter-spacing:0.05em;">ADMINISTRATOR</span></div>' +
             '</div>' +
