@@ -538,22 +538,35 @@ function sweepTextNodes(root) {
         node.parentNode.replaceChild(frag, node);
     });
 }
+var _sweeping = false, _sweepCount = 0, _sweepT = null;
 function sweepAllEmojis() {
-    sweepTextNodes(document.getElementById('admin-dashboard') || document.body);
-    // Panel h3s + stat icons (existing logic)
-    iconifyAdmin();
+    if (_sweeping) return;
+    _sweeping = true;
+    try {
+        sweepTextNodes(document.getElementById('admin-dashboard') || document.body);
+        iconifyAdmin();
+    } catch (e) {}
+    _sweeping = false;
+    _sweepCount++;
+    // Auto-stop after 8 sweeps — static content done, renders handle the rest
+    if (_sweepCount >= 8 && _sweepMO) { _sweepMO.disconnect(); _sweepMO = null; }
 }
 
-// Run on init + watch for dynamic content (modals injected later)
+// Run on init (few times to catch late content) — NO permanent observer (freeze fix)
 setTimeout(sweepAllEmojis, 700);
 setTimeout(sweepAllEmojis, 2000);
-var _sweepMO = new MutationObserver(function() { sweepAllEmojis(); });
+setTimeout(sweepAllEmojis, 4000);
+// Debounced light observer — only while warming up, auto-disconnects
+var _sweepMO = new MutationObserver(function() {
+    if (_sweeping || _sweepCount >= 8) return;
+    clearTimeout(_sweepT);
+    _sweepT = setTimeout(sweepAllEmojis, 500);
+});
 setTimeout(function() {
+    if (_sweepCount >= 8) return;
     var host = document.getElementById('admin-dashboard') || document.body;
     _sweepMO.observe(host, { childList: true, subtree: true });
-}, 1000);
-// Pause observer during table renders (performance) — re-enable after
-var _sweepPause = false;
+}, 1200);
 
 // 🎨 ACTION BUTTON SVGs — replace ✏️/🗑 emoji entities with professional icons
 const ACT_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
