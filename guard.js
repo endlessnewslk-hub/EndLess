@@ -424,6 +424,18 @@ function showLoadingOverlay(message) {
  * @param {object} user - User object
  */
 function updateUserUI(user) {
+    // 📲 ADMIN PWA — own manifest (install prompt admin-ku, main site illa)
+    try {
+        if (!document.getElementById('admin-manifest-link')) {
+            var mLink = document.createElement('link');
+            mLink.id = 'admin-manifest-link';
+            mLink.rel = 'manifest';
+            mLink.href = 'admin-manifest.json';
+            document.head.appendChild(mLink);
+            document.title = 'EndLess Admin';
+        }
+    } catch (e) {}
+
     // 🎨 GOOGLE-STYLE PROFILE MENU — compact E logo + "EndLess" in header,
     // click → premium dropdown card (photo, name, email, actions)
     const userBox = document.querySelector('.admin-user');
