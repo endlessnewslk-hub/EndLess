@@ -1639,7 +1639,7 @@ function openArticle(id) {
                 ${(() => {
                     const rel = getRelatedArticles(article, 3);
                     return rel.length ? `<div style="margin-top:2.5rem;padding-top:1.5rem;border-top:2px solid var(--border);">
-                        <h3 style="font-family:var(--font-heading);font-size:1.15rem;margin-bottom:1rem;color:var(--text);">'<span style="color:#e11d48;display:inline-flex;vertical-align:-3px;margin-right:6px;">' + (typeof IC !== 'undefined' ? IC.flame : '🔥') + '</span>' + (currentLang === 'ta' ? 'தொடர்புடைய செய்திகள்' : 'Related News')</h3>
+                        <h3 style="font-family:var(--font-heading);font-size:1.15rem;margin-bottom:1rem;color:var(--text);display:flex;align-items:center;gap:6px;"><span style="color:#e11d48;display:inline-flex;flex-shrink:0;">${typeof IC !== 'undefined' ? IC.flame : '🔥'}</span>${currentLang === 'ta' ? 'தொடர்புடைய செய்திகள்' : 'Related News'}</h3></h3>
                         <div class="rel-grid">${rel.map(relatedArticleHtml).join('')}</div>
                     </div>` : '';
                 })()}
