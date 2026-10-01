@@ -2234,6 +2234,31 @@ function wireFooterLinks() {
         contact: 'contact.html', advertise: 'advertise.html',
         privacy: 'privacy.html', terms: 'terms.html'
     };
+
+    // 🌐 SOCIAL MEDIA LINKS — footer "Follow Us" section
+    var SOCIALS = {
+        'Twitter / X': 'https://x.com/home',
+        'Facebook': 'https://www.facebook.com/profile.php?id=61595124984699',
+        'Instagram': 'https://www.instagram.com/endlessnewslk/',
+        'WhatsApp': 'https://wa.me/'
+    };
+    try {
+        var fSec = null;
+        document.querySelectorAll('footer h4').forEach(function(h) {
+            var t = (h.textContent || '').trim();
+            if (t === 'எங்களை பின்தொடர்' || t === 'Follow Us') fSec = h;
+        });
+        if (fSec) {
+            var ul = fSec.parentElement.querySelector('ul');
+            if (ul) {
+                ul.innerHTML = Object.keys(SOCIALS).map(function(name) {
+                    return '<li style="cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window.open(\'' + SOCIALS[name] + '\',\'_blank\')">' +
+                        '<span style="display:inline-flex;width:20px;height:20px;align-items:center;justify-content:center;border-radius:6px;background:var(--primary);color:#fff;font-size:0.65rem;font-weight:700;flex-shrink:0;">' +
+                        name.charAt(0) + '</span>' + name + '</li>';
+                }).join('');
+            }
+        }
+    } catch (e) {}
     Object.keys(map).forEach(function(key) {
         var li = document.querySelector('footer [data-key="' + key + '"]');
         if (!li) return;
