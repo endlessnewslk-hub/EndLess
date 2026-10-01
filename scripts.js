@@ -2064,14 +2064,13 @@ function initWeather() {
 }
 
 function initTheme() {
+    // ☀️ LIGHT DEFAULT — new visitors-ku epovum light varum
+    // (dark venum na ☀️ toggle click pannanum — saved preference respected)
     const savedTheme = localStorage.getItem('endless_theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
     if (savedTheme) {
         document.documentElement.setAttribute('data-theme', savedTheme);
-    } else if (prefersDark) {
-        document.documentElement.setAttribute('data-theme', 'dark');
     }
+    // No system follow — default = light (data-theme not set = light CSS)
 }
 
 function toggleTheme() {
