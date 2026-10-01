@@ -885,12 +885,12 @@ function renderTrending() {
             '<div class="fb-title">' + (currentLang === 'ta' ? 'எங்களை Facebook-ல் பின்தொடருங்கள்' : 'Follow Us on Facebook') + '</div>' +
             '<div class="fb-sub">' + (currentLang === 'ta' ? 'அன்றாட முக்கிய செய்திகள் உடனுக்குடன் உங்கள் feed-ல்!' : 'Get daily breaking news in your feed!') + '</div>' +
             '</div>' +
-            '<button class="fb-btn" onclick="window.open(\'https://www.facebook.com/endlessnewslk\',\'_blank\')">' +
+            '<button class="fb-btn" onclick="window.open(\'https://www.facebook.com/profile.php?id=61595124984699\',\'_blank\')">' +
             (currentLang === 'ta' ? 'பின்தொடர்' : 'Follow') + ' →</button>';
         // Click anywhere on banner = open FB
         banner.addEventListener('click', function(e) {
             if (!e.target.closest('.fb-btn')) {
-                window.open('https://www.facebook.com/endlessnewslk', '_blank');
+                window.open('https://www.facebook.com/profile.php?id=61595124984699', '_blank');
             }
         });
         list.parentNode.appendChild(banner);
@@ -2320,11 +2320,17 @@ setTimeout(function() { if (window._hideSplash) window._hideSplash(); }, 6000);
             '<div class="fb-title">' + (typeof currentLang !== 'undefined' && currentLang === 'ta' ? 'எங்களை Facebook-ல் பின்தொடருங்கள்' : 'Follow Us on Facebook') + '</div>' +
             '<div class="fb-sub">' + (typeof currentLang !== 'undefined' && currentLang === 'ta' ? 'அன்றாட முக்கிய செய்திகள் உடனுக்குடன்!' : 'Daily breaking news in your feed!') + '</div>' +
             '</div>' +
-            '<button class="fb-btn" onclick="window.open(\'https://www.facebook.com/endlessnewslk\',\'_blank\')">Follow →</button>';
+            '<button class="fb-btn" onclick="window.open(\'https://www.facebook.com/profile.php?id=61595124984699\',\'_blank\')">Follow →</button>';
         wrap.addEventListener('click', function(e) {
-            if (!e.target.closest('.fb-btn')) window.open('https://www.facebook.com/endlessnewslk', '_blank');
+            if (!e.target.closest('.fb-btn')) window.open('https://www.facebook.com/profile.php?id=61595124984699', '_blank');
         });
-        sidebar.appendChild(wrap);
+        // Categories box-ku MUNNA insert (Trending & Categories NADULA)
+        var catBox = sidebar.querySelector('.sidebar-box:nth-child(3), .sidebar-box:last-of-type');
+        if (catBox && catBox.parentNode === sidebar) {
+            sidebar.insertBefore(wrap, catBox);
+        } else {
+            sidebar.appendChild(wrap);
+        }
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', place);
     else place();
