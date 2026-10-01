@@ -188,6 +188,19 @@ function wireNewsletterBox() {
         '.hero-main:hover img{transform:scale(1.08);}',
         /* 🏷️ Hide static HTML ad labels — adCard prints its own translated label */
         '.ad-slot-label{display:none!important;}',
+        /* 📘 PREMIUM FB FOLLOW BANNER — curved, gradient, floating animation */
+        '.fb-banner{position:relative;margin:1.5rem 0;border-radius:20px;overflow:hidden;background:linear-gradient(135deg,#1877F2 0%,#0e5fca 100%);box-shadow:0 8px 30px rgba(24,119,242,0.35);display:flex;align-items:center;gap:16px;padding:18px 20px;color:#fff;cursor:pointer;transition:transform .25s ease,box-shadow .25s ease;}',
+        '.fb-banner:hover{transform:translateY(-3px);box-shadow:0 14px 40px rgba(24,119,242,0.45);}',
+        '.fb-banner::before{content:"";position:absolute;inset:0;background:url(\'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="white" opacity="0.06"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.09 24 18.1 24 12.07"/></svg>\') no-repeat right -20px center;background-size:120px;pointer-events:none;}',
+        '.fb-banner .fb-icon{width:48px;height:48px;background:rgba(255,255,255,0.2);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;backdrop-filter:blur(4px);}',
+        '.fb-banner .fb-icon svg{width:26px;height:26px;fill:#fff;}',
+        '.fb-banner .fb-text{flex:1;min-width:0;}',
+        '.fb-banner .fb-title{font-size:1.05rem;font-weight:800;line-height:1.3;margin-bottom:2px;}',
+        '.fb-banner .fb-sub{font-size:0.8rem;opacity:0.9;line-height:1.35;}',
+        '.fb-banner .fb-btn{background:#fff;color:#1877F2;font-weight:800;font-size:0.82rem;padding:10px 18px;border-radius:999px;border:none;cursor:pointer;flex-shrink:0;box-shadow:0 3px 10px rgba(0,0,0,0.2);transition:all .2s;white-space:nowrap;}',
+        '.fb-banner .fb-btn:hover{background:#f0f7ff;transform:scale(1.03);}',
+        '.fb-banner .fb-btn:active{transform:scale(0.98);}',
+        '@media(max-width:640px){.fb-banner{flex-direction:row;padding:14px 16px;gap:12px;}.fb-banner .fb-icon{width:40px;height:40px;}.fb-banner .fb-btn{padding:8px 14px;font-size:0.75rem;}.fb-banner::before{background-size:90px;}}',
         /* 🔗 RELATED ARTICLES — clean card grid (premium look) */
         '.rel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}',
         '.rel-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:transform .25s,box-shadow .25s;}',
@@ -857,6 +870,31 @@ function renderTrending() {
         list.innerHTML = `<div style="text-align:center; padding:1rem; color:var(--text-muted); font-size:0.85rem;">${TRANSLATIONS[currentLang].no_articles_yet}</div>`;
         return;
     }
+
+    // 📘 PREMIUM FB FOLLOW BANNER — sidebar-la trending-ku keezha inject
+    (function injectFBBanner() {
+        var list = document.getElementById('trending-list');
+        if (!list) return;
+        if (document.getElementById('fb-follow-banner')) return;
+        var banner = document.createElement('div');
+        banner.id = 'fb-follow-banner';
+        banner.className = 'fb-banner';
+        banner.innerHTML =
+            '<div class="fb-icon"><svg viewBox="0 0 24 24"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.09 24 18.1 24 12.07"/></svg></div>' +
+            '<div class="fb-text">' +
+            '<div class="fb-title">' + (currentLang === 'ta' ? 'எங்களை Facebook-ல் பின்தொடருங்கள்' : 'Follow Us on Facebook') + '</div>' +
+            '<div class="fb-sub">' + (currentLang === 'ta' ? 'அன்றாட முக்கிய செய்திகள் உடனுக்குடன் உங்கள் feed-ல்!' : 'Get daily breaking news in your feed!') + '</div>' +
+            '</div>' +
+            '<button class="fb-btn" onclick="window.open(\'https://www.facebook.com/endlessnewslk\',\'_blank\')">' +
+            (currentLang === 'ta' ? 'பின்தொடர்' : 'Follow') + ' →</button>';
+        // Click anywhere on banner = open FB
+        banner.addEventListener('click', function(e) {
+            if (!e.target.closest('.fb-btn')) {
+                window.open('https://www.facebook.com/endlessnewslk', '_blank');
+            }
+        });
+        list.parentNode.appendChild(banner);
+    })();
 
     list.innerHTML = trending.map((item, i) => `
         <div class="trending-item" onclick="openArticle('${item.id}')">
