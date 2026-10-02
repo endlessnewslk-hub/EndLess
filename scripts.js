@@ -1620,7 +1620,6 @@ function openArticle(id) {
                     <span>${IC.user} ${escapeHtml(getLocalized(article, 'author'))}</span>
                     <span>${IC.calendar} ${new Date(article.date).toLocaleDateString()}</span>
                     <span>${IC.tag} ${escapeHtml(getLocalized(article, 'category'))}</span>
-                    <span id="reaction-wrap" style="display:inline-flex;align-items:center;"></span>
                     <span>${IC.clock} ${readingTime(processedContent)} ${currentLang === 'ta' ? 'நிமிடம்' : 'min read'}</span>
                     <button onclick="toggleSaveArticle('${article.id}')" id="save-btn-${article.id}" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 12px;cursor:pointer;font-size:0.8rem;color:var(--text-muted);white-space:nowrap;display:inline-flex;align-items:center;gap:4px;">${IC.bookmark} ${isArticleSaved(article.id) ? (currentLang === 'ta' ? 'சேமித்தது' : 'Saved') : (currentLang === 'ta' ? 'சேமி' : 'Save')}</button>
                     <span style="margin-left:auto;display:flex;gap:4px;">
@@ -1636,6 +1635,12 @@ function openArticle(id) {
                 <div class="article-text">
                     ${processedContent}
                 </div>
+                <!-- ❤️ REACTION BAR — article end, right-aligned professional -->
+                <div style="margin-top:2rem;padding-top:1.25rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;align-items:center;gap:10px;">
+                    <span style="font-size:0.75rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">${currentLang === 'ta' ? 'பிடித்தது' : 'Like'}</span>
+                    <span id="reaction-wrap" style="display:inline-flex;align-items:center;"></span>
+                </div>
+
                 ${(() => {
                     const rel = getRelatedArticles(article, 3);
                     return rel.length ? `<div style="margin-top:2.5rem;padding-top:1.5rem;border-top:2px solid var(--border);">
