@@ -1448,7 +1448,7 @@ function buildReactionUI(container, articleId) {
         var b = document.createElement('button');
         b.type = 'button';
         b.style.cssText = 'background:none;border:none;font-size:1.6rem;cursor:pointer;padding:2px 6px;transition:transform .15s;display:inline-flex;color:inherit;';
-        b.textContent = REACTIONS[k];
+        b.innerHTML = REACTIONS[k]; // SVG icons need innerHTML, not textContent!
         b.dataset.reaction = k;
         b.addEventListener('mouseenter', function() { this.style.transform = 'scale(1.35)'; });
         b.addEventListener('mouseleave', function() { this.style.transform = 'scale(1)'; });
