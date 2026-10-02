@@ -2235,13 +2235,17 @@ function wireFooterLinks() {
         privacy: 'privacy.html', terms: 'terms.html'
     };
 
-    // 🌐 SOCIAL MEDIA LINKS — footer "Follow Us" section
-    var SOCIALS = {
-        'Twitter / X': 'https://x.com/home',
-        'Facebook': 'https://www.facebook.com/profile.php?id=61595124984699',
-        'Instagram': 'https://www.instagram.com/endlessnewslk/',
-        'WhatsApp': 'https://wa.me/'
-    };
+    // 🌐 PREMIUM SOCIAL ICONS — FB/X/IG brand SVGs (pink theme pop!)
+    var FB_SVG = '<svg viewBox="0 0 24 24" fill="#1877F2" style="width:22px;height:22px;flex-shrink:0;"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.09 24 18.1 24 12.07"/></svg>';
+    var X_SVG = '<svg viewBox="0 0 24 24" fill="#0f172a" style="width:20px;height:20px;flex-shrink:0;"><path d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.4l-5.8-7.58-6.64 7.58H.47l8.6-9.83L0 1.15h7.6l5.24 6.93zm-1.29 19.5h2.04L6.49 3.24H4.3z"/></svg>';
+    var IG_SVG = '<svg viewBox="0 0 24 24" style="width:22px;height:22px;flex-shrink:0;"><defs><linearGradient id="ig" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#fdf497;stop-opacity:1"/><stop offset="25%" style="stop-color:#fd5949;stop-opacity:1"/><stop offset="50%" style="stop-color:#d6249f;stop-opacity:1"/><stop offset="75%" style="stop-color:#8134af;stop-opacity:1"/><stop offset="100%" style="stop-color:#515bd4;stop-opacity:1"/></linearGradient></defs><path fill="url(#ig)" d="M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.64.07-4.85.07s-3.58-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.64-.07-4.85s.01-3.58.07-4.85C2.38 3.92 3.9 2.38 7.15 2.23 8.42 2.17 8.8 2.16 12 2.16zM12 0C8.74 0 8.33.01 7.05.07 2.7.27.27 2.69.07 7.05.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.2 4.36 2.62 6.78 6.98 6.98C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c4.35-.2 6.78-2.62 6.98-6.98.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95C23.73 2.7 21.31.27 16.95.07 15.67.01 15.26 0 12 0zm0 5.84A6.16 6.16 0 1 0 18.16 12 6.16 6.16 0 0 0 12 5.84zm0 10.15A4 4 0 1 1 16 12a4 4 0 0 1-4 3.99zm6.4-11.85a1.44 1.44 0 1 0 1.44 1.44 1.44 1.44 0 0 0-1.44-1.44z"/></svg>';
+
+    var SOCIALS_PREMIUM = [
+        { name: 'Facebook', icon: FB_SVG, url: 'https://www.facebook.com/profile.php?id=61595124984699' },
+        { name: 'X (Twitter)', icon: X_SVG, url: 'https://x.com/home' },
+        { name: 'Instagram', icon: IG_SVG, url: 'https://www.instagram.com/endlessnewslk/' }
+    ];
+
     try {
         var fSec = null;
         document.querySelectorAll('footer h4').forEach(function(h) {
@@ -2251,11 +2255,12 @@ function wireFooterLinks() {
         if (fSec) {
             var ul = fSec.parentElement.querySelector('ul');
             if (ul) {
-                ul.innerHTML = Object.keys(SOCIALS).map(function(name) {
-                    return '<li style="cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window.open(\'' + SOCIALS[name] + '\',\'_blank\')">' +
-                        '<span style="display:inline-flex;width:20px;height:20px;align-items:center;justify-content:center;border-radius:6px;background:var(--primary);color:#fff;font-size:0.65rem;font-weight:700;flex-shrink:0;">' +
-                        name.charAt(0) + '</span>' + name + '</li>';
+                ul.innerHTML = SOCIALS_PREMIUM.map(function(s) {
+                    return '<li style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:6px 0;" onclick="window.open(\'' + s.url + '\',\'_blank\')" onmouseover="this.style.opacity=\'0.8\'" onmouseout="this.style.opacity=\'1\'">' +
+                        s.icon +
+                        '<span style="font-weight:600;font-size:0.9rem;color:var(--text);">' + s.name + '</span></li>';
                 }).join('');
+                ul.style.listStyle = 'none';
             }
         }
     } catch (e) {}
