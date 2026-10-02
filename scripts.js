@@ -1440,7 +1440,7 @@ function buildReactionUI(container, articleId) {
         '<button type="button" id="react-btn" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 12px;cursor:pointer;font-size:0.85rem;color:var(--text);display:inline-flex;align-items:center;gap:5px;user-select:none;-webkit-user-select:none;">' +
         '<span id="react-emoji">' + (myReaction ? REACTIONS[myReaction] : '👍') + '</span>' +
         '<span id="react-count" style="font-weight:700;"></span></button>' +
-        '<div id="react-panel" style="display:none;position:absolute;bottom:44px;left:0;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:8px 12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);z-index:50;align-items:center;gap:4px;white-space:nowrap;"></div>';
+        '<div id="react-panel" style="display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:10px 14px;box-shadow:0 12px 32px rgba(0,0,0,0.35);z-index:99999;align-items:center;gap:6px;white-space:nowrap;"></div>';
     container.style.position = 'relative';
 
     var panel = container.querySelector('#react-panel');
@@ -1463,6 +1463,9 @@ function buildReactionUI(container, articleId) {
         ev.preventDefault();
         timer = setTimeout(function() {
             timer = null;
+            var r = btn.getBoundingClientRect();
+            panel.style.left = Math.max(8, Math.min(r.left - 80, window.innerWidth - 260)) + 'px';
+            panel.style.top = Math.max(8, r.top - 58) + 'px';
             panel.style.display = 'flex';
         }, 450);
     }
@@ -2359,13 +2362,8 @@ setTimeout(function() { if (window._hideSplash) window._hideSplash(); }, 6000);
         wrap.addEventListener('click', function(e) {
             if (!e.target.closest('.fb-btn')) window.open('https://www.facebook.com/profile.php?id=61595124984699', '_blank');
         });
-        // Categories box-ku MUNNA insert (Trending & Categories NADULA)
-        var catBox = sidebar.querySelector('.sidebar-box:nth-child(3), .sidebar-box:last-of-type');
-        if (catBox && catBox.parentNode === sidebar) {
-            sidebar.insertBefore(wrap, catBox);
-        } else {
-            sidebar.appendChild(wrap);
-        }
+        // FIRST position (sidebar TOP)
+        sidebar.insertBefore(wrap, sidebar.firstChild);
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', place);
     else place();
