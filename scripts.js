@@ -659,14 +659,15 @@ function setLanguage(lang) {
         if (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) {
             if (el.tagName === 'INPUT' && el.placeholder !== undefined) {
                 el.placeholder = TRANSLATIONS[lang][key];
+            } else if (el.querySelector('a')) {
+                // 🔗 Footer links — update <a> text only
+                el.querySelector('a').textContent = TRANSLATIONS[lang][key];
+            } else if (el.querySelector('.h3-icon, [data-h3icon]')) {
+                // 🎨 Sidebar h3 (Trending/Categories) — icon PRESERVE panni text mattum maathu
+                var txt = el.querySelector('.h3-txt') || el.lastElementChild;
+                if (txt) txt.textContent = TRANSLATIONS[lang][key];
             } else {
-                // 🔗 Preserve footer links — update text INSIDE the <a>, never erase it
-                var link = el.querySelector('a');
-                if (link) {
-                    link.textContent = TRANSLATIONS[lang][key];
-                } else {
-                    el.textContent = TRANSLATIONS[lang][key];
-                }
+                el.textContent = TRANSLATIONS[lang][key];
             }
         }
     });
@@ -2567,7 +2568,7 @@ addEventListener('DOMContentLoaded', async () => {
                 if (h.dataset.iconDone) return;
                 h.dataset.iconDone = '1';
                 h.style.display = 'flex'; h.style.alignItems = 'center'; h.style.gap = '7px';
-                h.innerHTML = '<span style="color:' + cfg[2] + ';display:inline-flex;flex-shrink:0;">' + cfg[1] + '</span><span>' + h.textContent.trim() + '</span>';
+                h.innerHTML = '<span class="h3-icon" data-h3icon="1" style="color:' + cfg[2] + ';display:inline-flex;flex-shrink:0;">' + cfg[1] + '</span><span class="h3-txt">' + h.textContent.trim() + '</span>';
             });
         });
         // Ad placeholder emojis (📢) — SVG megaphone
