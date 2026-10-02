@@ -63,6 +63,9 @@ try {
     document.head.appendChild(st);
 })();
 
+// ⚙️ NEWSLETTER VISIBILITY — false = hide, true = show (later true pannunga!)
+const SHOW_NEWSLETTER = false;
+
 // 📬 NEWSLETTER — subscribe box → Firestore 'subscribers' + welcome email
 async function subscribeNewsletter() {
     var input = document.getElementById('newsletter-email');
@@ -101,6 +104,11 @@ async function subscribeNewsletter() {
 }
 
 function wireNewsletterBox() {
+    if (typeof SHOW_NEWSLETTER !== 'undefined' && !SHOW_NEWSLETTER) {
+        var nlBox = document.querySelector('.newsletter');
+        if (nlBox) nlBox.style.display = 'none';
+        return;
+    }
     var btn = document.querySelector('.newsletter [data-key="subscribe"]');
     if (!btn || btn._nlWired) return;
     btn._nlWired = true;
