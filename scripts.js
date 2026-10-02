@@ -2487,10 +2487,14 @@ addEventListener('DOMContentLoaded', async () => {
 
     const loadMoreBtn = document.getElementById('load-more-btn');
     if (loadMoreBtn) {
-        loadMoreBtn.addEventListener('click', () => {
-            displayedCount += isMobile ? 4 : 6;
-            renderFeed();
-        });
+        // 🛡️ Guard — duplicate listener avoid pannum (mobile double-fire fix)
+        if (!loadMoreBtn._wired) {
+            loadMoreBtn._wired = true;
+            loadMoreBtn.addEventListener('click', function() {
+                displayedCount += isMobile ? 4 : 6;
+                renderFeed();
+            });
+        }
     }
 
     const modalClose = document.getElementById('modal-close');
