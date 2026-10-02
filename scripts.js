@@ -2362,8 +2362,22 @@ setTimeout(function() { if (window._hideSplash) window._hideSplash(); }, 6000);
         wrap.addEventListener('click', function(e) {
             if (!e.target.closest('.fb-btn')) window.open('https://www.facebook.com/profile.php?id=61595124984699', '_blank');
         });
-        // FIRST position (sidebar TOP)
-        sidebar.insertBefore(wrap, sidebar.firstChild);
+        // TRENDING & CATEGORIES NADULA (sidebar middle — best visibility!)
+        var trendingBox = null, categoriesBox = null;
+        sidebar.querySelectorAll('.sidebar-box').forEach(function(bx) {
+            var h = bx.querySelector('h3');
+            if (!h) return;
+            var t = (h.textContent || '').trim();
+            if (t.indexOf('Trending') !== -1 || t.indexOf('பிரபலமானவை') !== -1) trendingBox = bx;
+            if (t.indexOf('Categories') !== -1 || t.indexOf('பிரிவுகள்') !== -1) categoriesBox = bx;
+        });
+        if (trendingBox && categoriesBox && categoriesBox.parentNode === sidebar) {
+            sidebar.insertBefore(wrap, categoriesBox);
+        } else if (trendingBox && trendingBox.parentNode === sidebar) {
+            sidebar.insertBefore(wrap, trendingBox.nextSibling);
+        } else {
+            sidebar.insertBefore(wrap, sidebar.firstChild);
+        }
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', place);
     else place();
