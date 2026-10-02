@@ -1440,7 +1440,7 @@ function buildReactionUI(container, articleId) {
         '<button type="button" id="react-btn" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 12px;cursor:pointer;font-size:0.85rem;color:var(--text);display:inline-flex;align-items:center;gap:5px;user-select:none;-webkit-user-select:none;">' +
         '<span id="react-emoji">' + (myReaction ? REACTIONS[myReaction] : '👍') + '</span>' +
         '<span id="react-count" style="font-weight:700;"></span></button>' +
-        '<span id="react-panel" style="display:none;position:absolute;bottom:44px;left:0;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:6px 10px;box-shadow:0 8px 24px rgba(0,0,0,0.25);z-index:50;gap:2px;"></span>';
+        '<div id="react-panel" style="display:none;position:absolute;bottom:44px;left:0;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:8px 12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);z-index:50;align-items:center;gap:4px;white-space:nowrap;"></div>';
     container.style.position = 'relative';
 
     var panel = container.querySelector('#react-panel');
@@ -1463,7 +1463,7 @@ function buildReactionUI(container, articleId) {
         ev.preventDefault();
         timer = setTimeout(function() {
             timer = null;
-            panel.style.display = 'inline-flex';
+            panel.style.display = 'flex';
         }, 450);
     }
     function endPress(ev) {
