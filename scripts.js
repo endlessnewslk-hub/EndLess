@@ -225,6 +225,10 @@ function wireNewsletterBox() {
         '@media(max-width:640px){.rel-card .rc-b{flex:1!important;padding:10px 14px!important;display:flex!important;flex-direction:column!important;justify-content:center!important;}}',
         '@media(max-width:640px){.rel-card .rc-cat{font-size:0.6rem!important;margin-bottom:4px!important;}}',
         '@media(max-width:640px){.rel-card .rc-t{font-size:0.9rem!important;line-height:1.4!important;display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;overflow:hidden!important;}}',
+        /* ❤️ PREMIUM REACTION BUTTON — hover lift + active press */
+        '#react-btn:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,0.12);background:var(--primary);color:#fff;}',
+        '#react-btn:active{transform:translateY(0) scale(0.97);}',
+        '#react-btn:hover #react-count{color:#fff;}',
         /* 📱 FEED ADS: full-width between article cards; hidden on desktop (sidebar there) */
         '.feed-ad-slot{grid-column:1/-1;margin:0.25rem 0 1rem;}',
         '@media(min-width:1024px){.feed-ad-slot{display:none!important;}}',
@@ -1381,15 +1385,9 @@ function applyArticleFontScale() {
 // ❤️ LIKE + REACTIONS — Facebook-style. Viewers: like/unlike + 6-emoji reactions.
 // Counts public; admin panel-la full breakdown kaatum.
 const LIKED_KEY = 'endless_liked';
-// 🎨 Reaction SVGs with brand colors (Facebook-style palette)
-function colored(icon, color) { return '<span style="color:' + color + ';display:inline-flex;">' + icon + '</span>'; }
+// 👍 Emoji reactions — Facebook-style (consistent across all articles)
 const REACTIONS = {
-    like: colored(IC.thumbsUp, '#1877F2'),
-    love: colored(IC.heart, '#F33E58'),
-    haha: colored(IC.laugh, '#F7B125'),
-    wow: colored(IC.wow, '#F7B125'),
-    sad: colored(IC.sad, '#F7B125'),
-    angry: colored(IC.angry, '#E9710F')
+    like: '👍', love: '❤️', haha: '😂', wow: '😮', sad: '😢', angry: '😡'
 };
 function getLikedMap() { try { return JSON.parse(localStorage.getItem(LIKED_KEY)) || {}; } catch (e) { return {}; } }
 
@@ -1446,9 +1444,9 @@ function buildReactionUI(container, articleId) {
     var liked = getLikedMap();
     var myReaction = liked[articleId] || null;
     container.innerHTML =
-        '<button type="button" id="react-btn" style="background:none;border:1px solid var(--border);border-radius:999px;padding:3px 12px;cursor:pointer;font-size:0.85rem;color:var(--text);display:inline-flex;align-items:center;gap:5px;user-select:none;-webkit-user-select:none;">' +
-        '<span id="react-emoji">' + (myReaction ? REACTIONS[myReaction] : '👍') + '</span>' +
-        '<span id="react-count" style="font-weight:700;"></span></button>' +
+        '<button type="button" id="react-btn" style="display:inline-flex;align-items:center;gap:7px;padding:9px 20px;border-radius:999px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;transition:all .2s ease;box-shadow:0 2px 8px rgba(0,0,0,0.06);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-weight:600;">' +
+        '<span id="react-emoji" style="font-size:1.15rem;display:inline-flex;">' + (myReaction ? REACTIONS[myReaction] : '👍') + '</span>' +
+        '<span id="react-count" style="font-weight:700;font-size:0.9rem;"></span></button>' +
         '<div id="react-panel" style="display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:10px 14px;box-shadow:0 12px 32px rgba(0,0,0,0.35);z-index:99999;align-items:center;gap:6px;white-space:nowrap;"></div>';
     container.style.position = 'relative';
 
@@ -1647,10 +1645,9 @@ function openArticle(id) {
                 <div class="article-text">
                     ${processedContent}
                 </div>
-                <!-- ❤️ REACTION BAR — article end, right-aligned professional -->
-                <div style="margin-top:2rem;padding-top:1.25rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;align-items:center;gap:10px;">
-                    <span style="font-size:0.75rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">${currentLang === 'ta' ? 'பிடித்தது' : 'Like'}</span>
-                    <span id="reaction-wrap" style="display:inline-flex;align-items:center;"></span>
+                <!-- ❤️ REACTION BAR — clean professional (no text, button only) -->
+                <div style="margin-top:2rem;padding-top:1.25rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
+                    <span id="reaction-wrap" style="display:inline-flex;"></span>
                 </div>
 
                 ${(() => {
