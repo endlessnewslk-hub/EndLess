@@ -229,6 +229,20 @@ function wireNewsletterBox() {
         '#react-btn:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,0.12);background:var(--primary);color:#fff;}',
         '#react-btn:active{transform:translateY(0) scale(0.97);}',
         '#react-btn:hover #react-count{color:#fff;}',
+        /* 🖼️ INLINE GALLERY — article content nadula images (perfect aspect) */
+        '.art-img{margin:1.25rem 0;border-radius:14px;overflow:hidden;cursor:pointer;position:relative;background:var(--surface);border:1px solid var(--border);}',
+        '.art-img img{width:100%;height:auto;display:block;transition:transform .3s ease;}',
+        '.art-img:hover img{transform:scale(1.02);}',
+        '.art-img .ai-count{position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,0.6);color:#fff;font-size:0.7rem;font-weight:700;padding:4px 10px;border-radius:999px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}',
+        /* 🖼️ FULLSCREEN IMAGE VIEWER — click to zoom + navigate */
+        '#fs-img-ov{position:fixed;inset:0;background:rgba(0,0,0,0.94);z-index:99999;display:none;align-items:center;justify-content:center;flex-direction:column;}',
+        '#fs-img-ov.open{display:flex;}',
+        '#fs-img-main{max-width:92vw;max-height:82vh;object-fit:contain;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,0.5);}',
+        '#fs-img-prev,#fs-img-next{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:#fff;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);transition:all .2s;z-index:10;}',
+        '#fs-img-prev:hover,#fs-img-next:hover{background:rgba(255,255,255,0.28);transform:translateY(-50%) scale(1.08);}',
+        '#fs-img-prev{left:16px;}#fs-img-next{right:16px;}',
+        '#fs-img-close{position:absolute;top:16px;right:16px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);z-index:10;}',
+        '#fs-img-meta{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.85);font-size:0.85rem;font-weight:600;background:rgba(0,0,0,0.45);padding:6px 16px;border-radius:999px;backdrop-filter:blur(8px);}',
         /* 📱 FEED ADS: full-width between article cards; hidden on desktop (sidebar there) */
         '.feed-ad-slot{grid-column:1/-1;margin:0.25rem 0 1rem;}',
         '@media(min-width:1024px){.feed-ad-slot{display:none!important;}}',
@@ -1565,6 +1579,92 @@ function layerClosed(id) {
     }
 }
 
+// 🖼️ INLINE GALLERY — article.images → paragraphs-ku nadula thumbnails (click → fullscreen)
+function injectInlineGallery(html, article) {
+    var imgs = [article.image].concat(Array.isArray(article.images) ? article.images.filter(function(u) { return u && u !== article.image; }) : []);
+    if (imgs.length < 2) return html; // single image = no spread needed
+    var wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    var blocks = Array.prototype.slice.call(wrap.children);
+    if (blocks.length < 2) return html;
+    var out = [], ii = 1; // 0 = hero (already shown)
+    blocks.forEach(function(b, i) {
+        out.push(b.outerHTML);
+        // Every 2nd paragraph → next image (if available) — reading flow perfect
+        if ((i + 1) % 2 === 0 && ii < imgs.length) {
+            out.push('<div class="art-img" onclick="fsOpen(' + ii + ')">' +
+                '<img src="' + escapeHtml(imgs[ii]) + '" alt="" loading="lazy">' +
+                '<span class="ai-count">' + (ii + 1) + '/' + imgs.length + ' · Tap to expand</span></div>');
+            ii++;
+        }
+    });
+    while (ii < imgs.length) { // remaining images at end
+        out.push('<div class="art-img" onclick="fsOpen(' + ii + ')">' +
+            '<img src="' + escapeHtml(imgs[ii]) + '" alt="" loading="lazy">' +
+            '<span class="ai-count">' + (ii + 1) + '/' + imgs.length + '</span></div>');
+        ii++;
+    }
+    return out.join('');
+}
+
+// 🖼️ FULLSCREEN IMAGE VIEWER — swipe/arrow navigate, perfect fit any aspect
+let _fsImgs = [], _fsIdx = 0;
+function fsEnsureOverlay() {
+    var ov = document.getElementById('fs-img-ov');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'fs-img-ov';
+        ov.innerHTML =
+            '<img id="fs-img-main" alt="">' +
+            '<button id="fs-img-prev" onclick="fsNav(-1)">‹</button>' +
+            '<button id="fs-img-next" onclick="fsNav(1)">›</button>' +
+            '<button id="fs-img-close" onclick="fsClose()">✕</button>' +
+            '<div id="fs-img-meta"></div>';
+        document.body.appendChild(ov);
+        ov.addEventListener('click', function(e) { if (e.target === ov) fsClose(); });
+        var tx = 0;
+        ov.addEventListener('touchstart', function(e) { tx = e.changedTouches[0].clientX; }, { passive: true });
+        ov.addEventListener('touchend', function(e) {
+            var dx = e.changedTouches[0].clientX - tx;
+            if (Math.abs(dx) > 50) fsNav(dx < 0 ? 1 : -1);
+        }, { passive: true });
+        document.addEventListener('keydown', function(e) {
+            if (!ov.classList.contains('open')) return;
+            if (e.key === 'Escape') fsClose();
+            if (e.key === 'ArrowLeft') fsNav(-1);
+            if (e.key === 'ArrowRight') fsNav(1);
+        });
+    }
+    return ov;
+}
+function fsOpen(idx) {
+    var g = window._gal || { imgs: [] };
+    _fsImgs = g.imgs || [];
+    if (!_fsImgs.length) return;
+    _fsIdx = Math.min(idx, _fsImgs.length - 1);
+    fsRender();
+    fsEnsureOverlay().classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+function fsRender() {
+    var img = document.getElementById('fs-img-main');
+    if (img) img.src = _fsImgs[_fsIdx];
+    var meta = document.getElementById('fs-img-meta');
+    if (meta) meta.textContent = (_fsIdx + 1) + ' / ' + _fsImgs.length;
+    var p = document.getElementById('fs-img-prev'), n = document.getElementById('fs-img-next');
+    if (p) p.style.display = _fsImgs.length > 1 ? 'flex' : 'none';
+    if (n) n.style.display = _fsImgs.length > 1 ? 'flex' : 'none';
+}
+function fsNav(d) {
+    _fsIdx = (_fsIdx + d + _fsImgs.length) % _fsImgs.length;
+    fsRender();
+}
+function fsClose() {
+    var ov = document.getElementById('fs-img-ov');
+    if (ov) ov.classList.remove('open');
+    document.body.style.overflow = '';
+}
+
 // 🖼️ Gallery navigation (glassy arrows + swipe)
 function galNav(dir) {
     var g = window._gal;
@@ -1604,6 +1704,8 @@ function openArticle(id) {
         processedContent = paragraphs.map(p => `<p>${p.trim()}</p>`).join('');
     }
 
+    // 🖼️ INLINE GALLERY — extra images paragraphs-ku nadula spread (click → fullscreen)
+    processedContent = injectInlineGallery(processedContent, article);
     // 📰 Inject in-article ads between paragraphs (before rendering)
     processedContent = injectInArticleAds(processedContent);
     if (typeof DEBUG !== 'undefined' && DEBUG) console.log('In-article ads — toggle check: ads eligible =', getInArticleAds().length);
@@ -1611,7 +1713,8 @@ function openArticle(id) {
     body.innerHTML = `
         <div class="modal-article">
             <div class="gallery-wrap" id="gallery-wrap">
-                <img id="gal-main-img" src="${escapeHtml(article.image)}" alt="${escapeHtml(getLocalized(article, 'title'))}" loading="eager">
+                <img id="gal-main-img" src="${escapeHtml(article.image)}" alt="${escapeHtml(getLocalized(article, 'title'))}" loading="eager" onclick="fsOpen(0)">
+                <span class="gal-count" id="gal-count" style="cursor:pointer;" onclick="fsOpen(0)">1/${[article.image].concat(Array.isArray(article.images) ? article.images.filter(u => u && u !== article.image) : []).length}</span>
                 ${(() => {
                     const g = [article.image].concat(Array.isArray(article.images) ? article.images.filter(u => u && u !== article.image) : []);
                     window._gal = { imgs: g, idx: 0 };
@@ -1674,6 +1777,9 @@ function openArticle(id) {
         var wrap = document.getElementById('reaction-wrap');
         if (wrap) buildReactionUI(wrap, String(id));
     }, 60);
+
+    // 🖼️ Set gallery images for fullscreen viewer
+    window._gal = { imgs: [article.image].concat(Array.isArray(article.images) ? article.images.filter(function(u) { return u && u !== article.image; }) : []) };
 
     // 🖼️ Swipe left/right on gallery image to change photo (mobile)
     (function() {
