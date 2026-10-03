@@ -307,20 +307,18 @@ function wireNewsletterBox() {
         '<style>@keyframes spinRing{to{transform:rotate(360deg)}}</style>';
     // Show ASAP (before body even ready, append to documentElement)
     (document.body || document.documentElement).appendChild(sp);
-    // 🔤 Font swap: Georgia first (instant), Playfair once Google Fonts loads
+    // 🔤 Font: Playfair PRIMARY (Google Fonts link-a wait panni load pannu)
     try {
+        // 🔤 ONLY "EndLess" text → Playfair (E logo simple Georgia-ve irukkum)
+        var applyPlayfair = function() {
+            var b = document.getElementById('splash-brand');
+            if (b) b.style.fontFamily = "'Playfair Display',Georgia,serif";
+        };
         if (document.fonts && document.fonts.ready) {
-            document.fonts.ready.then(function() {
-                var b = document.getElementById('splash-brand');
-                if (b) b.style.fontFamily = "'Playfair Display',Georgia,serif";
-            });
-            // Faster path: explicit load check
-            document.fonts.load("700 1.3rem 'Playfair Display'").then(function() {
-                var b = document.getElementById('splash-brand');
-                if (b) b.style.fontFamily = "'Playfair Display',Georgia,serif";
-                var el = document.getElementById('splash-logo-e');
-                if (el) el.style.fontFamily = "'Playfair Display',Georgia,serif";
-            }).catch(function() {});
+            document.fonts.ready.then(applyPlayfair);
+        }
+        if (document.fonts && document.fonts.load) {
+            document.fonts.load("700 1.3rem 'Playfair Display'").then(applyPlayfair).catch(function() {});
         }
     } catch (e) {}
     window._hideSplash = function() {
