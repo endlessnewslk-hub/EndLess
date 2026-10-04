@@ -243,6 +243,9 @@ function wireNewsletterBox() {
         '#fs-img-prev{left:16px;}#fs-img-next{right:16px;}',
         '#fs-img-close{position:absolute;top:16px;right:16px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);z-index:10;}',
         '#fs-img-meta{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.85);font-size:0.85rem;font-weight:600;background:rgba(0,0,0,0.45);padding:6px 16px;border-radius:999px;backdrop-filter:blur(8px);}',
+        /* 💻 DESKTOP in-article ads — compact sidebar-size, centered */
+        '@media(min-width:1024px){.inl-ad-box{max-width:400px;margin-left:auto;margin-right:auto;}}',
+        '@media(min-width:1024px){.inl-ad-box img{max-height:260px;object-fit:cover;border-radius:12px;}}',
         /* 📱 FEED ADS: full-width between article cards; hidden on desktop (sidebar there) */
         '.feed-ad-slot{grid-column:1/-1;margin:0.25rem 0 1rem;}',
         '@media(min-width:1024px){.feed-ad-slot{display:none!important;}}',
@@ -1193,7 +1196,7 @@ function inArticleAdHtml(ad) {
     // 📐 Natural sizing: banner = wide-thin, square = square — NO letterbox,
     // NO max-height crop. Fits perfectly on mobile + desktop.
     // 🚫 No title text in the reading area — clean image-only sponsored box.
-    return '<div style="margin:1.75rem 0;">' +
+    return '<div class="inl-ad-box" style="margin:1.75rem 0;">' +
         '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--text-subtle);margin-bottom:0.5rem;font-weight:700;">Sponsored · ' + (TRANSLATIONS[currentLang] ? TRANSLATIONS[currentLang].ad_label : 'Advertisement') + '</div>' +
         '<a href="' + escapeHtml(ad.link) + '" target="_blank" rel="noopener noreferrer" style="display:block;border-radius:12px;overflow:hidden;box-shadow:0 3px 14px rgba(0,0,0,0.10);line-height:0;">' +
         '<img class="inl-ad-img" src="' + escapeHtml(pickAdImg(ad)) + '" alt="' + escapeHtml(getLocalized(ad, 'title')) + '" loading="lazy" style="width:100%;height:auto;display:block;">' +
