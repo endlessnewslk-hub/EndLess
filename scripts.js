@@ -289,11 +289,7 @@ function wireNewsletterBox() {
     st.textContent = `
 .gallery-wrap{position:relative;}
 .gallery-wrap img{width:100%;display:block;}
-.gal-arrow{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.15);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.35);color:#fff;font-size:22px;line-height:1;cursor:pointer;transition:all 0.2s ease;z-index:5;text-shadow:0 1px 4px rgba(0,0,0,0.4);}
-.gal-arrow:hover{background:rgba(255,255,255,0.32);transform:translateY(-50%) scale(1.08);}
-.gal-arrow:active{transform:translateY(-50%) scale(0.96);}
-.gal-prev{left:12px;}
-.gal-next{right:12px;}
+
 .gal-count{position:absolute;bottom:12px;right:12px;background:rgba(0,0,0,0.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:999px;z-index:5;border:1px solid rgba(255,255,255,0.2);}
 .gal-img-fade{animation:galFade 0.3s ease;}
 @keyframes galFade{from{opacity:0.3;}to{opacity:1;}}
@@ -1665,21 +1661,7 @@ function fsClose() {
     document.body.style.overflow = '';
 }
 
-// 🖼️ Gallery navigation (glassy arrows + swipe)
-function galNav(dir) {
-    var g = window._gal;
-    if (!g || !g.imgs || g.imgs.length < 2) return;
-    g.idx = (g.idx + dir + g.imgs.length) % g.imgs.length;
-    var img = document.getElementById('gal-main-img');
-    if (img) {
-        img.src = g.imgs[g.idx];
-        img.classList.remove('gal-img-fade');
-        void img.offsetWidth;
-        img.classList.add('gal-img-fade');
-    }
-    var c = document.getElementById('gal-count');
-    if (c) c.textContent = (g.idx + 1) + '/' + g.imgs.length;
-}
+
 
 function openArticle(id) {
     const article = findArticleById(id);
@@ -1719,9 +1701,7 @@ function openArticle(id) {
                     const g = [article.image].concat(Array.isArray(article.images) ? article.images.filter(u => u && u !== article.image) : []);
                     window._gal = { imgs: g, idx: 0 };
                     return g.length > 1 ? `
-                <button class="gal-arrow gal-prev" onclick="galNav(-1)" aria-label="Previous">‹</button>
-                <button class="gal-arrow gal-next" onclick="galNav(1)" aria-label="Next">›</button>
-                <span class="gal-count" id="gal-count">1/${g.length}</span>` : '';
+                <span class="gal-count" id="gal-count" style="cursor:pointer;" onclick="fsOpen(0)">1/${g.length} · Tap</span>` : '';
                 })()}
             </div>
             <div class="modal-body">
@@ -1781,17 +1761,6 @@ function openArticle(id) {
     // 🖼️ Set gallery images for fullscreen viewer
     window._gal = { imgs: [article.image].concat(Array.isArray(article.images) ? article.images.filter(function(u) { return u && u !== article.image; }) : []) };
 
-    // 🖼️ Swipe left/right on gallery image to change photo (mobile)
-    (function() {
-        var wrap = document.getElementById('gallery-wrap');
-        if (!wrap || !window._gal || window._gal.imgs.length < 2) return;
-        var tx = 0;
-        wrap.addEventListener('touchstart', function(e) { tx = e.changedTouches[0].clientX; }, { passive: true });
-        wrap.addEventListener('touchend', function(e) {
-            var dx = e.changedTouches[0].clientX - tx;
-            if (Math.abs(dx) > 50) galNav(dx < 0 ? 1 : -1);
-        }, { passive: true });
-    })();
 
     // 📊 Track article view (fire-and-forget — never blocks UX)
     try {
