@@ -246,6 +246,9 @@ function wireNewsletterBox() {
         /* 💻 DESKTOP in-article ads — compact sidebar-size, centered */
         '@media(min-width:1024px){.modal-article .inl-ad-box{max-width:400px!important;margin-left:auto!important;margin-right:auto!important;float:none!important;}}',
         '@media(min-width:1024px){.modal-article .inl-ad-box img{max-height:260px!important;object-fit:cover;border-radius:12px;}}',
+        /* 🔗 SHARE GRID — 3 columns (Telegram hidden), balanced, NO GAP */
+        '.share-grid{grid-template-columns:repeat(3,1fr)!important;max-width:340px;margin:0 auto;}',
+        '@media(max-width:480px){.share-grid{max-width:100%;}}',
         /* 📱 FEED ADS: full-width between article cards; hidden on desktop (sidebar there) */
         '.feed-ad-slot{grid-column:1/-1;margin:0.25rem 0 1rem;}',
         '@media(min-width:1024px){.feed-ad-slot{display:none!important;}}',
@@ -1889,7 +1892,7 @@ function shareArticle(id) {
                     <button class="modal-close" onclick="closeShareModal()" aria-label="Close">&times;</button>
                 </div>
                 <div class="share-modal-body">
-                    <div class="share-grid">
+                    <div class="share-grid" style="grid-template-columns:repeat(3,1fr);">
                         <button class="share-btn" data-platform="facebook" onclick="performShare('facebook')">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
                             <span>Facebook</span>
@@ -1898,11 +1901,11 @@ function shareArticle(id) {
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
                             <span>WhatsApp</span>
                         </button>
-                        <!-- Telegram button HIDDEN (later use) -->
                         <button class="share-btn" data-platform="x" onclick="performShare('x')">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l11.733 16h4.267l-11.733 -16z"></path><path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772"></path></svg>
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.4l-5.8-7.58-6.64 7.58H.47l8.6-9.83L0 1.15h7.6l5.24 6.93zm-1.29 19.5h2.04L6.49 3.24H4.3z"/></svg>
                             <span>X</span>
                         </button>
+                        <!-- Telegram hidden -->
                     </div>
                     <div class="share-copy-section">
                         <p class="share-copy-label">Or copy link</p>
