@@ -244,8 +244,8 @@ function wireNewsletterBox() {
         '#fs-img-close{position:absolute;top:16px;right:16px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);z-index:10;}',
         '#fs-img-meta{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.85);font-size:0.85rem;font-weight:600;background:rgba(0,0,0,0.45);padding:6px 16px;border-radius:999px;backdrop-filter:blur(8px);}',
         /* 💻 DESKTOP in-article ads — compact sidebar-size, centered */
-        '@media(min-width:1024px){.inl-ad-box{max-width:400px;margin-left:auto;margin-right:auto;}}',
-        '@media(min-width:1024px){.inl-ad-box img{max-height:260px;object-fit:cover;border-radius:12px;}}',
+        '@media(min-width:1024px){.modal-article .inl-ad-box{max-width:400px!important;margin-left:auto!important;margin-right:auto!important;float:none!important;}}',
+        '@media(min-width:1024px){.modal-article .inl-ad-box img{max-height:260px!important;object-fit:cover;border-radius:12px;}}',
         /* 📱 FEED ADS: full-width between article cards; hidden on desktop (sidebar there) */
         '.feed-ad-slot{grid-column:1/-1;margin:0.25rem 0 1rem;}',
         '@media(min-width:1024px){.feed-ad-slot{display:none!important;}}',
