@@ -1441,16 +1441,17 @@ function getLikeCount(articleId, cb) {
 }
 
 function submitReaction(articleId, emoji, prevEmoji) {
-    // Firestore REST commit — decrement prev (if changed/removed), increment new
+    // Firestore REST commit — PROPER decrement on unlike
     var writes = [];
+    // ALWAYS decrement prev if exists and different (or null = unlike)
     if (prevEmoji && prevEmoji !== emoji) {
         writes.push({ transform: { document: 'projects/endless-news/databases/(default)/documents/likes/' + encodeURIComponent(String(articleId)),
             fieldTransforms: [{ fieldPath: prevEmoji, increment: { integerValue: -1 } }] } });
     }
-    var inc = (emoji && prevEmoji !== emoji) ? 1 : (prevEmoji === emoji ? -1 : 1);
-    if (emoji && inc !== 0) {
+    // Increment new if exists and different
+    if (emoji && emoji !== prevEmoji) {
         writes.push({ transform: { document: 'projects/endless-news/databases/(default)/documents/likes/' + encodeURIComponent(String(articleId)),
-            fieldTransforms: [{ fieldPath: emoji, increment: { integerValue: inc } }] } });
+            fieldTransforms: [{ fieldPath: emoji, increment: { integerValue: 1 } }] } });
     }
     if (!writes.length) return;
     try {
@@ -1468,7 +1469,7 @@ function buildReactionUI(container, articleId) {
     var myReaction = liked[articleId] || null;
     container.innerHTML =
         '<button type="button" id="react-btn" style="display:inline-flex;align-items:center;gap:7px;padding:9px 20px;border-radius:999px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;transition:all .2s ease;box-shadow:0 2px 8px rgba(0,0,0,0.06);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-weight:600;">' +
-        '<span id="react-emoji" style="display:inline-flex;width:22px;height:22px;">' + (myReaction ? REACTIONS[myReaction] : REACTIONS.like) + '</span>' +
+        '<span id="react-emoji" style="display:inline-flex;width:22px;height:22px;">' + (myReaction && REACTIONS[myReaction] ? REACTIONS[myReaction] : REACTIONS.like) + '</span>' +
         '<span id="react-count" style="font-weight:700;font-size:0.9rem;"></span></button>' +
         '<div id="react-panel" style="display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:10px 14px;box-shadow:0 12px 32px rgba(0,0,0,0.35);z-index:99999;align-items:center;gap:6px;white-space:nowrap;"></div>';
     container.style.position = 'relative';
@@ -1539,6 +1540,7 @@ function pickReaction(articleId, emojiKey, isQuick) {
     if (next) { liked[articleId] = next; } else { delete liked[articleId]; }
     try { localStorage.setItem(LIKED_KEY, JSON.stringify(liked)); } catch (e) {}
 
+    // next=null → unlike (prev decrement), next=value → new reaction
     submitReaction(articleId, next, prev);
 
     var container = document.getElementById('reaction-wrap');
@@ -1546,7 +1548,7 @@ function pickReaction(articleId, emojiKey, isQuick) {
         var panel = container.querySelector('#react-panel');
         if (panel) panel.style.display = 'none';
         var eb = container.querySelector('#react-emoji');
-        if (eb) eb.innerHTML = next ? REACTIONS[next] : IC.thumbsUp;
+        if (eb) eb.innerHTML = (next && REACTIONS[next]) ? REACTIONS[next] : REACTIONS.like;
         getLikeCount(articleId, function(total) {
             var c = container.querySelector('#react-count');
             if (c) c.textContent = total > 0 ? total : '';
