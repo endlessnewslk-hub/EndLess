@@ -1403,8 +1403,14 @@ function applyArticleFontScale() {
 // Counts public; admin panel-la full breakdown kaatum.
 const LIKED_KEY = 'endless_liked';
 // 👍 Emoji reactions — Facebook-style (consistent across all articles)
+// 🎨 SVG REACTIONS — consistent premium icons (no emoji mix)
 const REACTIONS = {
-    like: '👍', love: '❤️', haha: '😂', wow: '😮', sad: '😢', angry: '😡'
+    like: '<svg viewBox="0 0 24 24" fill="none" stroke="#1877F2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>',
+    love: '<svg viewBox="0 0 24 24" fill="#F33E58" stroke="#F33E58" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+    haha: '<svg viewBox="0 0 24 24" fill="none" stroke="#F7B125" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>',
+    wow: '<svg viewBox="0 0 24 24" fill="none" stroke="#F7B125" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="8" x2="12" y2="4"/></svg>',
+    sad: '<svg viewBox="0 0 24 24" fill="none" stroke="#F7B125" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"/><path d="M8 16s1.5-2 4-2 4 2 4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>',
+    angry: '<svg viewBox="0 0 24 24" fill="none" stroke="#E9710F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"/><line x1="8" y1="8" x2="12" y2="11"/><line x1="16" y1="8" x2="12" y2="11"/><path d="M8 16s1.5-1.5 4-1.5 4 1.5 4 1.5"/></svg>'
 };
 function getLikedMap() { try { return JSON.parse(localStorage.getItem(LIKED_KEY)) || {}; } catch (e) { return {}; } }
 
@@ -1462,7 +1468,7 @@ function buildReactionUI(container, articleId) {
     var myReaction = liked[articleId] || null;
     container.innerHTML =
         '<button type="button" id="react-btn" style="display:inline-flex;align-items:center;gap:7px;padding:9px 20px;border-radius:999px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;transition:all .2s ease;box-shadow:0 2px 8px rgba(0,0,0,0.06);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-weight:600;">' +
-        '<span id="react-emoji" style="font-size:1.15rem;display:inline-flex;">' + (myReaction ? REACTIONS[myReaction] : '👍') + '</span>' +
+        '<span id="react-emoji" style="display:inline-flex;width:22px;height:22px;">' + (myReaction ? REACTIONS[myReaction] : REACTIONS.like) + '</span>' +
         '<span id="react-count" style="font-weight:700;font-size:0.9rem;"></span></button>' +
         '<div id="react-panel" style="display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:10px 14px;box-shadow:0 12px 32px rgba(0,0,0,0.35);z-index:99999;align-items:center;gap:6px;white-space:nowrap;"></div>';
     container.style.position = 'relative';
@@ -1471,7 +1477,7 @@ function buildReactionUI(container, articleId) {
     Object.keys(REACTIONS).forEach(function(k) {
         var b = document.createElement('button');
         b.type = 'button';
-        b.style.cssText = 'background:none;border:none;font-size:1.6rem;cursor:pointer;padding:2px 6px;transition:transform .15s;display:inline-flex;color:inherit;';
+        b.style.cssText = 'background:none;border:none;width:40px;height:40px;cursor:pointer;padding:4px;transition:transform .15s;display:inline-flex;align-items:center;justify-content:center;color:inherit;border-radius:50%;';
         b.innerHTML = REACTIONS[k]; // SVG icons need innerHTML, not textContent!
         b.dataset.reaction = k;
         b.addEventListener('mouseenter', function() { this.style.transform = 'scale(1.35)'; });
@@ -1494,7 +1500,12 @@ function buildReactionUI(container, articleId) {
         }, 450);
     }
     function endPress(ev) {
-        if (timer) { clearTimeout(timer); timer = null; quickLike(articleId); }
+        if (timer) {
+            clearTimeout(timer);
+            timer = null;
+            quickLike(articleId); // Short tap = like toggle
+        }
+        // Long-press: timer=null already, panel open — do nothing (emoji click handles)
     }
     btn.addEventListener('touchstart', startPress, { passive: false });
     btn.addEventListener('touchend', endPress);
