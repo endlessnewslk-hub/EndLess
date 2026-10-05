@@ -249,6 +249,9 @@ function wireNewsletterBox() {
         /* 🔗 SHARE GRID — 3 columns (Telegram hidden), balanced, NO GAP */
         '.share-grid{grid-template-columns:repeat(3,1fr)!important;max-width:340px;margin:0 auto;}',
         '@media(max-width:480px){.share-grid{max-width:100%;}}',
+        '.share-grid .share-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0.85rem 0.3rem;gap:5px;height:100%;}',
+        '.share-grid .share-btn svg{width:26px;height:26px;flex-shrink:0;margin-bottom:1px;}',
+        '.share-grid .share-btn span{font-size:0.68rem;line-height:1;font-weight:700;}',
         /* 📱 FEED ADS: full-width between article cards; hidden on desktop (sidebar there) */
         '.feed-ad-slot{grid-column:1/-1;margin:0.25rem 0 1rem;}',
         '@media(min-width:1024px){.feed-ad-slot{display:none!important;}}',
