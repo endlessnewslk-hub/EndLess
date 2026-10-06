@@ -1399,6 +1399,21 @@ function applyArticleFontScale() {
     if (el) el.style.setProperty('font-size', (1.05 * _articleFontScale).toFixed(2) + 'rem', 'important');
 }
 
+// 📤 PUSH TRIGGER — Like/share aana odane notification trigger create pannum
+// (Admin app-la listener ithai paathu push anuppum — phone + laptop!)
+async function sendPushTrigger(type, articleId, articleTitle) {
+    if (!db) return;
+    try {
+        await db.collection('push_triggers').add({
+            type: type,
+            articleId: String(articleId),
+            articleTitle: (articleTitle || 'Article').substring(0, 60),
+            timestamp: new Date().toISOString(),
+            sent: false
+        });
+    } catch (e) { /* silent */ }
+}
+
 // ❤️ LIKE + REACTIONS — Facebook-style. Viewers: like/unlike + 6-emoji reactions.
 // Counts public; admin panel-la full breakdown kaatum.
 const LIKED_KEY = 'endless_liked';
@@ -1553,6 +1568,12 @@ function pickReaction(articleId, emojiKey, isQuick) {
     if (next && next !== prev) delta++;      // add new
 
     submitReaction(articleId, next, prev); // Firestore async write
+
+    // 🔔 LIKE aana odane push trigger (unlike-ku illa — new reaction mattum)
+    if (next && !prev) {
+        var _art = (typeof findArticleById === 'function') ? findArticleById(articleId) : null;
+        sendPushTrigger('like', articleId, _art ? (getLocalized(_art, 'title') || _art.title) : 'Article');
+    }
 
     var container = document.getElementById('reaction-wrap');
     if (container) {
@@ -1924,6 +1945,9 @@ function shareArticle(id) {
     }
     // 📊 Track share (modal open = share intent)
     analyticsTrack('share', id);
+
+    // 🔔 SHARE aana odane push trigger
+    sendPushTrigger('share', id, article ? (getLocalized(article, 'title') || article.title) : 'Article');
 
     // 📊 Track share (fire-and-forget)
     try {
