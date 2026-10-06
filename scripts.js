@@ -1414,6 +1414,13 @@ const REACTIONS = {
 };
 function getLikedMap() { try { return JSON.parse(localStorage.getItem(LIKED_KEY)) || {}; } catch (e) { return {}; } }
 
+// 🔢 FB-STYLE COMPACT NUMBER — 1000 → 1K, 2500 → 2.5K, 1000000 → 1M
+function fmtCount(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(n);
+}
+
 function getLikeCount(articleId, cb) {
     // Firestore REST read — public
     try {
@@ -1521,7 +1528,7 @@ function buildReactionUI(container, articleId) {
     // Initial count
     getLikeCount(articleId, function(total) {
         var c = container.querySelector('#react-count');
-        if (c) c.textContent = total > 0 ? total : '';
+        if (c) c.textContent = total > 0 ? fmtCount(total) : '';
     });
 }
 
@@ -1562,7 +1569,7 @@ function pickReaction(articleId, emojiKey, isQuick) {
         setTimeout(function() {
             getLikeCount(articleId, function(total) {
                 var c2 = container.querySelector('#react-count');
-                if (c2) c2.textContent = total > 0 ? total : '';
+                if (c2) c2.textContent = total > 0 ? fmtCount(total) : '';
             });
         }, 800);
     }
@@ -1795,6 +1802,26 @@ function openArticle(id) {
     // 🖼️ Set gallery images for fullscreen viewer
     window._gal = { imgs: [article.image].concat(Array.isArray(article.images) ? article.images.filter(function(u) { return u && u !== article.image; }) : []) };
 
+    // ⚡ REAL-TIME LIKE LISTENER — FB-style live count (auto-update all devices!)
+    try {
+        if (window._likeUnsub) window._likeUnsub(); // previous article listener off
+        if (db) {
+            window._likeUnsub = db.collection('likes').doc(String(id)).onSnapshot(function(doc) {
+                var wrap = document.getElementById('reaction-wrap');
+                if (!wrap) return;
+                var total = 0;
+                if (doc.exists) {
+                    var f = doc.data();
+                    ['like','love','haha','wow','sad','angry'].forEach(function(k) {
+                        total += parseInt(f[k]) || 0;
+                    });
+                }
+                var c = wrap.querySelector('#react-count');
+                if (c) c.textContent = total > 0 ? fmtCount(total) : '';
+            });
+        }
+    } catch (e) {}
+
 
     // 📊 Track article view (fire-and-forget — never blocks UX)
     try {
@@ -1874,6 +1901,8 @@ function renderSavedPage() {
 }
 
 function closeModal() {
+    // ⚡ OFF real-time listener (save bandwidth)
+    try { if (window._likeUnsub) { window._likeUnsub(); window._likeUnsub = null; } } catch (e) {}
     const modal = document.getElementById('article-modal');
     if (!modal) return;
 
