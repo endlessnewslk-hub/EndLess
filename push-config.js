@@ -152,7 +152,7 @@ function handleTokenRefresh() {
     _messaging.onTokenRefresh(async function() {
         try {
             const newToken = await _messaging.getToken({
-                vapidKey: 'YOUR_VAPID_KEY_HERE'
+                vapidKey: 'BJQXH5SasiDwoBcByVa_Z6qKQsPTEsotl3KMx1hAD6YR2CAc998bN1H1Pjpf1AxV1EF3PDeXmrlTrvIud34DkRI'
             });
             _fcmToken = newToken;
             await saveFCMToken(newToken);
