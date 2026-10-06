@@ -1540,8 +1540,12 @@ function pickReaction(articleId, emojiKey, isQuick) {
     if (next) { liked[articleId] = next; } else { delete liked[articleId]; }
     try { localStorage.setItem(LIKED_KEY, JSON.stringify(liked)); } catch (e) {}
 
-    // next=null → unlike (prev decrement), next=value → new reaction
-    submitReaction(articleId, next, prev);
+    // 🚀 OPTIMISTIC UPDATE — UI immediately adjust, server verify later
+    var delta = 0;
+    if (prev && prev !== next) delta--;      // remove prev
+    if (next && next !== prev) delta++;      // add new
+
+    submitReaction(articleId, next, prev); // Firestore async write
 
     var container = document.getElementById('reaction-wrap');
     if (container) {
@@ -1549,10 +1553,18 @@ function pickReaction(articleId, emojiKey, isQuick) {
         if (panel) panel.style.display = 'none';
         var eb = container.querySelector('#react-emoji');
         if (eb) eb.innerHTML = (next && REACTIONS[next]) ? REACTIONS[next] : REACTIONS.like;
-        getLikeCount(articleId, function(total) {
-            var c = container.querySelector('#react-count');
-            if (c) c.textContent = total > 0 ? total : '';
-        });
+        // Immediate local count update (optimistic)
+        var c = container.querySelector('#react-count');
+        var cur = parseInt(c.textContent) || 0;
+        var newCount = Math.max(0, cur + delta);
+        if (c) c.textContent = newCount > 0 ? newCount : '';
+        // Server verify after 800ms (eventual consistency wait)
+        setTimeout(function() {
+            getLikeCount(articleId, function(total) {
+                var c2 = container.querySelector('#react-count');
+                if (c2) c2.textContent = total > 0 ? total : '';
+            });
+        }, 800);
     }
 }
 
