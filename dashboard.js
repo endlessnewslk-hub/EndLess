@@ -121,16 +121,24 @@ function renderAnalyticsPage() {
         }).join('') : '<p style="color:#9ca3af;text-align:center;padding:1.5rem;">No data yet — visitors vandha countries inga kaatum!</p>';
     }).catch(function() {});
 
-    // 🔥 Top articles (views + likes)
-    db.collection('analytics').get().then(function(snap) {
-        var arts = [];
-        snap.docs.forEach(function(doc) {
-            if (doc.id.indexOf('articles_') === 0) {
-                var f = doc.data();
-                arts.push({ id: doc.id.replace('articles_', ''), views: f.views || 0, likes: f.likes || 0 });
-            }
+    // 🔥 Top articles — views (analytics) + likes (LIKES COLLECTION — past + present!)
+    Promise.all([
+        db.collection('analytics').get(),
+        db.collection('likes').get()
+    ]).then(function(results) {
+        var viewsMap = {}, likesMap = {};
+        results[0].docs.forEach(function(doc) {
+            if (doc.id.indexOf('articles_') === 0) viewsMap[doc.id.replace('articles_', '')] = doc.data().views || 0;
         });
-        arts.sort(function(a, b) { return b.views - a.views; });
+        results[1].docs.forEach(function(doc) {
+            var f = doc.data(), t = 0;
+            ['like','love','haha','wow','sad','angry'].forEach(function(k) { t += parseInt(f[k]) || 0; });
+            likesMap[doc.id] = t;
+        });
+        var allIds = Object.keys(viewsMap);
+        Object.keys(likesMap).forEach(function(id) { if (allIds.indexOf(id) === -1) allIds.push(id); });
+        var arts = allIds.map(function(id) { return { id: id, views: viewsMap[id] || 0, likes: likesMap[id] || 0 }; });
+        arts.sort(function(a, b) { return (b.views + b.likes) - (a.views + a.likes); });
         var lookup = {};
         (typeof adminNews !== 'undefined' ? adminNews : []).forEach(function(n) { lookup[String(n.id)] = n; });
         var tb = document.getElementById('top-articles-body');
@@ -138,8 +146,8 @@ function renderAnalyticsPage() {
         tb.innerHTML = arts.length ? arts.slice(0, 8).map(function(a, i) {
             var n = lookup[a.id];
             var title = n ? String(n.title_en || n.title).replace(/</g, '&lt;').substring(0, 50) : 'Article #' + a.id;
-            return '<tr><td>' + (i + 1) + '</td><td><strong>' + title + '</strong></td><td>' + a.views.toLocaleString() + '</td><td>' + (a.likes || 0) + '</td></tr>';
-        }).join('') : '<tr><td colspan="4" style="text-align:center;color:#9ca3af;">No article data yet</td></tr>';
+            return '<tr><td>' + (i + 1) + '</td><td><strong>' + title + '</strong></td><td>' + (a.views || 0).toLocaleString() + '</td><td>' + (a.likes || 0) + '</td></tr>';
+        }).join('') : '<tr><td colspan="4" style="text-align:center;color:#9ca3af;">No article data yet — articles view/like panna inga varum!</td></tr>';
     }).catch(function() {});
 }
 // ═══════════════════════════════════════════════════════════════
