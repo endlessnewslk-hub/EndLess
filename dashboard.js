@@ -1,79 +1,57 @@
 function renderAnalyticsPage() {
-    var totalViewsEl = document.getElementById('stat-total-views');
-    var adClicksEl = document.getElementById('stat-ad-clicks');
-    var mobileEl = document.getElementById('stat-mobile-users');
-    var countryEl = document.getElementById('stat-top-country');
+    var page = document.getElementById('page-analytics');
+    if (!page) return;
 
-    ['…'].forEach(function(t) {
-        if (totalViewsEl) totalViewsEl.textContent = t;
-        if (adClicksEl) adClicksEl.textContent = t;
-        if (mobileEl) mobileEl.textContent = t;
-        if (countryEl) countryEl.textContent = t;
-    });
-
-    var ctx = document.getElementById('analytics-chart');
-    if (ctx && analyticsChart) { analyticsChart.destroy(); analyticsChart = null; }
-
-    if (!db) {
-        ['N/A'].forEach(function(t) {
-            if (totalViewsEl) totalViewsEl.textContent = t;
-            if (adClicksEl) adClicksEl.textContent = t;
-            if (mobileEl) mobileEl.textContent = t;
-            if (countryEl) countryEl.textContent = 'No DB';
-        });
-        return;
+    // 🎨 Full rebuild once — FB Insights style layout
+    if (!document.getElementById('an-fb-root')) {
+        page.innerHTML =
+        '<div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">' +
+            '<div class="stat-card"><div class="stat-icon">' + IC.eye + '</div><div class="stat-info"><h3 id="an-views">—</h3><p>Total Views</p></div></div>' +
+            '<div class="stat-card"><div class="stat-icon">' + IC.heart + '</div><div class="stat-info"><h3 id="an-likes">—</h3><p>Total Likes</p></div></div>' +
+            '<div class="stat-card"><div class="stat-icon">' + IC.share + '</div><div class="stat-info"><h3 id="an-shares">—</h3><p>Shares</p></div></div>' +
+            '<div class="stat-card"><div class="stat-icon">' + IC.phone + '</div><div class="stat-info"><h3 id="an-mobile">—</h3><p>Mobile %</p></div></div>' +
+            '<div class="stat-card"><div class="stat-icon" style="background:#fef3c7;">⚡</div><div class="stat-info"><h3 id="an-engage">—</h3><p>Engagement</p></div></div>' +
+            '<div class="stat-card"><div class="stat-icon" style="background:#dbeafe;">' + IC.globe + '</div><div class="stat-info"><h3 id="an-countries">—</h3><p>Countries</p></div></div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:2fr 1fr;gap:1.5rem;margin-bottom:1.5rem;" class="an-grid-1">' +
+            '<div class="panel"><h3>📈 Views — Last 7 Days</h3><div style="height:220px;"><canvas id="analytics-chart"></canvas></div></div>' +
+            '<div class="panel"><h3>📱 Devices</h3><div style="height:220px;display:flex;align-items:center;justify-content:center;"><canvas id="an-devices"></canvas></div></div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1.4fr;gap:1.5rem;margin-bottom:1.5rem;" class="an-grid-2">' +
+            '<div class="panel"><h3>🔗 Traffic Sources</h3><div style="height:230px;display:flex;align-items:center;justify-content:center;"><canvas id="an-sources"></canvas></div></div>' +
+            '<div class="panel"><h3>🌍 Visitor Countries</h3><div id="an-countries-list" style="max-height:230px;overflow-y:auto;"><p style="color:#9ca3af;text-align:center;padding:1.5rem;">Loading…</p></div></div>' +
+        '</div>' +
+        '<div class="panel" id="top-articles-panel"><h3>🔥 Top Articles</h3><div class="table-scroll"><table class="data-table compact"><thead><tr><th>#</th><th>Article</th><th>Views</th><th>Likes</th></tr></thead><tbody id="top-articles-body"><tr><td colspan="4" style="text-align:center;color:#9ca3af;">Loading…</td></tr></tbody></table></div></div>' +
+        '<style>@media(max-width:900px){.an-grid-1,.an-grid-2{grid-template-columns:1fr!important;}}</style>';
     }
 
-    // 🌍 Detect visitor country (ipwho.is — free, no key) → store aggregate
-    (function detectCountry() {
-        fetch('https://ipwho.is/').then(function(r) { return r.json(); }).then(function(ip) {
-            if (!ip || !ip.success || !ip.country) return;
-            var cc = ip.country_code || 'XX';
-            db.collection('analytics').doc('countries').set({
-                counts: firebase.firestore.FieldValue.increment ? undefined : undefined
-            }, { merge: true }).catch(function() {});
-            db.collection('analytics').doc('countries').update(
-                'counts.' + cc,
-                firebase.firestore.FieldValue.increment(1)
-            ).catch(function() {
-                db.collection('analytics').doc('countries').set({ counts: {} }, { merge: true })
-                    .then(function() {
-                        return db.collection('analytics').doc('countries').update(
-                            'counts.' + cc, firebase.firestore.FieldValue.increment(1));
-                    }).catch(function() {});
-            });
-        }).catch(function() {});
-    })();
+    if (!db) { document.getElementById('an-views').textContent = 'N/A'; return; }
 
+    // 📊 Totals
     db.collection('analytics').doc('totals').get().then(function(doc) {
         var t = doc.exists ? doc.data() : {};
-        var views = (t.views || 0);
-        var shares = (t.shares || 0);
-        var mobile = t.mobile || 0, desktop = t.desktop || 0;
-        var totalD = mobile + desktop;
-        if (totalViewsEl) totalViewsEl.textContent = views.toLocaleString();
-        if (adClicksEl) adClicksEl.textContent = shares.toLocaleString();
-        if (mobileEl) mobileEl.textContent = totalD > 0 ? Math.round(mobile / totalD * 100) + '%' : '—';
-
-        // 🌍 Top country from stored counts
-        db.collection('analytics').doc('countries').get().then(function(cdoc) {
-            var counts = (cdoc.exists && cdoc.data().counts) || {};
-            var top = '—', topN = 0;
-            Object.keys(counts).forEach(function(k) {
-                if (counts[k] > topN) { topN = counts[k]; top = k; }
-            });
-            if (countryEl && top !== '—') {
-                var names = { LK: 'Sri Lanka', IN: 'India', MY: 'Malaysia', SG: 'Singapore', AE: 'UAE', GB: 'UK', US: 'USA', CA: 'Canada', AU: 'Australia' };
-                countryEl.textContent = names[top] || top;
-            } else if (countryEl) countryEl.textContent = '—';
-        }).catch(function() { if (countryEl) countryEl.textContent = '—'; });
-    }).catch(function() {
-        if (totalViewsEl) totalViewsEl.textContent = 'Error';
+        var views = t.views || 0, shares = t.shares || 0;
+        var mob = t.mobile || 0, desk = t.desktop || 0;
+        document.getElementById('an-views').textContent = views.toLocaleString();
+        document.getElementById('an-shares').textContent = shares.toLocaleString();
+        var totD = mob + desk;
+        document.getElementById('an-mobile').textContent = totD > 0 ? Math.round(mob / totD * 100) + '%' : '—';
+        var engage = views > 0 ? Math.min(100, Math.round((shares + (t.likes || 0)) / views * 100)) : 0;
+        document.getElementById('an-engage').textContent = engage + '%';
     });
 
-    // 📈 Daily chart — last 7 days real data
-    var today = new Date();
-    var labels = [], keys = [];
+    // ❤️ Total likes (sum of all likes docs)
+    db.collection('likes').get().then(function(snap) {
+        var total = 0;
+        snap.docs.forEach(function(d) {
+            var f = d.data();
+            ['like','love','haha','wow','sad','angry'].forEach(function(k) { total += parseInt(f[k]) || 0; });
+        });
+        document.getElementById('an-likes').textContent = total.toLocaleString();
+    }).catch(function() {});
+
+    // 📈 7-day views chart
+    var today = new Date(), labels = [], keys = [];
     for (var i = 6; i >= 0; i--) {
         var dt = new Date(today); dt.setDate(dt.getDate() - i);
         keys.push(dt.toISOString().slice(0, 10));
@@ -82,80 +60,86 @@ function renderAnalyticsPage() {
     Promise.all(keys.map(function(k) {
         return db.collection('analytics').doc('daily_' + k).get().catch(function() { return null; });
     })).then(function(docs) {
-        var data = docs.map(function(doc) {
-            return (doc && doc.exists) ? (doc.data().views || 0) : 0;
-        });
+        var data = docs.map(function(x) { return (x && x.exists) ? (x.data().views || 0) : 0; });
+        var ctx = document.getElementById('analytics-chart');
         if (!ctx) return;
         if (analyticsChart) analyticsChart.destroy();
         analyticsChart = new Chart(ctx, {
             type: 'line',
-            data: { labels: labels, datasets: [{
-                label: 'Page Views',
-                data: data,
-                fill: true,
-                borderColor: '#ef4444',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                tension: 0.4,
-                pointBackgroundColor: '#ef4444',
-                pointRadius: 5,
-                pointHoverRadius: 7
-            }]},
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true, grid: { color: 'rgba(200,200,200,0.1)' }, ticks: { color: '#a0a0b8', precision: 0 } },
-                    x: { grid: { display: false }, ticks: { color: '#a0a0b8' } }
-                },
-                plugins: { legend: { display: false } }
-            }
+            data: { labels: labels, datasets: [{ label: 'Views', data: data, fill: true, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', tension: 0.4, pointRadius: 4, pointBackgroundColor: '#ef4444' }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0, color: '#94a3b8' }, grid: { color: 'rgba(0,0,0,0.05)' } }, x: { ticks: { color: '#94a3b8' }, grid: { display: false } } } }
         });
     });
 
-    // 🔥 Top 5 most-read articles — REAL counts from analytics/articles/*
+    // 📱 Devices doughnut
+    db.collection('analytics').doc('totals').get().then(function(doc) {
+        var t = doc.exists ? doc.data() : {};
+        var ctx = document.getElementById('an-devices');
+        if (!ctx) return;
+        if (window._anDevChart) window._anDevChart.destroy();
+        window._anDevChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels: ['Mobile', 'Desktop'], datasets: [{ data: [t.mobile || 0, t.desktop || 0], backgroundColor: ['#ef4444', '#3b82f6'], borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { color: '#64748b', font: { size: 11 } } } } }
+        });
+    });
+
+    // 🔗 Sources doughnut + 🌍 Countries table (parallel)
+    db.collection('analytics').doc('sources').get().then(function(doc) {
+        var counts = (doc.exists && doc.data().counts) || {};
+        var ctx = document.getElementById('an-sources');
+        if (ctx) {
+            if (window._anSrcChart) window._anSrcChart.destroy();
+            var keys2 = Object.keys(counts);
+            var colors = { facebook: '#1877F2', whatsapp: '#25D366', google: '#4285F4', direct: '#94a3b8', x: '#111827', instagram: '#E1306C', telegram: '#229ED9', bing: '#0c8484', youtube: '#FF0000', internal: '#f59e0b', other: '#cbd5e1' };
+            window._anSrcChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: keys2.map(function(k) { return k.charAt(0).toUpperCase() + k.slice(1); }), datasets: [{ data: keys2.map(function(k) { return counts[k]; }), backgroundColor: keys2.map(function(k) { return colors[k] || '#cbd5e1'; }), borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { color: '#64748b', font: { size: 10 }, boxWidth: 12 } } } }
+            });
+        }
+    }).catch(function() {});
+
+    // 🌍 Countries
+    db.collection('analytics').doc('countries').get().then(function(doc) {
+        var counts = (doc.exists && doc.data().counts) || {};
+        var names = (doc.exists && doc.data().names) || {};
+        var COUNTRY_NAMES = { LK: 'Sri Lanka', IN: 'India', US: 'USA', GB: 'United Kingdom', AE: 'UAE', SA: 'Saudi Arabia', CA: 'Canada', AU: 'Australia', MY: 'Malaysia', SG: 'Singapore', QA: 'Qatar', KW: 'Kuwait', FR: 'France', DE: 'Germany', IT: 'Italy', JP: 'Japan', KR: 'South Korea', CN: 'China', PK: 'Pakistan', BD: 'Bangladesh', NP: 'Nepal', ID: 'Indonesia', TH: 'Thailand', TR: 'Turkey', RU: 'Russia', BR: 'Brazil', NL: 'Netherlands', SE: 'Sweden', NO: 'Norway', IE: 'Ireland', ZA: 'South Africa', EG: 'Egypt', IL: 'Israel', HK: 'Hong Kong', TW: 'Taiwan', NZ: 'New Zealand' };
+        var entries = Object.keys(counts).map(function(cc) {
+            return { cc: cc, count: counts[cc], name: names[cc] || COUNTRY_NAMES[cc] || cc };
+        }).sort(function(a, b) { return b.count - a.count; });
+        document.getElementById('an-countries').textContent = entries.length;
+        var max = entries.length ? entries[0].count : 1;
+        var el = document.getElementById('an-countries-list');
+        if (!el) return;
+        el.innerHTML = entries.length ? entries.slice(0, 12).map(function(e) {
+            return '<div style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid #f1f5f9;">' +
+                '<img src="https://flagcdn.com/w40/' + e.cc.toLowerCase() + '.png" alt="' + e.cc + '" style="width:26px;height:18px;object-fit:cover;border-radius:3px;flex-shrink:0;" onerror="this.style.display=\'none\'">' +
+                '<span style="flex:1;font-size:0.85rem;font-weight:600;color:#374151;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + e.name + '</span>' +
+                '<div style="width:34%;height:8px;background:#f1f5f9;border-radius:99px;overflow:hidden;flex-shrink:0;"><div style="height:100%;width:' + Math.round(e.count / max * 100) + '%;background:linear-gradient(90deg,#ef4444,#f97316);border-radius:99px;"></div></div>' +
+                '<span style="font-size:0.85rem;font-weight:800;color:#111827;width:44px;text-align:right;flex-shrink:0;">' + e.count.toLocaleString() + '</span></div>';
+        }).join('') : '<p style="color:#9ca3af;text-align:center;padding:1.5rem;">No data yet — visitors vandha countries inga kaatum!</p>';
+    }).catch(function() {});
+
+    // 🔥 Top articles (views + likes)
     db.collection('analytics').get().then(function(snap) {
-        var tops = [];
+        var arts = [];
         snap.docs.forEach(function(doc) {
             if (doc.id.indexOf('articles_') === 0) {
-                var v = doc.data().views || 0;
-                var id = doc.id.replace('articles_', '');
-                if (v > 0 && id) tops.push({ id: id, views: v });
-            } else if (doc.id.indexOf('articles/') === 0 || doc.id.split('_')[0] === 'article') {
-                var v = doc.data().views || 0;
-                var id = doc.id.replace('articles/', '').replace('article_', '');
-                if (v > 0 && id) tops.push({ id: id, views: v });
+                var f = doc.data();
+                arts.push({ id: doc.id.replace('articles_', ''), views: f.views || 0, likes: f.likes || 0 });
             }
         });
-        tops.sort(function(a, b) { return b.views - a.views; });
-        tops = tops.slice(0, 5);
-        // 🎯 Dedicated panel (injected — never touches the chart panel's tbody!)
-        var host = document.getElementById('page-analytics');
-        if (!host) return;
-        var panel = document.getElementById('top-articles-panel');
-        if (!panel) {
-            panel = document.createElement('div');
-            panel.className = 'panel';
-            panel.id = 'top-articles-panel';
-            panel.style.marginTop = '1.5rem';
-            panel.innerHTML = '<h3>' + IC.flame + ' Top Articles (Most Read)</h3>' +
-                '<div class="table-scroll"><table class="data-table compact">' +
-                '<thead><tr><th>Article</th><th>Views</th></tr></thead>' +
-                '<tbody id="top-articles-body"><tr><td colspan="2" style="color:#9ca3af;">Loading…</td></tr></tbody>' +
-                '</table></div>';
-            var chartPanel = host.querySelector('.panel');
-            if (chartPanel) chartPanel.after(panel);
-        }
-        var tbody = document.getElementById('top-articles-body');
-        if (tbody) {
-            tbody.innerHTML = tops.length ? tops.map(function(t) {
-                var art = (typeof adminNews !== 'undefined' ? adminNews : []).find(function(n) {
-                    return String(n.id) === String(t.id);
-                });
-                var title = art ? (art.title_en || art.title) : ('Article #' + t.id);
-                return '<tr><td>' + String(title).replace(/</g, '&lt;').substring(0, 50) + '</td>' +
-                       '<td>' + t.views + ' views</td></tr>';
-            }).join('') : '<tr><td colspan="2" style="color:#9ca3af;">No article data yet</td></tr>';
-        }
+        arts.sort(function(a, b) { return b.views - a.views; });
+        var lookup = {};
+        (typeof adminNews !== 'undefined' ? adminNews : []).forEach(function(n) { lookup[String(n.id)] = n; });
+        var tb = document.getElementById('top-articles-body');
+        if (!tb) return;
+        tb.innerHTML = arts.length ? arts.slice(0, 8).map(function(a, i) {
+            var n = lookup[a.id];
+            var title = n ? String(n.title_en || n.title).replace(/</g, '&lt;').substring(0, 50) : 'Article #' + a.id;
+            return '<tr><td>' + (i + 1) + '</td><td><strong>' + title + '</strong></td><td>' + a.views.toLocaleString() + '</td><td>' + (a.likes || 0) + '</td></tr>';
+        }).join('') : '<tr><td colspan="4" style="text-align:center;color:#9ca3af;">No article data yet</td></tr>';
     }).catch(function() {});
 }
 // ═══════════════════════════════════════════════════════════════
@@ -622,6 +606,110 @@ if (typeof window.showToast !== 'function') {
     };
 }
 
+// ✈️ TELEGRAM BOT SETUP — Settings page-la inject (simple: token paste → auto chat ID!)
+async function ensureTelegramUI() {
+    var page = document.getElementById('page-settings');
+    if (!page || document.getElementById('tg-setup-panel')) return;
+
+    var panel = document.createElement('div');
+    panel.className = 'panel';
+    panel.id = 'tg-setup-panel';
+    panel.style.marginTop = '1.5rem';
+    panel.innerHTML =
+        '<h3>✈️ Telegram Notifications (New Like/Share alerts)</h3>' +
+        '<p style="color:#6b7280;font-size:0.85rem;margin-bottom:0.75rem;">' +
+        'Like/share aana odane unga Telegram app-ku notification varum! Setup (2 min):' +
+        '<br>1️⃣ Telegram-la <b>@BotFather</b> search → /newbot → name kudunga → <b>Token</b> copy pannunga<br>' +
+        '2️⃣ Token-a keezha paste pannunga → "Find My Chat ID" click pannunga<br>' +
+        '3️⃣ Telegram-la unga bot-ku oru message anuppuunga (e.g., "hi") → approm button click!</p>' +
+        '<div class="form-group"><label>Bot Token</label>' +
+        '<input type="text" id="tg-bot-token" placeholder="123456:ABC-DEF..." style="width:100%;padding:0.6rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;"></div>' +
+        '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">' +
+        '<button class="btn-primary" id="tg-find-chat" type="button">🔍 Find My Chat ID</button>' +
+        '<button class="btn-primary" id="tg-save" type="button">💾 Save</button>' +
+        '<button class="btn-secondary" id="tg-test" type="button">🧪 Test Message</button>' +
+        '</div>' +
+        '<p id="tg-status" style="margin-top:0.75rem;font-size:0.85rem;font-weight:600;color:#6b7280;">Status: —</p>';
+
+    page.appendChild(panel);
+
+    // Load saved config
+    try {
+        if (db) {
+            var doc = await db.collection('settings').doc('telegram_bot').get();
+            if (doc.exists) {
+                var c = doc.data();
+                document.getElementById('tg-bot-token').value = c.botToken || '';
+                document.getElementById('tg-status').textContent = 'Status: ✅ Connected (Chat ID: ' + (c.chatId || '?') + ')';
+                document.getElementById('tg-status').style.color = '#059669';
+            }
+        }
+    } catch (e) {}
+
+    // Find Chat ID — fetches bot updates, finds user's chat
+    document.getElementById('tg-find-chat').addEventListener('click', async function() {
+        var token = document.getElementById('tg-bot-token').value.trim();
+        var status = document.getElementById('tg-status');
+        if (!token) { status.textContent = 'Status: ❌ Token first paste pannunga!'; status.style.color = '#dc2626'; return; }
+
+        status.textContent = 'Status: ⏳ Searching... (unga bot-ku Telegram-la oru message anuppuunga!)';
+        try {
+            var r = await fetch('https://api.telegram.org/bot' + token + '/getUpdates');
+            var j = await r.json();
+            if (j.ok && j.result && j.result.length) {
+                // Latest message-oda chat id
+                var chatId = j.result[j.result.length - 1].message.chat.id;
+                status.textContent = 'Status: ✅ Chat ID found: ' + chatId + ' → Ipo "Save" click pannunga!';
+                status.style.color = '#059669';
+                window._tgChatId = chatId;
+            } else {
+                status.textContent = 'Status: ❌ Messages illa! Bot-ku oru "hi" message anuppu, approm thirumba try pannu.';
+                status.style.color = '#dc2626';
+            }
+        } catch (e) {
+            status.textContent = 'Status: ❌ Error — token sariya check pannu';
+            status.style.color = '#dc2626';
+        }
+    });
+
+    // Save
+    document.getElementById('tg-save').addEventListener('click', async function() {
+        var token = document.getElementById('tg-bot-token').value.trim();
+        var chatId = window._tgChatId;
+        var status = document.getElementById('tg-status');
+        if (!token || !chatId) { status.textContent = 'Status: ❌ Token + Chat ID venum (Find Chat ID click pannu!)'; status.style.color = '#dc2626'; return; }
+        try {
+            await db.collection('settings').doc('telegram_bot').set({
+                botToken: token, chatId: String(chatId), savedAt: new Date().toISOString()
+            });
+            status.textContent = 'Status: ✅ SAVED! Ippo vera browser-la LIKE pannu — Telegram-la varum!';
+            status.style.color = '#059669';
+            showToast('✈️ Telegram connected!', 'success');
+        } catch (e) {
+            status.textContent = 'Status: ❌ Save failed';
+            status.style.color = '#dc2626';
+        }
+    });
+
+    // Test
+    document.getElementById('tg-test').addEventListener('click', async function() {
+        var status = document.getElementById('tg-status');
+        try {
+            var doc = await db.collection('settings').doc('telegram_bot').get();
+            if (!doc.exists || !doc.data().botToken) { status.textContent = 'Status: ❌ First Save pannu!'; return; }
+            var c = doc.data();
+            var r = await fetch('https://api.telegram.org/bot' + c.botToken + '/sendMessage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: c.chatId, text: '🧪 Test OK! Telegram notifications WORKING! 🎉\n\n👉 endlessnews.lk' })
+            });
+            var j = await r.json();
+            status.textContent = j.ok ? 'Status: ✅ Test sent! Telegram app check pannu!' : 'Status: ❌ Test failed: ' + (j.description || '');
+            status.style.color = j.ok ? '#059669' : '#dc2626';
+        } catch (e) { status.textContent = 'Status: ❌ Error'; }
+    });
+}
+
 // 🔇 Production: no debug logs in console
 var DEBUG = false;
 function dbg() { if (DEBUG) console.log.apply(console, arguments); }
@@ -1030,6 +1118,7 @@ function showPageContinue(page) {
     if (pageTitle) pageTitle.textContent = page.charAt(0).toUpperCase() + page.slice(1);
     
     // CRITICAL FIX: Always render tables when showing page
+    if (page === 'settings') ensureTelegramUI();
     if (page === 'dashboard') renderDashboard();
     if (page === 'analytics') renderAnalyticsPage();
     if (page === 'news') renderNewsTable();
@@ -2090,7 +2179,12 @@ async function openAdAnalytics() {
             '<div style="margin-bottom:16px;"><canvas id="aa-chart" height="120"></canvas></div>' +
             '<h4 style="font-size:0.95rem;font-weight:700;margin-bottom:10px;">Top Performing Ads</h4>' +
             '<div class="table-scroll" style="border:1px solid #e2e8f0;border-radius:10px;"><table class="data-table compact"><thead><tr><th>Ad</th><th>Position</th><th>Impr.</th><th>Clicks</th><th>CTR</th></tr></thead><tbody id="aa-top"><tr><td colspan="5" style="text-align:center;color:#94a3b8;">Loading…</td></tr></tbody></table></div>' +
-            '<p style="color:#94a3b8;font-size:0.75rem;margin-top:14px;">💡 Click tracking — website-la ad click pannum bodhu auto-count aagum.</p></div>';
+            '<div style="margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;">' +
+            '<h4 style="font-size:0.95rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px;">' + (typeof IC !== 'undefined' ? IC.users : '👥') + ' Active Campaigns & Contacts</h4>' +
+            '<div class="table-scroll" style="border:1px solid #e2e8f0;border-radius:10px;max-height:200px;overflow-y:auto;"><table class="data-table compact"><thead><tr><th>Ad</th><th>Client</th><th>Contact</th><th>Duration</th><th>Days Left</th><th>Earned (est.)</th></tr></thead><tbody id="aa-campaigns"><tr><td colspan="6" style="text-align:center;color:#94a3b8;">Loading…</td></tr></tbody></table></div></div>' +
+            '<div style="margin-top:16px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 14px;font-size:0.82rem;color:#0c4a6e;">' +
+            '<strong>💡 Tip:</strong> Ad edit pannum bodhu client name, phone, rate add pannunga — ithu auto-track aagum. Daily rate × active days = estimated earnings.</div>' +
+            '<p style="color:#94a3b8;font-size:0.75rem;margin-top:12px;">Click tracking — website-la ad click pannum bodhu auto-count aagum. Duration: admin-la set panna start/end date.</p></div>';
         document.body.appendChild(ov);
         document.getElementById('aa-close').addEventListener('click', function() { ov.style.display = 'none'; });
         ov.addEventListener('click', function(e) { if (e.target === ov) ov.style.display = 'none'; });
@@ -2126,10 +2220,55 @@ async function openAdAnalytics() {
         }).sort(function(a, b) { return b.imp - a.imp; }).slice(0, 5);
         var adNames = {};
         (typeof adminAds !== 'undefined' ? adminAds : []).forEach(function(a) { adNames[String(a.id)] = a.title_en || a.title || 'Ad #' + a.id; });
+        // 💼 Active campaigns — client, contact, duration, earnings
+        try {
+            var now = new Date();
+            var campRows = (typeof adminAds !== 'undefined' ? adminAds : []).filter(function(a) {
+                return a && a.active !== false && (!a.endDate || new Date(a.endDate) >= now);
+            }).map(function(a) {
+                var start = a.startDate ? new Date(a.startDate) : null;
+                var end = a.endDate ? new Date(a.endDate) : null;
+                var daysLeft = end ? Math.max(0, Math.ceil((end - now) / 86400000)) : '∞';
+                var totalDays = start && end ? Math.max(1, Math.ceil((end - start) / 86400000)) : 30;
+                var rate = parseFloat(a.dailyRate) || 0;
+                var activeDays = start ? Math.max(0, Math.min(totalDays, Math.floor((now - start) / 86400000))) : 0;
+                var earned = rate > 0 ? 'Rs.' + (rate * activeDays).toLocaleString() : '—';
+                return {
+                    name: (a.title_en || a.title || 'Ad').replace(/</g, '&lt;').substring(0, 24),
+                    client: (a.clientName || a.client || '—').replace(/</g, '&lt'),
+                    contact: (a.clientPhone || a.clientEmail || '—').replace(/</g, '&lt'),
+                    dur: (start ? start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—') + ' → ' + (end ? end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '∞'),
+                    left: daysLeft,
+                    earned: earned
+                };
+            });
+            document.getElementById('aa-campaigns').innerHTML = campRows.length ? campRows.map(function(c) {
+                return '<tr><td><strong>' + c.name + '</strong></td><td>' + c.client + '</td><td>' + c.contact + '</td><td style="white-space:nowrap;">' + c.dur + '</td><td>' + (c.left === '∞' ? '∞' : c.left + 'd') + '</td><td style="color:#059669;font-weight:700;">' + c.earned + '</td></tr>';
+            }).join('') : '<tr><td colspan="6" style="text-align:center;color:#94a3b8;">No active campaigns</td></tr>';
+        } catch (e) {}
+
+        // Top ads
         document.getElementById('aa-top').innerHTML = rows.length ? rows.map(function(r) {
             return '<tr><td><strong>' + String(adNames[r.id] || 'Ad #' + r.id).replace(/</g, '&lt;').substring(0, 30) + '</strong></td><td>—</td><td>' + r.imp + '</td><td>' + r.clk + '</td><td>' + (r.imp > 0 ? (r.clk / r.imp * 100).toFixed(1) : '0.0') + '%</td></tr>';
         }).join('') : '<tr><td colspan="5" style="text-align:center;color:#94a3b8;">No ad data yet — clicks start tracking automatically.</td></tr>';
     } catch (e) {}
+}
+
+// 💼 CLIENT FIELDS — ad modal-la contact + rate (sponsor tracking)
+function ensureAdClientUI() {
+    if (document.getElementById('ad-client-name')) return;
+    var anchor = document.getElementById('ad-link');
+    if (!anchor) return;
+    var group = anchor.closest('.form-group');
+    if (!group || !group.parentNode) return;
+    var wrap = document.createElement('div');
+    wrap.innerHTML =
+        '<div class="form-row" style="margin-top:0.75rem;">' +
+        '<div class="form-group" style="margin-bottom:0.6rem;"><label>Client / Company Name</label><input type="text" id="ad-client-name" placeholder="e.g., Jaffna Electronics" style="width:100%;padding:0.6rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;"></div>' +
+        '<div class="form-group" style="margin-bottom:0.6rem;"><label>Contact (Phone / Email)</label><input type="text" id="ad-client-contact" placeholder="077xxxxxxx or email" style="width:100%;padding:0.6rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;"></div>' +
+        '</div>' +
+        '<div class="form-group" style="margin-bottom:0;"><label>Daily Rate (Rs. — for earnings estimate)</label><input type="number" id="ad-daily-rate" placeholder="e.g., 150" min="0" style="width:100%;padding:0.6rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;"></div>';
+    group.parentNode.insertBefore(wrap, group.nextSibling);
 }
 
 // 🎯 PER-AD in-article toggle — each ad-ku thaniya tick (Ad modal-la)
@@ -2152,6 +2291,7 @@ function openAdModal(isEdit) {
     ensureAdMobileImgUI(); // 📱 mobile image field
     ensureAdInArticleChk(); // 🎯 per-ad in-article tick
     ensureAdAnalyticsUI(); // 📊 Ad Analytics button
+    ensureAdClientUI(); // 💼 client fields
 
     // 📐 Exact banner sizes guide (injected — updates the static info box)
     var _sizeInfo = document.querySelector('.ad-size-info');
@@ -2273,6 +2413,12 @@ function editAd(id) {
     if (_mImg) _mImg.value = ad.mobileImage || '';
     var _ia = document.getElementById('ad-inarticle');
     if (_ia) _ia.checked = !!ad.inArticle; // 🎯 per-ad flag restore
+    var _cn = document.getElementById('ad-client-name');
+    if (_cn) _cn.value = ad.clientName || '';
+    var _cc = document.getElementById('ad-client-contact');
+    if (_cc) _cc.value = ad.clientPhone || '';
+    var _dr = document.getElementById('ad-daily-rate');
+    if (_dr) _dr.value = ad.dailyRate || '';
 }
 
 async function saveAdItem() {
@@ -2325,6 +2471,9 @@ async function saveAdItem() {
         image: image,
         mobileImage: mobileImg || null, // 📱 optional mobile-only image
         inArticle: (document.getElementById('ad-inarticle') || {}).checked === true, // 🎯 per-ad tick
+        clientName: (document.getElementById('ad-client-name') || {}).value || '',
+        clientPhone: (document.getElementById('ad-client-contact') || {}).value || '',
+        dailyRate: parseFloat((document.getElementById('ad-daily-rate') || {}).value) || 0,
         position: position,
         active: active,
         startDate: startDateObj.toISOString(),

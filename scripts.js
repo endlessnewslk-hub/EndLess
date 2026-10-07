@@ -1067,9 +1067,62 @@ function pickAdImg(a) {
     return (window.innerWidth < 768 && a.mobileImage) ? a.mobileImage : a.image;
 }
 
-// 📊 REAL ANALYTICS v3 — robust: auto-creates docs, retries, never fails silently
+// 📊 REAL ANALYTICS v4 — + COUNTRY & SOURCE tracking (FB Insights level!)
 (function() {
     var BASE = 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents';
+
+    // 🌍 Country — once per session (sessionStorage flag)
+    function trackCountry() {
+        try {
+            if (sessionStorage.getItem('endless_country_tracked')) return;
+            fetch('https://ipwho.is/').then(function(r) { return r.json(); }).then(function(ip) {
+                if (!ip || !ip.success || !ip.country_code) return;
+                sessionStorage.setItem('endless_country_tracked', '1');
+                var cc = ip.country_code.toUpperCase();
+                var name = ip.country || cc;
+                var commitUrl = BASE + ':commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
+                var doc = 'projects/endless-news/databases/(default)/documents/analytics/countries';
+                fetch(commitUrl, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ writes: [{ transform: { document: doc, fieldTransforms: [
+                        { fieldPath: 'counts.' + cc, increment: { integerValue: 1 } },
+                        { fieldPath: 'names.' + cc, stringValue: String(name).substring(0, 40) }
+                    ] } }] })
+                }).catch(function() {});
+            }).catch(function() {});
+        } catch (e) {}
+    }
+
+    // 🔗 Traffic Source — document.referrer hostname-la irundhu
+    function getSource() {
+        try {
+            var ref = document.referrer || '';
+            if (!ref) return 'direct';
+            var host = new URL(ref).hostname.replace('www.', '');
+            if (host.indexOf('facebook') !== -1 || host === 'fb.com' || host === 'fb.me' || host === 'l.facebook.com' || host === 'lm.facebook.com') return 'facebook';
+            if (host.indexOf('whatsapp') !== -1 || host === 'wa.me') return 'whatsapp';
+            if (host.indexOf('google.') !== -1) return 'google';
+            if (host.indexOf('bing.') !== -1) return 'bing';
+            if (host === 't.co' || host === 'x.com' || host.indexOf('twitter') !== -1) return 'x';
+            if (host.indexOf('instagram') !== -1) return 'instagram';
+            if (host.indexOf('telegram') !== -1 || host === 't.me') return 'telegram';
+            if (host.indexOf('youtube') !== -1 || host === 'youtu.be') return 'youtube';
+            if (host.indexOf('endlessnews.lk') !== -1) return 'internal';
+            return 'other';
+        } catch (e) { return 'direct'; }
+    }
+    function trackSource(src) {
+        try {
+            var commitUrl = BASE + ':commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
+            var doc = 'projects/endless-news/databases/(default)/documents/analytics/sources';
+            fetch(commitUrl, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ writes: [{ transform: { document: doc, fieldTransforms: [
+                    { fieldPath: 'counts.' + src, increment: { integerValue: 1 } }
+                ] } }] })
+            }).catch(function() {});
+        } catch (e) {}
+    }
     var KEY = '?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
     var created = {}; // session cache — doc already created
 
@@ -1104,6 +1157,23 @@ function pickAdImg(a) {
             body: JSON.stringify({ writes: writes })
         });
     }
+
+    // 🚀 Kick off country + source (once per session)
+    try { trackCountry(); trackSource(getSource()); } catch (e) {}
+
+    // ❤️ Track likes per article (Top Articles analytics-ku)
+    window.analyticsLike = function(articleId) {
+        try {
+            var commitUrl = BASE + ':commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
+            var doc = 'projects/endless-news/databases/(default)/documents/analytics/articles_' + encodeURIComponent(String(articleId));
+            fetch(commitUrl, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ writes: [{ transform: { document: doc, fieldTransforms: [
+                    { fieldPath: 'likes', increment: { integerValue: 1 } }
+                ] } }] })
+            }).catch(function() {});
+        } catch (e) {}
+    };
 
     window.analyticsTrack = function(type, articleId) {
         try {
@@ -1399,6 +1469,35 @@ function applyArticleFontScale() {
     if (el) el.style.setProperty('font-size', (1.05 * _articleFontScale).toFixed(2) + 'rem', 'important');
 }
 
+// ✈️ TELEGRAM NOTIFICATIONS — Like/share aana odane unga Telegram-ku message!
+// (Browser push vida reliable — Telegram app notification, Android 100%!)
+let _tgConfig = null;
+async function tgLoadConfig() {
+    if (_tgConfig) return _tgConfig;
+    if (!db) return null;
+    try {
+        var doc = await db.collection('settings').doc('telegram_bot').get();
+        _tgConfig = doc.exists ? doc.data() : null;
+    } catch (e) { _tgConfig = null; }
+    return _tgConfig;
+}
+async function sendTelegramNotify(text) {
+    var cfg = await tgLoadConfig();
+    if (!cfg || !cfg.botToken || !cfg.chatId) return; // Not configured yet — silent
+    try {
+        await fetch('https://api.telegram.org/bot' + cfg.botToken + '/sendMessage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: cfg.chatId,
+                text: text,
+                parse_mode: 'HTML',
+                disable_web_page_preview: true
+            })
+        });
+    } catch (e) { /* silent */ }
+}
+
 // 📤 PUSH TRIGGER — Like/share aana odane notification trigger create pannum
 // (Admin app-la listener ithai paathu push anuppum — phone + laptop!)
 async function sendPushTrigger(type, articleId, articleTitle) {
@@ -1569,10 +1668,13 @@ function pickReaction(articleId, emojiKey, isQuick) {
 
     submitReaction(articleId, next, prev); // Firestore async write
 
-    // 🔔 LIKE aana odane push trigger (unlike-ku illa — new reaction mattum)
+    // 🔔 LIKE aana odane push trigger + Telegram (unlike-ku illa)
     if (next && !prev) {
         var _art = (typeof findArticleById === 'function') ? findArticleById(articleId) : null;
-        sendPushTrigger('like', articleId, _art ? (getLocalized(_art, 'title') || _art.title) : 'Article');
+        var _t = _art ? (getLocalized(_art, 'title') || _art.title) : 'Article';
+        sendPushTrigger('like', articleId, _t);
+        sendTelegramNotify('👍 <b>New Like!</b>\n\n📰 ' + _t + '\n\n👉 endlessnews.lk');
+        try { analyticsLike(articleId); } catch (e) {}
     }
 
     var container = document.getElementById('reaction-wrap');
@@ -1946,8 +2048,10 @@ function shareArticle(id) {
     // 📊 Track share (modal open = share intent)
     analyticsTrack('share', id);
 
-    // 🔔 SHARE aana odane push trigger
-    sendPushTrigger('share', id, article ? (getLocalized(article, 'title') || article.title) : 'Article');
+    // 🔔 SHARE aana odane push trigger + Telegram
+    var _st = article ? (getLocalized(article, 'title') || article.title) : 'Article';
+    sendPushTrigger('share', id, _st);
+    sendTelegramNotify('🔗 <b>New Share!</b>\n\n📰 ' + _st + '\n\n👉 endlessnews.lk');
 
     // 📊 Track share (fire-and-forget)
     try {
