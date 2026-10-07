@@ -1,174 +1,153 @@
-// 📱 PUSH NOTIFICATIONS — Firebase Cloud Messaging (FCM)
-// Admin app install pannirukka devices-ku live notifications!
-// Like, share, breaking news — real-time alerts!
+// 📱 PUSH NOTIFICATIONS v2 — Fixed version with MANUAL enable button
+// Header profile button pakkathla "🔔" button varum — click pannalana "Allow" popup!
+// Console-la ellaa status-um kaatum (F12 paarunga)
 
+const PUSH_VAPID_KEY = 'BJQXH5SasiDwoBcByVa_Z6qKQsPTEsotl3KMx1hAD6YR2CAc998bN1H1Pjpf1AxV1EF3PDeXmrlTrvIud34DkRI';
 let _messaging = null;
 let _fcmToken = null;
 
-// 1. Initialize FCM (call on admin panel load)
+function pushDebug(msg) {
+    console.log('[PUSH] ' + msg);
+}
+
+// 1. INIT — admin panel load aana odane messaging setup
 function initPushNotifications() {
-    // Check browser support
-    if (!('Notification' in window)) {
-        console.log('❌ Browser notifications not supported');
+    pushDebug('init started');
+
+    if (typeof firebase === 'undefined') {
+        pushDebug('❌ firebase SDK illa!');
+        return;
+    }
+    if (!firebase.messaging) {
+        pushDebug('❌ firebase-messaging-compat.js LOAD AAGALA! news88-adm.html-la add pannunga:');
+        pushDebug('<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>');
         return;
     }
 
-    // Check service worker support
+    // Check VAPID key
+    if (PUSH_VAPID_KEY === 'BJQXH5SasiDwoBcByVa_Z6qKQsPTEsotl3KMx1hAD6YR2CAc998bN1H1Pjpf1AxV1EF3PDeXmrlTrvIud34DkRI') {
+        pushDebug('❌ VAPID KEY PASTE PANNALA! push-config.js-la YOUR_VAPID_KEY_HERE-a maathunga');
+    }
+
     if (!('serviceWorker' in navigator)) {
-        console.log('❌ Service Worker not supported');
+        pushDebug('❌ Service Worker support illa');
         return;
     }
 
     // Register FCM service worker
     navigator.serviceWorker.register('firebase-messaging-sw.js')
         .then(function(registration) {
-            console.log('✅ FCM SW registered:', registration.scope);
-
-            // Initialize Firebase Messaging
-            if (typeof firebase !== 'undefined' && firebase.messaging) {
-                _messaging = firebase.messaging();
-
-                // Request permission + get token
-                requestPushPermission();
-            }
+            pushDebug('✅ Service Worker registered');
+            _messaging = firebase.messaging();
+            _messaging.useServiceWorker(registration);
+            addEnableNotifButton();
         })
         .catch(function(err) {
-            console.error('❌ FCM SW registration failed:', err);
+            pushDebug('❌ SW registration failed: ' + err.message);
         });
 }
 
-// 2. Request permission + get FCM token
+// 2. MANUAL BUTTON — profile button pakkathla "🔔 Enable" inject
+function addEnableNotifButton() {
+    if (document.getElementById('push-enable-btn')) return;
+    // Profile button-yoda parent-la add pannu
+    var host = document.getElementById('profile-btn');
+    if (!host) { setTimeout(addEnableNotifButton, 2000); return; }
+
+    var b = document.createElement('button');
+    b.id = 'push-enable-btn';
+    b.title = 'Enable notifications';
+    b.style.cssText = 'width:38px;height:38px;border-radius:50%;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;margin-right:8px;transition:all .2s;';
+    b.textContent = '🔔';
+    b.addEventListener('click', function() { requestPushPermission(); });
+    host.parentNode.insertBefore(b, host);
+
+    // Already enabled na icon maathu
+    if (Notification.permission === 'granted') {
+        b.textContent = '🔕';
+        b.title = 'Notifications enabled (click to test)';
+        b.style.background = '#dcfce7';
+        b.style.borderColor = '#22c55e';
+    }
+    pushDebug('✅ Enable button added near profile');
+}
+
+// 3. REQUEST PERMISSION — ithu dhaan "Allow" popup ah trigger pannum!
 async function requestPushPermission() {
+    pushDebug('Permission request...');
+
+    if (PUSH_VAPID_KEY === 'BJQXH5SasiDwoBcByVa_Z6qKQsPTEsotl3KMx1hAD6YR2CAc998bN1H1Pjpf1AxV1EF3PDeXmrlTrvIud34DkRI') {
+        alert('⚠️ VAPID KEY illama!\n\n1. Firebase Console → Project Settings → Cloud Messaging\n2. Web Push certificates → Generate key pair\n3. push-config.js-la paste pannunga');
+        return;
+    }
+
     try {
-        const permission = await Notification.requestPermission();
+        var permission = await Notification.requestPermission();
+        pushDebug('Permission: ' + permission);
 
-        if (permission === 'granted') {
-            console.log('✅ Notification permission granted');
-
-            // Get FCM token
-            const token = await _messaging.getToken({
-                vapidKey: 'BJQXH5SasiDwoBcByVa_Z6qKQsPTEsotl3KMx1hAD6YR2CAc998bN1H1Pjpf1AxV1EF3PDeXmrlTrvIud34DkRI' 
-            });
-
-            if (token) {
-                _fcmToken = token;
-                console.log('✅ FCM Token:', token);
-
-                // Save token to Firestore (admin devices only!)
-                await saveFCMToken(token);
-
-                // Show success toast
-                showToast('🔔 Notifications enabled!', 'success');
-            }
-        } else {
-            console.log('❌ Notification permission denied');
-            showToast('⚠️ Enable notifications in browser settings', 'error');
+        if (permission !== 'granted') {
+            alert('⚠️ Notifications blocked!\nBrowser settings → Site settings → endlessnews.lk → Notifications → Allow');
+            return;
         }
+
+        var token = await _messaging.getToken({ vapidKey: PUSH_VAPID_KEY });
+        pushDebug('Token: ' + (token ? token.substring(0, 30) + '...' : 'NULL'));
+
+        if (!token) {
+            alert('⚠️ Token generate aagala — Service Worker check pannunga');
+            return;
+        }
+
+        _fcmToken = token;
+        await saveFCMToken(token);
+
+        var b = document.getElementById('push-enable-btn');
+        if (b) { b.textContent = '🔕'; b.style.background = '#dcfce7'; b.style.borderColor = '#22c55e'; }
+
+        alert('✅ Notifications ENABLED!\nIppo vera device-la like pannunga — notification varum! 🎉');
     } catch (err) {
-        console.error('❌ FCM token error:', err);
+        pushDebug('❌ ERROR: ' + err.message);
+        alert('❌ Error: ' + err.message + '\n\nF12 → Console-la [PUSH] messages paarunga');
     }
 }
 
-// 3. Save token to Firestore (admin_panel collection)
+// 4. Save token to Firestore
 async function saveFCMToken(token) {
-    if (!db) return;
-
+    if (!db || typeof firebase === 'undefined' || !firebase.auth) return;
     try {
-        const user = firebase.auth().currentUser;
-        if (!user) return;
+        var user = firebase.auth().currentUser;
+        if (!user) { pushDebug('❌ User not logged in'); return; }
 
         await db.collection('admin_panel').doc(user.uid).set({
             fcmToken: token,
-            device: navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop',
-            enabledAt: new Date().toISOString(),
-            lastActive: new Date().toISOString()
+            device: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+            enabledAt: new Date().toISOString()
         }, { merge: true });
-
-        console.log('✅ FCM token saved to Firestore');
+        pushDebug('✅ Token Firestore-la saved');
     } catch (err) {
-        console.error('❌ Token save failed:', err);
+        pushDebug('❌ Save failed: ' + err.message);
     }
 }
 
-// 4. Listen for foreground messages (app open-a irundha)
+// 5. Foreground messages (app open-a irukkum bodhu)
 function listenForegroundMessages() {
     if (!_messaging) return;
-
     _messaging.onMessage(function(payload) {
-        console.log('📨 Foreground message:', payload);
-
-        const data = payload.data || {};
-        const notif = payload.notification || {};
-
-        // Show in-app toast (foreground-la SW trigger aaga)
-        showToast(
-            (notif.title || '🔔 Notification') + ': ' + (notif.body || ''),
-            'success'
-        );
-
-        // Optional: play sound
-        // playNotificationSound();
-    });
-}
-
-// 5. Subscribe/Unsubscribe toggle (admin panel button)
-async function togglePushNotifications() {
-    if (!_fcmToken) {
-        // First time — request permission
-        await requestPushPermission();
-    } else {
-        // Already subscribed — confirm unsubscribe
-        if (confirm('Disable push notifications?')) {
-            await unsubscribePush();
-        }
-    }
-}
-
-async function unsubscribePush() {
-    if (!_messaging || !_fcmToken) return;
-
-    try {
-        await _messaging.deleteToken(_fcmToken);
-        _fcmToken = null;
-
-        // Remove from Firestore
-        const user = firebase.auth().currentUser;
-        if (user && db) {
-            await db.collection('admin_panel').doc(user.uid).update({
-                fcmToken: firebase.firestore.FieldValue.delete()
-            });
-        }
-
-        showToast('🔕 Notifications disabled', 'success');
-    } catch (err) {
-        console.error('❌ Unsubscribe failed:', err);
-    }
-}
-
-// 6. Token refresh handler (FCM auto-refresh)
-function handleTokenRefresh() {
-    if (!_messaging) return;
-
-    _messaging.onTokenRefresh(async function() {
-        try {
-            const newToken = await _messaging.getToken({
-                vapidKey: 'BJQXH5SasiDwoBcByVa_Z6qKQsPTEsotl3KMx1hAD6YR2CAc998bN1H1Pjpf1AxV1EF3PDeXmrlTrvIud34DkRI'
-            });
-            _fcmToken = newToken;
-            await saveFCMToken(newToken);
-            console.log('🔄 FCM token refreshed');
-        } catch (err) {
-            console.error('❌ Token refresh failed:', err);
+        var n = payload.notification || {};
+        if (typeof showToast === 'function') {
+            showToast('🔔 ' + (n.title || 'Notification') + ': ' + (n.body || ''), 'success');
         }
     });
+    pushDebug('✅ Foreground listener ready');
 }
 
-// 7. INIT — call this on admin panel load
-document.addEventListener('DOMContentLoaded', function() {
-    // Small delay — let auth settle first
-    setTimeout(function() {
-        initPushNotifications();
-        listenForegroundMessages();
-        handleTokenRefresh();
-    }, 2000);
-});
+// 6. AUTO-START — admin panel load aana odane
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(initPushNotifications, 3000); // guard.js profile create aaga wait
+        setTimeout(listenForegroundMessages, 3500);
+    });
+} else {
+    setTimeout(initPushNotifications, 3000);
+    setTimeout(listenForegroundMessages, 3500);
+}
