@@ -1,3 +1,6 @@
+// 📱 PUSH NOTIFICATIONS — merged v2 + robustness fixes
+console.log('[PUSH] ✅ push-config.js LOADED!');
+
 // 📱 PUSH NOTIFICATIONS v2 — Fixed version with MANUAL enable button
 // Header profile button pakkathla "🔔" button varum — click pannalana "Allow" popup!
 // Console-la ellaa status-um kaatum (F12 paarunga)
