@@ -32,8 +32,8 @@ function renderAnalyticsPage() {
         var t = doc.exists ? doc.data() : {};
         var views = t.views || 0, shares = t.shares || 0;
         var mob = t.mobile || 0, desk = t.desktop || 0;
-        document.getElementById('an-views').textContent = views.toLocaleString();
-        document.getElementById('an-shares').textContent = shares.toLocaleString();
+        document.getElementById('an-views').textContent = (views || 0).toLocaleString();
+        document.getElementById('an-shares').textContent = (shares || 0).toLocaleString();
         var totD = mob + desk;
         document.getElementById('an-mobile').textContent = totD > 0 ? Math.round(mob / totD * 100) + '%' : '—';
         var engage = views > 0 ? Math.min(100, Math.round((shares + (t.likes || 0)) / views * 100)) : 0;
@@ -47,7 +47,7 @@ function renderAnalyticsPage() {
             var f = d.data();
             ['like','love','haha','wow','sad','angry'].forEach(function(k) { total += parseInt(f[k]) || 0; });
         });
-        document.getElementById('an-likes').textContent = total.toLocaleString();
+        document.getElementById('an-likes').textContent = (total || 0).toLocaleString();
     }).catch(function() {});
 
     // 📈 7-day views chart
@@ -108,7 +108,7 @@ function renderAnalyticsPage() {
         var entries = Object.keys(counts).map(function(cc) {
             return { cc: cc, count: counts[cc], name: names[cc] || COUNTRY_NAMES[cc] || cc };
         }).sort(function(a, b) { return b.count - a.count; });
-        document.getElementById('an-countries').textContent = entries.length;
+        document.getElementById('an-countries').textContent = entries.length || 0;
         var max = entries.length ? entries[0].count : 1;
         var el = document.getElementById('an-countries-list');
         if (!el) return;
