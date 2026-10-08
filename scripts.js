@@ -231,7 +231,8 @@ function wireNewsletterBox() {
         '#react-btn:hover #react-count{color:#fff;}',
         /* 🖼️ INLINE GALLERY — article content nadula images (perfect aspect) */
         '.art-img{margin:1.25rem 0;border-radius:14px;overflow:hidden;cursor:pointer;position:relative;background:var(--surface);border:1px solid var(--border);}',
-        '.art-img img{width:100%;height:auto;display:block;transition:transform .3s ease;}',
+        '.art-img img{width:100%;height:auto;max-height:420px;object-fit:cover;object-position:center;display:block;transition:transform .3s ease;}',
+        '@media(max-width:640px){.art-img img{max-height:300px;}}',
         '.art-img:hover img{transform:scale(1.02);}',
         '.art-img .ai-count{position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,0.6);color:#fff;font-size:0.7rem;font-weight:700;padding:4px 10px;border-radius:999px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}',
         /* 🖼️ FULLSCREEN IMAGE VIEWER — click to zoom + navigate */
