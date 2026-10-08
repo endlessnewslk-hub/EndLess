@@ -2335,6 +2335,45 @@ function ensureAdClientUI() {
     group.parentNode.insertBefore(wrap, group.nextSibling);
 }
 
+// 📸 GALLERY UPLOAD BUTTON — "Add Image URL" pakkathla "📁 Upload Photo" button!
+// Click → device file → auto Cloudinary → gallery row add!
+function ensureGalleryUploadBtn() {
+    var btn = document.getElementById('btn-add-gallery');
+    if (btn || !btn_exists_check()) return;
+    function btn_exists_check() { return !!document.getElementById('btn-add-gallery'); }
+
+    var anchor = document.getElementById('btn-add-gallery-url') || document.getElementById('gallery-rows');
+    if (!anchor) return;
+    var wrap = anchor.parentNode;
+    if (!wrap) return;
+
+    var up = document.createElement('button');
+    up.id = 'btn-add-gallery';
+    up.type = 'button';
+    up.style.cssText = 'margin-left:8px;padding:0.5rem 1rem;background:linear-gradient(135deg,#1877F2,#0e5fca);color:#fff;border:none;border-radius:6px;font-weight:700;font-size:0.85rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px;';
+    up.innerHTML = '📁 Upload Photo';
+    up.title = 'Device-la irundhu photo upload — auto Cloudinary!';
+    up.addEventListener('click', function() {
+        var inp = document.createElement('input');
+        inp.type = 'file';
+        inp.accept = 'image/*';
+        inp.onchange = function() {
+            if (!inp.files || !inp.files[0]) return;
+            if (typeof uploadToCloudinary === 'function') {
+                showToast('☁️ Gallery upload...', 'success');
+                uploadToCloudinary(inp.files[0]).then(function(url) {
+                    if (url && typeof addGalleryRow === 'function') {
+                        addGalleryRow(url);
+                        showToast('✅ Gallery image added!', 'success');
+                    }
+                });
+            }
+        };
+        inp.click();
+    });
+    anchor.parentNode.insertBefore(up, anchor.nextSibling);
+}
+
 // 🎯 PER-AD in-article toggle — each ad-ku thaniya tick (Ad modal-la)
 function ensureAdInArticleChk() {
     if (document.getElementById('ad-inarticle')) return;
@@ -2353,6 +2392,7 @@ function ensureAdInArticleChk() {
 function openAdModal(isEdit) {
     isEdit = isEdit || false;
     ensureAdMobileImgUI(); // 📱 mobile image field
+    setTimeout(ensureGalleryUploadBtn, 200); // 📸 Gallery upload button (neenga keattathu!)
     // 🎯 DRAG & DROP multi-image zone (HEAD + GALLERY auto-split!)
     setTimeout(function() {
         var area = document.getElementById('photo-upload-area');
