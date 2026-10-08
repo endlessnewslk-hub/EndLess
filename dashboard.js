@@ -183,6 +183,26 @@ function renderAnalyticsPage() {
             if (!file) return;
 
             if (type === 'image') {
+                // ☁️ CLOUDINARY DIRECT UPLOAD — real file, base64 ILLA!
+                if (typeof uploadToCloudinary === 'function') {
+                    showToast('☁️ Uploading to Cloudinary...', 'success');
+                    uploadToCloudinary(file).then(function(cloudUrl) {
+                        if (!cloudUrl) return;
+                        if (dataInput) dataInput.value = cloudUrl;
+                        var imgUrlField = document.getElementById('news-image-url');
+                        if (imgUrlField) {
+                            imgUrlField.value = cloudUrl;
+                            if (typeof viewImageUrl === 'function') viewImageUrl();
+                        }
+                        if (preview) preview.src = cloudUrl;
+                        var wrap = document.getElementById('photo-preview-wrap');
+                        var placeholder = document.getElementById('photo-placeholder');
+                        if (wrap) wrap.style.display = 'block';
+                        if (placeholder) placeholder.style.display = 'none';
+                    });
+                    return;
+                }
+                // Fallback base64
                 var img = new Image();
                 var objUrl = URL.createObjectURL(file);
                 img.onload = function() {
@@ -716,6 +736,54 @@ async function ensureTelegramUI() {
             status.style.color = j.ok ? '#059669' : '#dc2626';
         } catch (e) { status.textContent = 'Status: ❌ Error'; }
     });
+}
+
+// ☁️ CLOUDINARY DIRECT UPLOAD — Device image → auto Cloudinary → URL!
+// Cloudinary account create pannunga → Cloud Name + Unsigned Preset eduthukkunga!
+const CLOUDINARY_CONFIG = {
+    cloudName: 'df2pc8kd0',      // e.g., 'df2pc8kd0'
+    uploadPreset: 'endless_unsigned' // e.g., 'endless_unsigned' (UNSIGNED preset create pannunga!)
+};
+
+async function uploadToCloudinary(file, onProgress) {
+    if (CLOUDINARY_CONFIG.cloudName === 'YOUR_CLOUD_NAME') {
+        showToast('⚠️ Cloudinary setup pending — Cloud Name + Preset add pannunga (dashboard.js top)', 'error');
+        return null;
+    }
+    if (!file) return null;
+
+    var formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+
+    // Progress simulation (FormData fetch-la real progress kidaikaathu — simple % spin)
+    if (onProgress) onProgress(30);
+
+    try {
+        var r = await fetch('https://api.cloudinary.com/v1_1/' + CLOUDINARY_CONFIG.cloudName + '/image/upload', {
+            method: 'POST',
+            body: formData
+        });
+        var data = await r.json();
+
+        if (onProgress) onProgress(100);
+
+        if (data.secure_url) {
+            // Auto-optimize for OG/share (unga purana fix-um!)
+            var url = data.secure_url;
+            if (url.indexOf('/upload/') !== -1 && url.indexOf('w_1200') === -1) {
+                url = url.replace('/upload/', '/upload/w_1200,q_80,f_jpg/');
+            }
+            showToast('☁️ Uploaded & optimized!', 'success');
+            return url;
+        } else {
+            showToast('❌ Upload failed: ' + (data.error && data.error.message || 'unknown'), 'error');
+            return null;
+        }
+    } catch (e) {
+        showToast('❌ Upload error: ' + e.message, 'error');
+        return null;
+    }
 }
 
 // 🔇 Production: no debug logs in console
