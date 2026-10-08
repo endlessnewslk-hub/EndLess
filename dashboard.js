@@ -183,7 +183,12 @@ function renderAnalyticsPage() {
             if (!file) return;
 
             if (type === 'image') {
-                // ☁️ CLOUDINARY DIRECT UPLOAD — real file, base64 ILLA!
+                // ☁️ CLOUDINARY SMART UPLOAD — multi-file: 1st=HEAD, rest=GALLERY!
+                if (typeof uploadImagesSmart === 'function') {
+                    uploadImagesSmart([file]);
+                    return;
+                }
+                // Fallback single
                 if (typeof uploadToCloudinary === 'function') {
                     showToast('☁️ Uploading to Cloudinary...', 'success');
                     uploadToCloudinary(file).then(function(cloudUrl) {
@@ -744,6 +749,47 @@ const CLOUDINARY_CONFIG = {
     cloudName: 'df2pc8kd0',      // e.g., 'df2pc8kd0'
     uploadPreset: 'endless_unsigned' // e.g., 'endless_unsigned' (UNSIGNED preset create pannunga!)
 };
+
+// 📦 MULTI-UPLOAD: Files[] → First = HEAD image, Rest = GALLERY (article inline)!
+// Drag & drop / multi-select — ellame ithula handle aagum!
+async function uploadImagesSmart(files) {
+    if (!files || !files.length) return;
+    if (typeof uploadToCloudinary !== 'function') return;
+
+    // Image files mattum filter
+    var imgs = Array.prototype.slice.call(files).filter(function(f) { return f.type.indexOf('image/') === 0; });
+    if (!imgs.length) { showToast('❌ Images mattum (JPG/PNG)', 'error'); return; }
+
+    showToast('☁️ Uploading ' + imgs.length + ' image(s)...', 'success');
+
+    for (var i = 0; i < imgs.length; i++) {
+        var url = await uploadToCloudinary(imgs[i]);
+        if (!url) continue;
+
+        if (i === 0) {
+            // 🎯 FIRST image = HEAD/HERO (main image URL field)
+            var imgUrlField = document.getElementById('news-image-url');
+            var photoData = document.getElementById('news-photo-data');
+            var preview = document.getElementById('news-photo-preview');
+            if (photoData) photoData.value = url;
+            if (imgUrlField) {
+                imgUrlField.value = url;
+                if (typeof viewImageUrl === 'function') viewImageUrl();
+            }
+            if (preview) preview.src = url;
+            var wrap = document.getElementById('photo-preview-wrap');
+            var ph = document.getElementById('photo-placeholder');
+            if (wrap) wrap.style.display = 'block';
+            if (ph) ph.style.display = 'none';
+        } else {
+            // 📸 REST = GALLERY (article inline-a varum!)
+            if (typeof addGalleryRow === 'function') {
+                addGalleryRow(url);
+            }
+        }
+    }
+    showToast('✅ ' + imgs.length + ' uploaded! (1st = Head, rest = Gallery)', 'success');
+}
 
 async function uploadToCloudinary(file, onProgress) {
     if (CLOUDINARY_CONFIG.cloudName === 'YOUR_CLOUD_NAME') {
@@ -2280,6 +2326,29 @@ function ensureAdInArticleChk() {
 function openAdModal(isEdit) {
     isEdit = isEdit || false;
     ensureAdMobileImgUI(); // 📱 mobile image field
+    // 🎯 DRAG & DROP multi-image zone (HEAD + GALLERY auto-split!)
+    setTimeout(function() {
+        var area = document.getElementById('photo-upload-area');
+        if (!area || area._dropWired) return;
+        area._dropWired = true;
+        ['dragover','dragenter'].forEach(function(ev) {
+            area.addEventListener(ev, function(e) { e.preventDefault(); area.style.borderColor = '#1877F2'; area.style.background = '#eff6ff'; });
+        });
+        ['dragleave','drop'].forEach(function(ev) {
+            area.addEventListener(ev, function(e) { e.preventDefault(); area.style.borderColor = ''; area.style.background = ''; });
+        });
+        area.addEventListener('drop', function(e) {
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+                if (typeof uploadImagesSmart === 'function') uploadImagesSmart(e.dataTransfer.files);
+            }
+        });
+        // Hint text update
+        var ph2 = document.getElementById('photo-placeholder');
+        if (ph2) {
+            var small = ph2.querySelector('small');
+            if (small) small.textContent = 'Click OR Drag & Drop — 1st image = Head, rest = Gallery';
+        }
+    }, 150);
     ensureAdInArticleChk(); // 🎯 per-ad in-article tick
     ensureAdAnalyticsUI(); // 📊 Ad Analytics button
     ensureAdClientUI(); // 💼 client fields
