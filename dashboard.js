@@ -183,9 +183,36 @@ function renderAnalyticsPage() {
             if (!file) return;
 
             if (type === 'image') {
-                // ☁️ CLOUDINARY SMART UPLOAD — multi-file: 1st=HEAD, rest=GALLERY!
-                if (typeof uploadImagesSmart === 'function') {
-                    uploadImagesSmart([file]);
+                // ☁️ SMART SINGLE UPLOAD — HEAD illama na HEAD, irundha GALLERY!
+                if (typeof uploadToCloudinary === 'function') {
+                    var imgUrlField = document.getElementById('news-image-url');
+                    var hasHead = imgUrlField && imgUrlField.value.trim();
+                    showToast('☁️ Uploading...', 'success');
+                    uploadToCloudinary(file).then(function(cloudUrl) {
+                        if (!cloudUrl) return;
+                        if (!hasHead) {
+                            // 🖼️ FIRST upload = HEAD
+                            var photoData = document.getElementById('news-photo-data');
+                            var preview = document.getElementById('news-photo-preview');
+                            if (photoData) photoData.value = cloudUrl;
+                            imgUrlField.value = cloudUrl;
+                            if (typeof viewImageUrl === 'function') viewImageUrl();
+                            if (preview) preview.src = cloudUrl;
+                            var wrap = document.getElementById('photo-preview-wrap');
+                            var ph = document.getElementById('photo-placeholder');
+                            if (wrap) wrap.style.display = 'block';
+                            if (ph) ph.style.display = 'none';
+                            showToast('✅ HEAD image set!', 'success');
+                        } else {
+                            // 📸 NEXT uploads = GALLERY (article inline)
+                            if (typeof addGalleryRow === 'function') {
+                                addGalleryRow(cloudUrl);
+                                showToast('✅ Gallery image added!', 'success');
+                            } else {
+                                showToast('⚠️ Gallery system illa — URL copy pannunga', 'error');
+                            }
+                        }
+                    });
                     return;
                 }
                 // Fallback single
