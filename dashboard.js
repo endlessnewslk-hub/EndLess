@@ -1766,6 +1766,8 @@ function loadGalleryRows(news) {
 }
 
 function openNewsModal(isEdit) {
+    // 📸 Gallery upload button — NEWS modal-la dhaan add aaganum!
+    setTimeout(ensureGalleryUploadBtn, 200);
     // 📱 Mobile: Enter key in inputs must NOT submit/close modal (keyboard "Go" button)
     var nf = document.getElementById('news-form');
     if (nf) { nf.setAttribute('novalidate', 'novalidate'); nf.setAttribute('onsubmit', 'return false;'); }
@@ -2338,17 +2340,13 @@ function ensureAdClientUI() {
 // 📸 GALLERY UPLOAD BUTTON — "Add Image URL" pakkathla "📁 Upload Photo" button!
 // Click → device file → auto Cloudinary → gallery row add!
 function ensureGalleryUploadBtn() {
-    var btn = document.getElementById('btn-add-gallery');
-    if (btn || !btn_exists_check()) return;
-    function btn_exists_check() { return !!document.getElementById('btn-add-gallery'); }
-
-    var anchor = document.getElementById('btn-add-gallery-url') || document.getElementById('gallery-rows');
-    if (!anchor) return;
-    var wrap = anchor.parentNode;
-    if (!wrap) return;
+    if (document.getElementById('btn-upload-gallery')) return;
+    // "＋ Add Image URL" button = #btn-add-gallery — athu pakkathla insert pannuvom
+    var anchor = document.getElementById('btn-add-gallery') || document.getElementById('gallery-rows');
+    if (!anchor || !anchor.parentNode) return;
 
     var up = document.createElement('button');
-    up.id = 'btn-add-gallery';
+    up.id = 'btn-upload-gallery';
     up.type = 'button';
     up.style.cssText = 'margin-left:8px;padding:0.5rem 1rem;background:linear-gradient(135deg,#1877F2,#0e5fca);color:#fff;border:none;border-radius:6px;font-weight:700;font-size:0.85rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px;';
     up.innerHTML = '📁 Upload Photo';
@@ -2392,7 +2390,6 @@ function ensureAdInArticleChk() {
 function openAdModal(isEdit) {
     isEdit = isEdit || false;
     ensureAdMobileImgUI(); // 📱 mobile image field
-    setTimeout(ensureGalleryUploadBtn, 200); // 📸 Gallery upload button (neenga keattathu!)
     // 🎯 DRAG & DROP multi-image zone (HEAD + GALLERY auto-split!)
     setTimeout(function() {
         var area = document.getElementById('photo-upload-area');
