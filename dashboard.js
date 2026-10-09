@@ -875,6 +875,30 @@ async function uploadToCloudinary(file, onProgress) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// 🔤 POSTER FONT PICKER — built-in Tamil & English fonts + custom add
+// Selected font = per-language override (neenga easy-a maatha mudiyum)
+const POSTER_FONT_LIST = [
+    { name: 'Noto Sans Tamil',   g: 'Noto Sans Tamil:wght@400;700;800',  tags: 'ta' },
+    { name: 'Catamaran',         g: 'Catamaran:wght@700;800',            tags: 'ta' },
+    { name: 'Mukta Malar',       g: 'Mukta Malar:wght@700;800',          tags: 'ta' },
+    { name: 'Nirmala UI',        g: null,                                 tags: 'ta system' },
+    { name: 'Catamaran',         g: 'Catamaran:wght@700;800',            tags: 'en ta' },
+    { name: 'Playfair Display',  g: 'Playfair Display:wght@700;800;900', tags: 'en' },
+    { name: 'Georgia (system)',  g: null,                                 tags: 'en system' },
+    { name: 'Inter',             g: 'Inter:wght@700;800',                tags: 'en' },
+    { name: 'Lora',              g: 'Lora:wght@700',                     tags: 'en' }
+];
+
+// 🔤 Ensure a Google font is loaded (returns promise). Local/system fonts resolve instantly.
+function pgLoadFont(spec) {
+    if (!spec || !spec.g) return Promise.resolve();       // system font — nothing to load
+    var parts = spec.g.split(':');
+    var fam = parts[0].replace(/\+/g, ' ');
+    if (document.fonts.check('700 20px "' + fam + '"')) return Promise.resolve();
+    return document.fonts.load('700 20px "' + fam + '"').catch(function () {});
+}
+
+// ═══════════════════════════════════════════════════════════════
 // 🎨 SOCIAL POSTER GENERATOR — Al Jazeera/BBC style news cards!
 // One click → branded poster (image + headline + excerpt + brand)
 // Sizes: 1:1 (IG/FB), 16:9 (X), 9:16 (Story) · Tamil/English · Download/Share
@@ -928,18 +952,20 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     var isWide = W > H;                 // 16:9 landscape
     var isStory = sizeKey === 'story';  // 9:16 full portrait
 
-    // 🔤 Fonts (Tamil + Playfair brand font) — mobile-safe loading:
-    // 1) explicit loads (works once @font-face exists — guaranteed by injectPosterFonts)
-    // 2) document.fonts.ready with timeout — extra safety on slow mobile networks
+    // 🔤🔤 FONT PICKER — resolve headline & brand fonts (per language override)
+    var defaultFont = (article._font && article._font[lang]) || { head: 'Nirmala UI', brand: 'Playfair Display' };
+    var TAMIL_STACK = '"' + (defaultFont.head || 'Nirmala UI') + '", "Noto Sans Tamil", Arial';
+    var BRAND_STACK = '"' + (defaultFont.brand || 'Playfair Display') + '", Georgia, serif';
+    // Preload any selected Google fonts (system fonts resolve instantly), with timeout
+    var chosen = [];
+    POSTER_FONT_LIST.forEach(function (s) {
+        var n = s.name.replace(/\s*\(system\)\s*$/, '');
+        if ((defaultFont.head && n === defaultFont.head) || (defaultFont.brand && n === defaultFont.brand)) chosen.push(s);
+    });
     try {
         await Promise.race([
-            Promise.all([
-                document.fonts.load('700 40px "Noto Sans Tamil"'),
-                document.fonts.load('600 40px "Noto Sans Tamil"'),
-                document.fonts.load('800 40px "Noto Serif Tamil"'),   // ⭐ premium editorial Tamil
-                document.fonts.load('800 40px "Playfair Display"')
-            ]).then(function() { return document.fonts.ready; }),
-            new Promise(function(res) { setTimeout(res, 3000); })   // never hang the poster
+            Promise.all(chosen.map(pgLoadFont)).then(function () { return document.fonts.ready; }),
+            new Promise(function (res) { setTimeout(res, 2500); })
         ]);
     } catch (e) {}
 
@@ -1020,12 +1046,12 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     function calcLayout(sc) {
         var hs = Math.max(minHead, Math.round(baseHead * sc));
         var lh = Math.round(hs * 1.3);
-        ctx.font = '800 ' + hs + 'px "Nirmala UI", "Noto Sans Tamil", Arial';   // OLD look: PC system Tamil font first, mobile falls back to Noto
+        ctx.font = '800 ' + hs + 'px ' + TAMIL_STACK;
         ctx.textBaseline = 'top';
         var hl = wrapColored(title, maxW);
         var es = Math.max(minExc, Math.round(hs * 0.52));
         var elh = Math.round(es * 1.48);
-        ctx.font = '400 ' + es + 'px "Nirmala UI", "Noto Sans Tamil", Arial';
+        ctx.font = '400 ' + es + 'px ' + TAMIL_STACK;
         var el = excerpt ? fullWrap(excerpt, maxW) : [];
         var need = hl.length * lh + (el.length ? gap + el.length * elh : 0);
         return { hs: hs, lh: lh, hl: hl, es: es, elh: elh, el: el, need: need };
@@ -1101,7 +1127,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
 
     // 3) Category chip (over image, top-left)
     if (cat) {
-        ctx.font = '700 ' + Math.round(W * 0.021) + 'px "Nirmala UI", "Noto Sans Tamil", Arial';
+        ctx.font = '700 ' + Math.round(W * 0.021) + 'px ' + TAMIL_STACK;
         var cw = ctx.measureText(String(cat).toUpperCase()).width + Math.round(W * 0.05);
         var chH = Math.round(H * 0.045);
         pgRoundRect(ctx, mX, Math.round(H * 0.038), cw, chH, chH / 2);
@@ -1111,7 +1137,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     }
 
     // 4) 📅 Date line — image keezha, headline mela
-    ctx.font = '600 ' + Math.round(W * 0.020) + 'px "Nirmala UI", "Noto Sans Tamil", Arial';
+    ctx.font = '600 ' + Math.round(W * 0.020) + 'px ' + TAMIL_STACK;
     ctx.fillStyle = '#94a3b8'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
     ctx.fillText(dateStr, mX, imgH + Math.round(H * 0.045));
 
@@ -1121,7 +1147,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     ctx.fillRect(mX, y - Math.round(H * 0.02) - accH, Math.round(W * 0.12), accH);
 
     // 6) HEADLINE — full text, auto-scaled font
-    ctx.font = '800 ' + L.hs + 'px "Nirmala UI", "Noto Sans Tamil", Arial';   // OLD look headline
+    ctx.font = '800 ' + L.hs + 'px ' + TAMIL_STACK;
     ctx.textBaseline = 'top';
     var spaceW = ctx.measureText(' ').width;
     L.hl.forEach(function (tokens, i) {
@@ -1136,7 +1162,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
 
     // 7) EXCERPT — full text, auto-scaled font
     if (L.el.length) {
-        ctx.font = '400 ' + L.es + 'px "Nirmala UI", "Noto Sans Tamil", Arial';
+        ctx.font = '400 ' + L.es + 'px ' + TAMIL_STACK;
         ctx.fillStyle = '#b6bdc9';
         L.el.forEach(function (ln, i) {
             ctx.fillText(ln, mX, ey + i * L.elh);
@@ -1151,7 +1177,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         // Shrink font until pill fits poster width
         var tw, padX, arrowW, pillW, pillH;
         do {
-            ctx.font = '700 ' + ctaSize + 'px "Nirmala UI", "Noto Sans Tamil", Arial';
+            ctx.font = '700 ' + ctaSize + 'px ' + TAMIL_STACK;
             tw = ctx.measureText(cta).width;
             padX = Math.round(W * 0.035);
             arrowW = Math.round(ctaSize * 0.95);
@@ -1234,7 +1260,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     lg.addColorStop(0, '#e11d48'); lg.addColorStop(1, '#be123c');
     pgRoundRect(ctx, logoX, logoY, logoS, logoS, logoS * 0.28);
     ctx.fillStyle = lg; ctx.fill();
-    ctx.font = '900 ' + Math.round(logoS * 0.6) + 'px "Playfair Display", Georgia, serif';
+    ctx.font = '900 ' + Math.round(logoS * 0.6) + 'px ' + BRAND_STACK;
     ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('E', logoX + logoS / 2, logoY + logoS / 2 + logoS * 0.04);
 
@@ -1242,7 +1268,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     var textX = logoX + logoS + Math.round(W * 0.022);
     ctx.textAlign = 'left';
     var nameSize = Math.round(barH * 0.32);
-    ctx.font = '800 ' + nameSize + 'px "Playfair Display", Georgia, serif';
+    ctx.font = '800 ' + nameSize + 'px ' + BRAND_STACK;
     ctx.textBaseline = 'middle';
     var endW = ctx.measureText('End').width;
     ctx.fillStyle = '#f1f5f9';
@@ -1356,6 +1382,17 @@ async function openPosterModal(articleId) {
             '</div>' +
             '<div style="margin-bottom:12px;">' +
             '<button type="button" id="pg-edit-toggle" style="width:100%;padding:10px 14px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;">✏️ Edit Headline & Excerpt (optional)</button>' +
+            '<button type="button" id="pg-font-toggle" style="margin-top:8px;width:100%;padding:10px 14px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;">🔤 Fonts (Tamil & English)</button>' +
+            '<div id="pg-font-panel" style="display:none;margin-top:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
+                '<p id="pg-font-lang-note" style="margin:0 0 8px;font-size:0.72rem;color:#6b7280;font-weight:700;"></p>' +
+                '<label style="display:block;font-size:0.72rem;font-weight:700;color:#374151;margin-bottom:4px;">Tamil (headline / text) font</label>' +
+                '<div id="pg-font-ta" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>' +
+                '<label style="display:block;font-size:0.72rem;font-weight:700;color:#374151;margin-bottom:4px;">English (brand) font</label>' +
+                '<div id="pg-font-en" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>' +
+                '<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:0.78rem;font-weight:700;color:#374151;">＋ Add custom font (Google Fonts)</summary>' +
+                '<input type="text" id="pg-font-custom" placeholder="e.g. Baloo 2  or  Noto Sans Tamil:wght@700" style="margin-top:6px;width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">' +
+                '<button type="button" id="pg-font-custom-add" style="margin-top:6px;padding:6px 14px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">Add font</button></details>' +
+            '</div>' +
             '<div id="pg-edit-panel" style="display:none;margin-top:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
                 '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Headline</label>' +
                 '<textarea id="pg-edit-title" rows="2" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;font-family:inherit;resize:vertical;margin-bottom:8px;box-sizing:border-box;"></textarea>' +
@@ -1379,7 +1416,82 @@ async function openPosterModal(articleId) {
         document.getElementById('pg-size').addEventListener('change', pgRenderPreview);
         document.getElementById('pg-mode').addEventListener('change', pgRenderPreview);
         document.getElementById('pg-quality').addEventListener('change', pgRenderPreview);
-        document.getElementById('pg-lang').addEventListener('change', function() { pgLoadEditFields(); pgRenderPreview(); });
+        document.getElementById('pg-lang').addEventListener('change', function() { pgLoadEditFields(); pgRenderFontPicker(); pgRenderPreview(); });
+
+        // 🔤 FONT PICKER PANEL
+        var _pgCustomFonts = [];
+        function pgDefaultFont() {
+            return { head: 'Nirmala UI', brand: 'Playfair Display' };
+        }
+        function pgGetFont() {
+            var lang = document.getElementById('pg-lang').value;
+            if (!_pgOverrides['font_' + lang]) _pgOverrides['font_' + lang] = pgDefaultFont();
+            return _pgOverrides['font_' + lang];
+        }
+        function pgFontChip(containerId, listKey, currentName, onPick) {
+            var box = document.getElementById(containerId);
+            if (!box) return;
+            box.innerHTML = '';
+            function mkChip(name, sub, sys) {
+                var b = document.createElement('button');
+                b.type = 'button';
+                b.style.cssText = 'padding:5px 12px;border-radius:999px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid ' +
+                    (name === currentName ? '#dc2626' : '#d1d5db') + ';background:' + (name === currentName ? '#dc2626' : '#fff') + ';color:' + (name === currentName ? '#fff' : '#374151') + ';';
+                b.textContent = name + (sys ? ' ·' : '');
+                b.title = sub || name;
+                b.addEventListener('click', function () { onPick(name); });
+                box.appendChild(b);
+            }
+            POSTER_FONT_LIST.forEach(function (s) {
+                var isSys = !s.g;
+                var name = s.name.replace(/\s*\(system\)\s*$/, '');
+                if (listKey === 'ta' && s.tags.indexOf('ta') !== -1) mkChip(name, s.name + (isSys ? ' (system font)' : ''), isSys);
+                if (listKey === 'en' && s.tags.indexOf('en') !== -1) mkChip(name, s.name, isSys);
+            });
+            _pgCustomFonts.forEach(function (f) {
+                mkChip(f.name, 'custom', false);
+            });
+        }
+        function pgRenderFontPicker() {
+            var lang = document.getElementById('pg-lang').value;
+            var note = document.getElementById('pg-font-lang-note');
+            if (note) note.textContent = 'Selecting fonts for: ' + (lang === 'en' ? 'English version' : 'தமிழ் version') + ' — switch language to set the other.';
+            var cur = pgGetFont();
+            pgFontChip('pg-font-ta', 'ta', cur.head, function (name) {
+                pgGetFont().head = name;
+                pgRenderFontPicker();
+                clearTimeout(_pgEditT);
+                _pgEditT = setTimeout(pgRenderPreview, 350);
+            });
+            pgFontChip('pg-font-en', 'en', cur.brand, function (name) {
+                pgGetFont().brand = name;
+                pgRenderFontPicker();
+                clearTimeout(_pgEditT);
+                _pgEditT = setTimeout(pgRenderPreview, 350);
+            });
+        }
+        var pgFontToggle = document.getElementById('pg-font-toggle');
+        var pgFontPanel = document.getElementById('pg-font-panel');
+        pgFontToggle.addEventListener('click', function () {
+            var open = pgFontPanel.style.display !== 'none';
+            pgFontPanel.style.display = open ? 'none' : 'block';
+            pgFontToggle.textContent = open ? '🔤 Fonts (Tamil & English)' : '🔤 Hide Fonts';
+            if (!open) pgRenderFontPicker();
+        });
+        document.getElementById('pg-font-custom-add').addEventListener('click', function () {
+            var raw = (document.getElementById('pg-font-custom').value || '').trim();
+            if (!raw) return;
+            var name = raw.split(':')[0].trim();
+            if (!name) return;
+            var exists = POSTER_FONT_LIST.some(function (s) { return s.name.replace(/\s*\(system\)\s*$/, '') === name; }) ||
+                         _pgCustomFonts.some(function (f) { return f.name === name; });
+            if (!exists) {
+                POSTER_FONT_LIST.push({ name: name, g: raw.replace(/\s+/g, '+').replace(':', ':'), tags: 'ta en' });
+                _pgCustomFonts.push({ name: name, g: raw });
+            }
+            document.getElementById('pg-font-custom').value = '';
+            pgRenderFontPicker();
+        });
 
         // ✏️ EDIT TEXT PANEL — live editable headline/excerpt
         var _pgEditT = null;
@@ -1475,7 +1587,8 @@ async function pgRenderPreview() {
         title_en: o.hasOwnProperty('title_en') ? o.title_en : _pgArticle.title_en,
         excerpt: o.hasOwnProperty('excerpt_ta') ? o.excerpt_ta : _pgArticle.excerpt,
         excerpt_en: o.hasOwnProperty('excerpt_en') ? o.excerpt_en : _pgArticle.excerpt_en,
-        _hl: o['hl_' + lang] || []   // 🎨 per-language highlighted words
+        _hl: o['hl_' + lang] || [],   // 🎨 per-language highlighted words
+        _font: o['font_ta'] || o['font_en'] ? { ta: o['font_ta'] || pgDefaultFont(), en: o['font_en'] || pgDefaultFont() } : null
     });
     try {
         var mode = (document.getElementById('pg-mode') || { value: 'full' }).value;
