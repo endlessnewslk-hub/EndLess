@@ -1061,6 +1061,7 @@ async function generatePoster(article, sizeKey, lang) {
 
 // 🎨 POSTER MODAL — size + language + preview + download + share
 let _pgArticle = null;
+let _pgOverrides = {};   // ✏️ user text edits per lang: {title_ta, excerpt_ta, title_en, excerpt_en}
 async function openPosterModal(articleId) {
     _pgArticle = (typeof adminNews !== 'undefined' ? adminNews : []).find(function(n) { return String(n.id) === String(articleId); });
     if (!_pgArticle) { showToast('Article not found', 'error'); return; }
@@ -1089,7 +1090,18 @@ async function openPosterModal(articleId) {
                     '<option value="en">English</option>' +
                 '</select>' +
             '</div>' +
-            '<div style="background:#0a0a0f;border-radius:12px;padding:12px;display:flex;justify-content:center;margin-bottom:14px;max-height:46vh;overflow:auto;">' +
+            '<div style="margin-bottom:12px;">' +
+            '<button type="button" id="pg-edit-toggle" style="width:100%;padding:10px 14px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;">✏️ Edit Headline & Excerpt (optional)</button>' +
+            '<div id="pg-edit-panel" style="display:none;margin-top:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
+                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Headline</label>' +
+                '<textarea id="pg-edit-title" rows="2" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;font-family:inherit;resize:vertical;margin-bottom:8px;box-sizing:border-box;"></textarea>' +
+                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Excerpt</label>' +
+                '<textarea id="pg-edit-excerpt" rows="3" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>' +
+                '<button type="button" id="pg-edit-reset" style="margin-top:8px;padding:6px 14px;background:#fee2e2;color:#991b1b;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">↺ Reset to original</button>' +
+                '<p style="margin:8px 0 0;font-size:0.72rem;color:#9ca3af;">Your edits apply to <b id="pg-edit-lang-label">தமிழ்</b> version only — switch language to edit that version separately.</p>' +
+            '</div>' +
+            '</div>' +
+'<div style="background:#0a0a0f;border-radius:12px;padding:12px;display:flex;justify-content:center;margin-bottom:14px;max-height:46vh;overflow:auto;">' +
                 '<img id="pg-preview" style="max-width:100%;max-height:44vh;border-radius:8px;" alt="Poster preview">' +
             '</div>' +
             '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
@@ -1099,7 +1111,48 @@ async function openPosterModal(articleId) {
         document.body.appendChild(ov);
         ov.addEventListener('click', function(e) { if (e.target === ov) ov.style.display = 'none'; });
         document.getElementById('pg-size').addEventListener('change', pgRenderPreview);
-        document.getElementById('pg-lang').addEventListener('change', pgRenderPreview);
+        document.getElementById('pg-lang').addEventListener('change', function() { pgLoadEditFields(); pgRenderPreview(); });
+
+        // ✏️ EDIT TEXT PANEL — live editable headline/excerpt
+        var _pgEditT = null;
+        function pgLoadEditFields() {
+            var lang = document.getElementById('pg-lang').value;
+            var t = document.getElementById('pg-edit-title');
+            var x = document.getElementById('pg-edit-excerpt');
+            if (!t || !x || !_pgArticle) return;
+            t.value = _pgOverrides.hasOwnProperty('title_' + lang)
+                ? _pgOverrides['title_' + lang]
+                : (lang === 'en' ? (_pgArticle.title_en || _pgArticle.title || '') : (_pgArticle.title || _pgArticle.title_en || ''));
+            x.value = _pgOverrides.hasOwnProperty('excerpt_' + lang)
+                ? _pgOverrides['excerpt_' + lang]
+                : (lang === 'en' ? (_pgArticle.excerpt_en || _pgArticle.excerpt || '') : (_pgArticle.excerpt || _pgArticle.excerpt_en || ''));
+            var lbl = document.getElementById('pg-edit-lang-label');
+            if (lbl) lbl.textContent = lang === 'en' ? 'English' : 'தமிழ்';
+        }
+        var pgEditToggle = document.getElementById('pg-edit-toggle');
+        var pgEditPanel = document.getElementById('pg-edit-panel');
+        pgEditToggle.addEventListener('click', function() {
+            var open = pgEditPanel.style.display !== 'none';
+            pgEditPanel.style.display = open ? 'none' : 'block';
+            pgEditToggle.textContent = open ? '✏️ Edit Headline & Excerpt (optional)' : '✏️ Hide Text Editor';
+            if (!open) pgLoadEditFields();
+        });
+        var pgEditTitle = document.getElementById('pg-edit-title');
+        var pgEditExcerpt = document.getElementById('pg-edit-excerpt');
+        function pgOnEdit() {
+            var lang = document.getElementById('pg-lang').value;
+            _pgOverrides['title_' + lang] = pgEditTitle.value;
+            _pgOverrides['excerpt_' + lang] = pgEditExcerpt.value;
+            clearTimeout(_pgEditT);
+            _pgEditT = setTimeout(pgRenderPreview, 400);   // debounced live re-render
+        }
+        pgEditTitle.addEventListener('input', pgOnEdit);
+        pgEditExcerpt.addEventListener('input', pgOnEdit);
+        document.getElementById('pg-edit-reset').addEventListener('click', function() {
+            _pgOverrides = {};
+            pgLoadEditFields();
+            pgRenderPreview();
+        });
         document.getElementById('pg-download').addEventListener('click', pgDownload);
         document.getElementById('pg-share').addEventListener('click', pgShare);
     }
@@ -1114,8 +1167,16 @@ async function pgRenderPreview() {
     var lang = document.getElementById('pg-lang').value;
     var img = document.getElementById('pg-preview');
     img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACw='; // spinner placeholder
+    // ✏️ Apply user text edits (per language) over the article data
+    var o = _pgOverrides;
+    var eff = Object.assign({}, _pgArticle, {
+        title: o.hasOwnProperty('title_ta') ? o.title_ta : _pgArticle.title,
+        title_en: o.hasOwnProperty('title_en') ? o.title_en : _pgArticle.title_en,
+        excerpt: o.hasOwnProperty('excerpt_ta') ? o.excerpt_ta : _pgArticle.excerpt,
+        excerpt_en: o.hasOwnProperty('excerpt_en') ? o.excerpt_en : _pgArticle.excerpt_en
+    });
     try {
-        _pgCanvas = await generatePoster(_pgArticle, size, lang);
+        _pgCanvas = await generatePoster(eff, size, lang);
         img.src = _pgCanvas.toDataURL('image/png');
     } catch (e) {
         showToast('Poster error: ' + e.message, 'error');
