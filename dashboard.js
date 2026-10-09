@@ -562,6 +562,7 @@ function sweepTextNodes(root) {
         var parent = node.parentElement;
         if (!parent || parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE' || parent.closest('svg')) return;
         if (parent.closest('.sidebar-nav')) return; // sidebar = iconifyAdmin (consistent brand red)
+        if (parent.closest('button') && parent.closest('button').getAttribute('onclick') && parent.closest('button').getAttribute('onclick').indexOf('openPosterModal') !== -1) return; // 🎨 poster buttons — DON'T touch!
         var found = [];
         Object.keys(EMOJI_MAP).forEach(function(em) {
             if (text.indexOf(em) !== -1 && IC[EMOJI_MAP[em]]) {
@@ -857,6 +858,237 @@ async function uploadToCloudinary(file, onProgress) {
         showToast('❌ Upload error: ' + e.message, 'error');
         return null;
     }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🎨 SOCIAL POSTER GENERATOR — Al Jazeera/BBC style news cards!
+// One click → branded poster (image + headline + excerpt + brand)
+// Sizes: 1:1 (IG/FB), 16:9 (X), 9:16 (Story) · Tamil/English · Download/Share
+// ═══════════════════════════════════════════════════════════════
+const POSTER_SIZES = {
+    square: { w: 1080, h: 1080, label: '1:1 · Instagram / FB Post' },
+    wide:   { w: 1200, h: 675,  label: '16:9 · X / FB Link Card' },
+    story:  { w: 1080, h: 1920, label: '9:16 · Story / Status' }
+};
+
+function pgWrapText(ctx, text, maxW) {
+    var words = String(text || '').split(/\s+/), lines = [], line = '';
+    for (var i = 0; i < words.length; i++) {
+        var test = line ? line + ' ' + words[i] : words[i];
+        if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = words[i]; }
+        else line = test;
+        if (lines.length >= 5) break; // safety cap
+    }
+    if (line) lines.push(line);
+    return lines;
+}
+
+function pgRoundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+}
+
+function pgLoadImg(url) {
+    return new Promise(function(res, rej) {
+        var img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function() { res(img); };
+        img.onerror = rej;
+        img.src = url;
+    });
+}
+
+async function generatePoster(article, sizeKey, lang) {
+    var S = POSTER_SIZES[sizeKey] || POSTER_SIZES.square;
+    var W = S.w, H = S.h;
+    var isStory = sizeKey === 'story';
+    var isWide = sizeKey === 'wide';
+
+    // Fonts (Tamil support!)
+    try {
+        await document.fonts.load('700 40px "Noto Sans Tamil"');
+        await document.fonts.load('400 28px "Noto Sans Tamil"');
+    } catch (e) {}
+
+    var cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    var ctx = cv.getContext('2d');
+
+    var title = lang === 'en' ? (article.title_en || article.title) : (article.title || article.title_en);
+    var excerpt = lang === 'en' ? (article.excerpt_en || article.excerpt) : (article.excerpt || article.excerpt_en);
+    var cat = lang === 'en' ? (article.category_en || article.category) : (article.category || article.category_en);
+
+    // 1) Dark brand background (gradient)
+    var bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#13131f'); bg.addColorStop(1, '#0a0a0f');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+    // 2) Article image (cover fit) — top 52% (square/wide) or 45% (story)
+    var imgH = isStory ? Math.round(H * 0.45) : Math.round(H * 0.52);
+    try {
+        var img = await pgLoadImg(article.image);
+        var scale = Math.max(W / img.width, imgH / img.height);
+        var iw = img.width * scale, ih = img.height * scale;
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, 0, W, imgH); ctx.clip();
+        ctx.drawImage(img, (W - iw) / 2, (imgH - ih) / 2, iw, ih);
+        ctx.restore();
+    } catch (e) {}
+
+    // Gradient fade image → bg
+    var fade = ctx.createLinearGradient(0, imgH - Math.round(H * 0.22), 0, imgH + Math.round(H * 0.06));
+    fade.addColorStop(0, 'rgba(10,10,15,0)');
+    fade.addColorStop(1, 'rgba(10,10,15,1)');
+    ctx.fillStyle = fade; ctx.fillRect(0, imgH - Math.round(H * 0.22), W, Math.round(H * 0.28));
+
+    // 3) Category chip (over image, top-left)
+    if (cat) {
+        ctx.font = '700 ' + Math.round(H * 0.022) + 'px "Noto Sans Tamil", Arial';
+        var cw = ctx.measureText(String(cat).toUpperCase()).width + Math.round(W * 0.05);
+        var chH = Math.round(H * 0.05);
+        pgRoundRect(ctx, Math.round(W * 0.045), Math.round(H * 0.042), cw, chH, chH / 2);
+        ctx.fillStyle = '#e11d48'; ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(cat).toUpperCase(), Math.round(W * 0.045) + Math.round(W * 0.025), Math.round(H * 0.042) + chH / 2 + 2);
+    }
+
+    // 4) Red accent line
+    var contentY = imgH + Math.round(H * 0.055);
+    ctx.fillStyle = '#e11d48';
+    ctx.fillRect(Math.round(W * 0.045), contentY, Math.round(W * 0.12), Math.max(6, Math.round(H * 0.008)));
+
+    // 5) HEADLINE (bold, wrapped)
+    var headSize = isStory ? Math.round(H * 0.040) : Math.round(H * 0.048);
+    ctx.font = '800 ' + headSize + 'px "Noto Sans Tamil", Arial';
+    ctx.fillStyle = '#ffffff'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+    var headLines = pgWrapText(ctx, title, W - Math.round(W * 0.09)).slice(0, isWide ? 3 : 4);
+    var lineH = headSize * 1.28;
+    headLines.forEach(function(ln, i) {
+        ctx.fillText(ln, Math.round(W * 0.045), contentY + Math.round(H * 0.028) + i * lineH);
+    });
+
+    // 6) EXCERPT (gray, wrapped)
+    var excY = contentY + Math.round(H * 0.028) + headLines.length * lineH + Math.round(H * 0.02);
+    ctx.font = '400 ' + Math.round(headSize * 0.52) + 'px "Noto Sans Tamil", Arial';
+    ctx.fillStyle = '#b6bdc9';
+    var excLines = excerpt ? pgWrapText(ctx, excerpt, W - Math.round(W * 0.09)).slice(0, 3) : [];
+    excLines.forEach(function(ln, i) {
+        ctx.fillText(ln, Math.round(W * 0.045), excY + i * Math.round(headSize * 0.72));
+    });
+
+    // 7) Brand bar (bottom): E logo + EndLess News + URL
+    var barH = Math.round(H * 0.085);
+    var barY = H - barH - Math.round(H * 0.03);
+    ctx.fillStyle = 'rgba(225,29,72,0.12)';
+    pgRoundRect(ctx, Math.round(W * 0.045), barY, W - Math.round(W * 0.09), barH, barH * 0.3);
+    ctx.fill();
+    // E logo
+    var logoS = barH * 0.62, logoX = Math.round(W * 0.045) + Math.round(W * 0.02), logoY = barY + (barH - logoS) / 2;
+    var lg = ctx.createLinearGradient(logoX, logoY, logoX + logoS, logoY + logoS);
+    lg.addColorStop(0, '#e11d48'); lg.addColorStop(1, '#be123c');
+    pgRoundRect(ctx, logoX, logoY, logoS, logoS, logoS * 0.28);
+    ctx.fillStyle = lg; ctx.fill();
+    ctx.font = '900 ' + Math.round(logoS * 0.62) + 'px Georgia, serif';
+    ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+    ctx.fillText('E', logoX + logoS / 2, logoY + logoS / 2 + logoS * 0.04);
+    // Name + URL
+    ctx.textAlign = 'left';
+    ctx.font = '800 ' + Math.round(barH * 0.34) + 'px Georgia, serif';
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillText('EndLess News', logoX + logoS + Math.round(W * 0.02), barY + barH * 0.36);
+    ctx.font = '600 ' + Math.round(barH * 0.24) + 'px Arial';
+    ctx.fillStyle = '#fb7185';
+    ctx.fillText('endlessnews.lk', logoX + logoS + Math.round(W * 0.02), barY + barH * 0.68);
+
+    return cv;
+}
+
+// 🎨 POSTER MODAL — size + language + preview + download + share
+let _pgArticle = null;
+async function openPosterModal(articleId) {
+    _pgArticle = (typeof adminNews !== 'undefined' ? adminNews : []).find(function(n) { return String(n.id) === String(articleId); });
+    if (!_pgArticle) { showToast('Article not found', 'error'); return; }
+
+    var ov = document.getElementById('poster-gen-ov');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'poster-gen-ov';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9500;display:none;align-items:center;justify-content:center;padding:16px;overflow-y:auto;';
+        ov.innerHTML =
+            '<div style="background:#fff;border-radius:18px;max-width:640px;width:100%;padding:24px;position:relative;max-height:94vh;overflow-y:auto;">' +
+            '<button onclick="document.getElementById(\'poster-gen-ov\').style.display=\'none\'" style="position:absolute;top:14px;right:14px;width:36px;height:36px;border:none;border-radius:50%;background:#f3f4f6;cursor:pointer;font-size:16px;">✕</button>' +
+            '<h3 style="font-size:1.2rem;font-weight:800;margin-bottom:4px;">🎨 Social Poster Generator</h3>' +
+            '<p style="color:#6b7280;font-size:0.85rem;margin-bottom:16px;">One click → branded news card (Al Jazeera style!) — Download & Post FB/IG/X!</p>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' +
+                '<select id="pg-size" style="flex:1;min-width:150px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;">' +
+                    '<option value="square">1:1 · Instagram / FB Post</option>' +
+                    '<option value="wide">16:9 · X / FB Link Card</option>' +
+                    '<option value="story">9:16 · Story / Status</option>' +
+                '</select>' +
+                '<select id="pg-lang" style="flex:1;min-width:120px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;">' +
+                    '<option value="ta">தமிழ்</option>' +
+                    '<option value="en">English</option>' +
+                '</select>' +
+            '</div>' +
+            '<div style="background:#0a0a0f;border-radius:12px;padding:12px;display:flex;justify-content:center;margin-bottom:14px;max-height:46vh;overflow:auto;">' +
+                '<img id="pg-preview" style="max-width:100%;max-height:44vh;border-radius:8px;" alt="Poster preview">' +
+            '</div>' +
+            '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
+                '<button class="btn-primary" id="pg-download" style="flex:1;min-width:140px;">⬇️ Download PNG</button>' +
+                '<button class="btn-secondary" id="pg-share" style="flex:1;min-width:140px;">📤 Share</button>' +
+            '</div></div>';
+        document.body.appendChild(ov);
+        ov.addEventListener('click', function(e) { if (e.target === ov) ov.style.display = 'none'; });
+        document.getElementById('pg-size').addEventListener('change', pgRenderPreview);
+        document.getElementById('pg-lang').addEventListener('change', pgRenderPreview);
+        document.getElementById('pg-download').addEventListener('click', pgDownload);
+        document.getElementById('pg-share').addEventListener('click', pgShare);
+    }
+    ov.style.display = 'flex';
+    pgRenderPreview();
+}
+
+let _pgCanvas = null;
+async function pgRenderPreview() {
+    if (!_pgArticle) return;
+    var size = document.getElementById('pg-size').value;
+    var lang = document.getElementById('pg-lang').value;
+    var img = document.getElementById('pg-preview');
+    img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACw='; // spinner placeholder
+    try {
+        _pgCanvas = await generatePoster(_pgArticle, size, lang);
+        img.src = _pgCanvas.toDataURL('image/png');
+    } catch (e) {
+        showToast('Poster error: ' + e.message, 'error');
+    }
+}
+
+function pgDownload() {
+    if (!_pgCanvas) return;
+    var a = document.createElement('a');
+    a.download = 'endless-poster-' + (_pgArticle ? _pgArticle.id : 'news') + '.png';
+    a.href = _pgCanvas.toDataURL('image/png');
+    a.click();
+    showToast('⬇️ Poster downloaded!', 'success');
+}
+
+async function pgShare() {
+    if (!_pgCanvas) return;
+    try {
+        _pgCanvas.toBlob(async function(blob) {
+            var file = new File([blob], 'endless-news.png', { type: 'image/png' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: 'EndLess News', text: (_pgArticle.title_en || _pgArticle.title || '') });
+            } else {
+                pgDownload(); // fallback
+            }
+        }, 'image/png');
+    } catch (e) { pgDownload(); }
 }
 
 // 🔇 Production: no debug logs in console
@@ -1451,7 +1683,8 @@ function renderNewsTable() {
                 '<td>' + langs.join('') + '</td>' +
                 '<td><span class="badge ' + (n.status === 'published' ? 'badge-green' : 'badge-gray') + '">' + (n.status || 'draft') + '</span></td>' +
                 '<td><button class="btn-icon btn-edit" style="' + btnEditStyle + '" onmouseover="' + btnEditHover + '" onmouseout="' + btnEditOut + '" onclick="editNews(' + n.id + ')" title="Edit">&#9999;&#65039;</button>' +
-                '<button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onmouseover="' + btnDeleteHover + '" onmouseout="' + btnDeleteOut + '" onclick="deleteNews(' + n.id + ')" title="Delete">&#128465;&#65039;</button></td></tr>';
+                '<button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onclick="deleteNews(' + n.id + ')" title="Delete">&#128465;&#65039;</button>' +
+                '<button onclick="openPosterModal(' + n.id + ')" title="🎨 Social Poster" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;cursor:pointer;font-size:16px;margin-left:6px;">🎨</button></td></tr>';
         }).join('');
     }
 
@@ -1491,7 +1724,8 @@ function renderNewsTable() {
                     '<span class="badge ' + (n.status === 'published' ? 'badge-green' : 'badge-gray') + '">' + (n.status || 'draft') + '</span></div>' +
                     '<div class="card-actions" style="display:flex;gap:0.5rem;">' +
                     '<button style="' + btnEditStyle + 'width:44px;height:44px;" onmouseover="' + btnEditHover + '" onmouseout="' + btnEditOut + '" onclick="editNews(' + n.id + ')" title="Edit">&#9999;&#65039;</button>' +
-                    '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onmouseover="' + btnDeleteHover + '" onmouseout="' + btnDeleteOut + '" onclick="deleteNews(' + n.id + ')" title="Delete">&#128465;&#65039;</button></div></div>';
+                    '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onclick="deleteNews(' + n.id + ')" title="Delete">&#128465;&#65039;</button>' +
+                    '<button onclick="openPosterModal(' + n.id + ')" title="🎨 Poster" style="width:44px;height:44px;border:none;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;cursor:pointer;font-size:18px;">🎨</button></div></div>';
             }).join('');
         }
     }
