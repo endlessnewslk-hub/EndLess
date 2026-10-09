@@ -917,6 +917,7 @@ async function generatePoster(article, sizeKey, lang, mode) {
     try {
         await document.fonts.load('700 40px "Noto Sans Tamil"');
         await document.fonts.load('400 28px "Noto Sans Tamil"');
+        await document.fonts.load('800 40px "Noto Serif Tamil"');   // ⭐ premium editorial Tamil
         await document.fonts.load('800 40px "Playfair Display"');
     } catch (e) {}
 
@@ -967,7 +968,7 @@ async function generatePoster(article, sizeKey, lang, mode) {
     function calcLayout(sc) {
         var hs = Math.max(minHead, Math.round(baseHead * sc));
         var lh = Math.round(hs * 1.3);
-        ctx.font = '800 ' + hs + 'px "Noto Sans Tamil", Arial';
+        ctx.font = '800 ' + hs + 'px "Noto Serif Tamil", "Noto Sans Tamil", Arial';   // ⭐ premium serif
         ctx.textBaseline = 'top';
         var hl = fullWrap(title, maxW);
         var es = Math.max(minExc, Math.round(hs * 0.52));
@@ -984,7 +985,7 @@ async function generatePoster(article, sizeKey, lang, mode) {
     var minImgH = Math.round(H * 0.20);
     // 💬 Reserve CTA pill space in headline mode — headline NEVER touches the pill
     var ctaReserve = (mode === 'headline')
-        ? Math.round(W * 0.024) * 2.15 + Math.round(H * 0.022) + Math.round(H * 0.028)
+        ? Math.round(W * 0.018) * 1.95 + Math.round(H * 0.018) + Math.round(H * 0.026)
         : 0;
     var y, avail, L;
 
@@ -1068,7 +1069,7 @@ async function generatePoster(article, sizeKey, lang, mode) {
     ctx.fillRect(mX, y - Math.round(H * 0.02) - accH, Math.round(W * 0.12), accH);
 
     // 6) HEADLINE — full text, auto-scaled font
-    ctx.font = '800 ' + L.hs + 'px "Noto Sans Tamil", Arial';
+    ctx.font = '800 ' + L.hs + 'px "Noto Serif Tamil", "Noto Sans Tamil", Arial';   // ⭐ premium serif headline
     ctx.fillStyle = '#ffffff'; ctx.textBaseline = 'top';
     L.hl.forEach(function (ln, i) {
         ctx.fillText(ln, mX, y + i * L.lh);
@@ -1086,23 +1087,23 @@ async function generatePoster(article, sizeKey, lang, mode) {
 
     // 7b) 💬 CTA pill (headline-only mode) — professional "read full article" chip
     if (mode === 'headline') {
-        var cta = lang === 'en' ? 'READ THE FULL ARTICLE' : '\u0BAE\u0BC1\u0BB4\u0BC1 \u0B95\u0B9F\u0BCD\u0B9F\u0BC1\u0BB0\u0BC8\u0BAF\u0BC8\u0BAA\u0BCD \u0BAA\u0B9F\u0BBF\u0B95\u0BCD\u0B95';
-        var ctaSize = Math.max(18, Math.round(W * 0.024));
+        var cta = lang === 'en' ? 'READ THE FULL NEWS' : '\u0BAE\u0BC1\u0BB4\u0BC1 \u0B9A\u0BC6\u0BAF\u0BCD\u0BA4\u0BBF\u0BAF\u0BC8\u0BAA\u0BCD \u0BAA\u0B9F\u0BBF\u0B95\u0BCD\u0B95';
+        var ctaSize = Math.max(15, Math.round(W * 0.018));   // ⭐ smaller, decent pill
         ctx.textAlign = 'left';
         // Shrink font until pill fits poster width
         var tw, padX, arrowW, pillW, pillH;
         do {
             ctx.font = '700 ' + ctaSize + 'px "Noto Sans Tamil", Arial';
             tw = ctx.measureText(cta).width;
-            padX = Math.round(W * 0.04);
-            arrowW = Math.round(ctaSize * 1.0);
+            padX = Math.round(W * 0.035);
+            arrowW = Math.round(ctaSize * 0.95);
             pillW = tw + padX * 2 + arrowW;
-            pillH = Math.round(ctaSize * 2.15);
-            if (pillW <= maxW || ctaSize <= 13) break;
+            pillH = Math.round(ctaSize * 1.95);
+            if (pillW <= maxW || ctaSize <= 11) break;
             ctaSize -= 2;
         } while (true);
         var pillX = Math.round((W - pillW) / 2);
-        var pillY = barY - Math.round(H * 0.022) - pillH;
+        var pillY = barY - Math.round(H * 0.018) - pillH;
 
         // Flanking divider lines (— chip —) premium look
         var flY = pillY + pillH / 2;
