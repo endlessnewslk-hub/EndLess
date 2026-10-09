@@ -307,6 +307,20 @@ try {
     console.error('Firebase init error:', err);
 }
 
+// 🔤🔤 POSTER FONTS — Noto Sans/Serif Tamil + Playfair Display.
+// CRITICAL: the poster canvas NEEDS these @font-face declarations. Without the
+// stylesheet, document.fonts.load() silently fails on fresh devices (especially
+// mobile!) and Tamil text renders in the plain system font. PC-la cache-nala
+// work aagum, mobile-la illa — ithan fix.
+(function injectPosterFonts() {
+    if (document.getElementById('poster-fonts-css')) return;
+    var link = document.createElement('link');
+    link.id = 'poster-fonts-css';
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700;800&family=Noto+Serif+Tamil:wght@700;800&family=Playfair+Display:wght@700;800;900&display=swap';
+    document.head.appendChild(link);
+})();
+
 // 🔤 BRAND FONT — admin panel "EndLess" logo = same premium Playfair font
 // as the main site (Georgia missing on Android → logo looked different).
 (function injectAdminBrandFont() {
@@ -914,12 +928,19 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     var isWide = W > H;                 // 16:9 landscape
     var isStory = sizeKey === 'story';  // 9:16 full portrait
 
-    // 🔤 Fonts (Tamil + Playfair brand font)
+    // 🔤 Fonts (Tamil + Playfair brand font) — mobile-safe loading:
+    // 1) explicit loads (works once @font-face exists — guaranteed by injectPosterFonts)
+    // 2) document.fonts.ready with timeout — extra safety on slow mobile networks
     try {
-        await document.fonts.load('700 40px "Noto Sans Tamil"');
-        await document.fonts.load('400 28px "Noto Sans Tamil"');
-        await document.fonts.load('800 40px "Noto Serif Tamil"');   // ⭐ premium editorial Tamil
-        await document.fonts.load('800 40px "Playfair Display"');
+        await Promise.race([
+            Promise.all([
+                document.fonts.load('700 40px "Noto Sans Tamil"'),
+                document.fonts.load('600 40px "Noto Sans Tamil"'),
+                document.fonts.load('800 40px "Noto Serif Tamil"'),   // ⭐ premium editorial Tamil
+                document.fonts.load('800 40px "Playfair Display"')
+            ]).then(function() { return document.fonts.ready; }),
+            new Promise(function(res) { setTimeout(res, 3000); })   // never hang the poster
+        ]);
     } catch (e) {}
 
     var cv = document.createElement('canvas');
