@@ -982,6 +982,10 @@ async function generatePoster(article, sizeKey, lang, mode) {
     // 1) Start with base image height
     var imgH = Math.round(H * (isWide ? 0.48 : (isStory ? 0.42 : 0.45)));
     var minImgH = Math.round(H * 0.20);
+    // 💬 Reserve CTA pill space in headline mode — headline NEVER touches the pill
+    var ctaReserve = (mode === 'headline')
+        ? Math.round(W * 0.024) * 2.15 + Math.round(H * 0.022) + Math.round(H * 0.028)
+        : 0;
     var y, avail, L;
 
     function reflow() {
@@ -990,7 +994,7 @@ async function generatePoster(article, sizeKey, lang, mode) {
           + Math.round(W * 0.020 * 1.8)                   // date line height
           + Math.max(6, Math.round(H * 0.007))            // accent bar
           + Math.round(H * 0.02);                         // gap after accent
-        avail = barY - y - gap;
+        avail = barY - y - gap - ctaReserve;   // keep text clear of the CTA pill
         if (mode === 'headline') {
             // ⭐⭐ Binary search: LARGEST font that exactly fills the space
             var lo = 0.05, hi = 4.0, best = null;
