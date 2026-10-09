@@ -1105,18 +1105,35 @@ async function generatePoster(article, sizeKey, lang, mode) {
         var pillX = Math.round((W - pillW) / 2);
         var pillY = barY - Math.round(H * 0.018) - pillH;
 
-        // Flanking divider lines (— chip —) premium look
+        // ⭐ Premium divider: full-width hairlines aligned to poster margins (image borders),
+        //    gradient-fading toward the pill — editorial print style
         var flY = pillY + pillH / 2;
-        ctx.strokeStyle = 'rgba(251,113,133,0.30)';
-        ctx.lineWidth = Math.max(1.5, W * 0.0015);
+        var lw = Math.max(1.5, W * 0.0015);
+        var lineL = mX, lineR = W - mX;
+        var gapToPill = Math.round(W * 0.025);
+        // Left hairline: strong at margin → fades into pill
+        var gl = ctx.createLinearGradient(lineL, 0, pillX - gapToPill, 0);
+        gl.addColorStop(0, 'rgba(251,113,133,0.55)');
+        gl.addColorStop(1, 'rgba(251,113,133,0.06)');
+        ctx.strokeStyle = gl;
+        ctx.lineWidth = lw;
         ctx.beginPath();
-        ctx.moveTo(mX, flY); ctx.lineTo(pillX - Math.round(W * 0.025), flY);
-        ctx.moveTo(pillX + pillW + Math.round(W * 0.025), flY); ctx.lineTo(W - mX, flY);
+        ctx.moveTo(lineL, flY); ctx.lineTo(pillX - gapToPill, flY);
+        ctx.stroke();
+        // Right hairline: fades out from pill → strong at margin
+        var gr = ctx.createLinearGradient(pillX + pillW + gapToPill, 0, lineR, 0);
+        gr.addColorStop(0, 'rgba(251,113,133,0.06)');
+        gr.addColorStop(1, 'rgba(251,113,133,0.55)');
+        ctx.strokeStyle = gr;
+        ctx.beginPath();
+        ctx.moveTo(pillX + pillW + gapToPill, flY); ctx.lineTo(lineR, flY);
         ctx.stroke();
 
-        // Pill: translucent brand fill + outline
+        // Pill: mask the line cleanly, then brand fill + outline
         pgRoundRect(ctx, pillX, pillY, pillW, pillH, pillH / 2);
-        ctx.fillStyle = 'rgba(225,29,72,0.12)';
+        ctx.fillStyle = 'rgba(10,10,15,0.94)';   // covers the divider line under the pill
+        ctx.fill();
+        ctx.fillStyle = 'rgba(225,29,72,0.14)';
         ctx.fill();
         ctx.strokeStyle = 'rgba(251,113,133,0.9)';
         ctx.lineWidth = Math.max(2, W * 0.002);
