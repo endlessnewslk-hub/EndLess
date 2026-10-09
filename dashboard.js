@@ -962,11 +962,21 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         var n = s.name.replace(/\s*\(system\)\s*$/, '');
         if ((defaultFont.head && n === defaultFont.head) || (defaultFont.brand && n === defaultFont.brand)) chosen.push(s);
     });
+    // 🔤 Font wait — PC/mobile IDENTICAL layout-ku mukkiyam:
+    // measure & draw with the SAME loaded font. Slow networks-la 1 retry + 5s cap.
     try {
-        await Promise.race([
-            Promise.all(chosen.map(pgLoadFont)).then(function () { return document.fonts.ready; }),
-            new Promise(function (res) { setTimeout(res, 2500); })
-        ]);
+        for (var _try = 0; _try < 2; _try++) {
+            await Promise.race([
+                Promise.all(chosen.map(pgLoadFont)).then(function () { return document.fonts.ready; }),
+                new Promise(function (res) { setTimeout(res, 5000); })
+            ]);
+            var allOk = chosen.every(function (s) {
+                if (!s.g) return true;   // system font — nothing to verify
+                var fam = s.g.split(':')[0].replace(/\+/g, ' ');
+                return document.fonts.check('700 20px "' + fam + '"');
+            });
+            if (allOk) break;
+        }
     } catch (e) {}
 
     var cv = document.createElement('canvas');
@@ -1098,6 +1108,14 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         imgH = Math.max(minImgH, imgH - (L.need - avail) - Math.round(H * 0.01));
         reflow();
     }
+
+    // 🔄 LAYOUT VERIFY — measurement & drawing must use the identical loaded font.
+    // If a font finished loading after measuring, re-measure & reflow once.
+    (function pgVerifyLayout() {
+        ctx.font = '800 ' + L.hs + 'px ' + TAMIL_STACK;
+        var recheck = wrapColored(title, maxW);
+        if (recheck.length !== L.hl.length) reflow();
+    })();
 
     // ═══ DRAW ═══
 
