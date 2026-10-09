@@ -929,6 +929,16 @@ async function generatePoster(article, sizeKey, lang, mode) {
     var excerpt = lang === 'en' ? (article.excerpt_en || article.excerpt) : (article.excerpt || article.excerpt_en);
     var cat = lang === 'en' ? (article.category_en || article.category) : (article.category || article.category_en);
 
+    // 🗺️ Poster category display names — e.g. "Local" news shows as இலங்கை / SRI LANKA
+    //    (extend this map anytime: map key = lowercase category_en)
+    var CAT_POSTER_NAMES = {
+        'local': { ta: 'இலங்கை', en: 'SRI LANKA' }
+    };
+    var catKey = String(article.category_en || article.category || '').trim().toLowerCase();
+    if (CAT_POSTER_NAMES[catKey]) {
+        cat = lang === 'en' ? CAT_POSTER_NAMES[catKey].en : CAT_POSTER_NAMES[catKey].ta;
+    }
+
     // 💬 Headline-only mode: excerpt hidden, headline grows to fill
     if (mode === 'headline') excerpt = '';
 
