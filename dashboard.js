@@ -317,7 +317,7 @@ try {
     var link = document.createElement('link');
     link.id = 'poster-fonts-css';
     link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700;800&family=Noto+Serif+Tamil:wght@700;800&family=Playfair+Display:wght@700;800;900&family=Inter:wght@500;600;700&family=Arimo:wght@400;700&display=swap';   // ⭐ Inter = FOLLOW US / URL text (identical on PC + mobile)
+    link.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700;800&family=Noto+Serif+Tamil:wght@700;800&family=Playfair+Display:wght@700;800;900&family=Inter:wght@500;600;700&family=Arimo:wght@400;700&family=Latha&display=swap';   // ⭐ Inter = FOLLOW US / URL text (identical on PC + mobile)
     document.head.appendChild(link);
 })();
 
@@ -954,11 +954,12 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
 
     // 🔤🔤 FONT PICKER — resolve headline & brand fonts (per language override)
     var defaultFont = (article._font && article._font[lang]) || { head: 'Nirmala UI', brand: 'Playfair Display' };
-    var TAMIL_STACK = '"' + (defaultFont.head || 'Nirmala UI') + '", "Noto Sans Tamil", Arial';
+    var TAMIL_STACK = '"' + (defaultFont.head || 'Nirmala UI') + '", "Latha", "Noto Sans Tamil", Arial';   // ⭐ Latha = Nirmala UI mobile-twin (same metrics)
     var BRAND_STACK = '"' + (defaultFont.brand || 'Playfair Display') + '", Georgia, serif';
     // Preload any selected Google fonts (system fonts resolve instantly), with timeout
     var chosen = [{ name: 'Inter', g: 'Inter:wght@500;600;700' }];   // ⭐ always preload (FOLLOW US + URL)
     chosen.push({ name: 'Arimo', g: 'Arimo:wght@400;700' });          // ⭐ Arial-twin for mobile (metric-compatible)
+    chosen.push({ name: 'Latha', g: 'Latha' });                        // ⭐ Nirmala UI mobile-twin (metric-compatible)
     POSTER_FONT_LIST.forEach(function (s) {
         var n = s.name.replace(/\s*\(system\)\s*$/, '');
         if ((defaultFont.head && n === defaultFont.head) || (defaultFont.brand && n === defaultFont.brand)) chosen.push(s);
