@@ -937,20 +937,79 @@ async function generatePoster(article, sizeKey, lang) {
     } catch (e) { dateStr = d.toDateString(); }
 
     var mX = Math.round(W * 0.045);     // side margin
+    var maxW = W - mX * 2;
+    var gap = Math.round(H * 0.016);
 
-    // 1) Brand bar FIRST — keezha fixed place; text ithu mela dhaan varanum
+    // Brand bar metrics (fixed at bottom)
     var barH = Math.round(H * (isWide ? 0.12 : 0.082));
     var barY = H - barH - Math.round(H * 0.026);
-    var barX = mX;
-    var barW = W - mX * 2;
 
-    // 2) Dark brand background (gradient)
+    // ── FULL text wrapping (no line cap — user wants EVERYTHING) ──
+    function fullWrap(text, maxWidth) {
+        var words = String(text || '').split(/\s+/), lines = [], line = '';
+        for (var i = 0; i < words.length; i++) {
+            var test = line ? line + ' ' + words[i] : words[i];
+            if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = words[i]; }
+            else line = test;
+        }
+        if (line) lines.push(line);
+        return lines;
+    }
+
+    // ── Text layout calculator (scale = font multiplier) ──
+    var baseHead = Math.round(W * (isWide ? 0.046 : 0.064));
+    var minHead = Math.max(20, Math.round(W * 0.022));
+    var minExc = 15;
+    function calcLayout(sc) {
+        var hs = Math.max(minHead, Math.round(baseHead * sc));
+        var lh = Math.round(hs * 1.3);
+        ctx.font = '800 ' + hs + 'px "Noto Sans Tamil", Arial';
+        ctx.textBaseline = 'top';
+        var hl = fullWrap(title, maxW);
+        var es = Math.max(minExc, Math.round(hs * 0.52));
+        var elh = Math.round(es * 1.48);
+        ctx.font = '400 ' + es + 'px "Noto Sans Tamil", Arial';
+        var el = excerpt ? fullWrap(excerpt, maxW) : [];
+        var need = hl.length * lh + (el.length ? gap + el.length * elh : 0);
+        return { hs: hs, lh: lh, hl: hl, es: es, elh: elh, el: el, need: need };
+    }
+
+    // ── ⭐ AUTO-FIT: full text must fit above the brand bar ──
+    // 1) Start with base image height
+    var imgH = Math.round(H * (isWide ? 0.48 : (isStory ? 0.42 : 0.45)));
+    var minImgH = Math.round(H * 0.20);
+    var y, avail, L;
+
+    function reflow() {
+        // y = where headline starts (after image + date + accent)
+        y = imgH + Math.round(H * 0.045)                 // date
+          + Math.round(W * 0.020 * 1.8)                   // date line height
+          + Math.max(6, Math.round(H * 0.007))            // accent bar
+          + Math.round(H * 0.02);                         // gap after accent
+        avail = barY - y - gap;
+        // Try full size, then shrink font until it fits
+        var sc = 1;
+        L = calcLayout(sc);
+        while (L.need > avail && L.hs > minHead) {
+            sc *= 0.93;
+            L = calcLayout(sc);
+        }
+    }
+    reflow();
+    // 2) If STILL too tall → shrink image area to free vertical space, retry
+    if (L.need > avail && imgH > minImgH) {
+        imgH = Math.max(minImgH, imgH - (L.need - avail) - Math.round(H * 0.01));
+        reflow();
+    }
+
+    // ═══ DRAW ═══
+
+    // 1) Dark brand background (gradient)
     var bg = ctx.createLinearGradient(0, 0, 0, H);
     bg.addColorStop(0, '#13131f'); bg.addColorStop(1, '#0a0a0f');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
-    // 3) Article image — cover fit, aspect-ku eathu maari height
-    var imgH = Math.round(H * (isWide ? 0.48 : (isStory ? 0.42 : 0.45)));
+    // 2) Article image — cover fit at final (possibly shrunk) height
     try {
         var img = await pgLoadImg(article.image);
         var scale = Math.max(W / img.width, imgH / img.height);
@@ -968,7 +1027,7 @@ async function generatePoster(article, sizeKey, lang) {
     fade.addColorStop(1, 'rgba(10,10,15,1)');
     ctx.fillStyle = fade; ctx.fillRect(0, imgH - fadeH, W, fadeH + Math.round(H * 0.05));
 
-    // 4) Category chip (over image, top-left)
+    // 3) Category chip (over image, top-left)
     if (cat) {
         ctx.font = '700 ' + Math.round(W * 0.021) + 'px "Noto Sans Tamil", Arial';
         var cw = ctx.measureText(String(cat).toUpperCase()).width + Math.round(W * 0.05);
@@ -979,50 +1038,35 @@ async function generatePoster(article, sizeKey, lang) {
         ctx.fillText(String(cat).toUpperCase(), mX + Math.round(W * 0.025), Math.round(H * 0.038) + chH / 2 + 2);
     }
 
-    // 5) 📅 Date line — image keezha, headline mela
-    var y = imgH + Math.round(H * 0.045);
+    // 4) 📅 Date line — image keezha, headline mela
     ctx.font = '600 ' + Math.round(W * 0.020) + 'px "Noto Sans Tamil", Arial';
     ctx.fillStyle = '#94a3b8'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
-    ctx.fillText(dateStr, mX, y);
-    y += Math.round(W * 0.020 * 1.8);
+    ctx.fillText(dateStr, mX, imgH + Math.round(H * 0.045));
 
-    // 6) Red accent line
-    ctx.fillStyle = '#e11d48';
+    // 5) Red accent line
     var accH = Math.max(6, Math.round(H * 0.007));
-    ctx.fillRect(mX, y, Math.round(W * 0.12), accH);
-    y += accH + Math.round(H * 0.02);
+    ctx.fillStyle = '#e11d48';
+    ctx.fillRect(mX, y - Math.round(H * 0.02) - accH, Math.round(W * 0.12), accH);
 
-    // 7) HEADLINE — ⭐ each poster size-ku eathu maari AUTO-SCALE
-    //    Brand bar mela fit aaga, headline + excerpt rendume kulappama varanum
-    var headSize = Math.round(W * (isWide ? 0.046 : 0.064));
-    var lineH = Math.round(headSize * 1.3);
-    var excSize = Math.max(20, Math.round(headSize * 0.52));
-    var excLineH = Math.round(excSize * 1.5);
-    var gap = Math.round(H * 0.018);
-    var maxW = W - mX * 2;
-
-    var excMax = isWide ? 2 : 3;
-    var reserve = gap * 2 + excLineH * excMax;   // excerpt-ku save panna space
-    var maxHeadLines = Math.max(2, Math.min(isWide ? 3 : 5, Math.floor((barY - y - reserve) / lineH)));
-
-    ctx.font = '800 ' + headSize + 'px "Noto Sans Tamil", Arial';
+    // 6) HEADLINE — full text, auto-scaled font
+    ctx.font = '800 ' + L.hs + 'px "Noto Sans Tamil", Arial';
     ctx.fillStyle = '#ffffff'; ctx.textBaseline = 'top';
-    var headLines = pgWrapText(ctx, title, maxW).slice(0, maxHeadLines);
-    headLines.forEach(function (ln, i) {
-        ctx.fillText(ln, mX, y + i * lineH);
+    L.hl.forEach(function (ln, i) {
+        ctx.fillText(ln, mX, y + i * L.lh);
     });
-    y += headLines.length * lineH + gap;
+    var ey = y + L.hl.length * L.lh + (L.el.length ? gap : 0);
 
-    // 8) EXCERPT — brand bar-ku mela migacha lines (auto-fit)
-    ctx.font = '400 ' + excSize + 'px "Noto Sans Tamil", Arial';
-    ctx.fillStyle = '#b6bdc9';
-    var excCap = Math.max(0, Math.floor((barY - y - gap) / excLineH));
-    var excLines = excerpt ? pgWrapText(ctx, excerpt, maxW).slice(0, Math.min(excMax, excCap)) : [];
-    excLines.forEach(function (ln, i) {
-        ctx.fillText(ln, mX, y + i * excLineH);
-    });
+    // 7) EXCERPT — full text, auto-scaled font
+    if (L.el.length) {
+        ctx.font = '400 ' + L.es + 'px "Noto Sans Tamil", Arial';
+        ctx.fillStyle = '#b6bdc9';
+        L.el.forEach(function (ln, i) {
+            ctx.fillText(ln, mX, ey + i * L.elh);
+        });
+    }
 
-    // 9) Brand bar — site logo maari correct-a set 🎨
+    // 8) Brand bar — site logo maari correct-a set 🎨
+    var barX = mX, barW = W - mX * 2;
     ctx.fillStyle = 'rgba(225,29,72,0.12)';
     pgRoundRect(ctx, barX, barY, barW, barH, barH * 0.32);
     ctx.fill();
