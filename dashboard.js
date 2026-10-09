@@ -317,7 +317,7 @@ try {
     var link = document.createElement('link');
     link.id = 'poster-fonts-css';
     link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700;800&family=Noto+Serif+Tamil:wght@700;800&family=Playfair+Display:wght@700;800;900&display=swap';
+    link.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700;800&family=Noto+Serif+Tamil:wght@700;800&family=Playfair+Display:wght@700;800;900&family=Inter:wght@500;600;700&family=Arimo:wght@400;700&display=swap';   // ⭐ Inter = FOLLOW US / URL text (identical on PC + mobile)
     document.head.appendChild(link);
 })();
 
@@ -957,7 +957,8 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     var TAMIL_STACK = '"' + (defaultFont.head || 'Nirmala UI') + '", "Noto Sans Tamil", Arial';
     var BRAND_STACK = '"' + (defaultFont.brand || 'Playfair Display') + '", Georgia, serif';
     // Preload any selected Google fonts (system fonts resolve instantly), with timeout
-    var chosen = [];
+    var chosen = [{ name: 'Inter', g: 'Inter:wght@500;600;700' }];   // ⭐ always preload (FOLLOW US + URL)
+    chosen.push({ name: 'Arimo', g: 'Arimo:wght@400;700' });          // ⭐ Arial-twin for mobile (metric-compatible)
     POSTER_FONT_LIST.forEach(function (s) {
         var n = s.name.replace(/\s*\(system\)\s*$/, '');
         if ((defaultFont.head && n === defaultFont.head) || (defaultFont.brand && n === defaultFont.brand)) chosen.push(s);
@@ -1294,7 +1295,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     ctx.fillText('Less News', textX + endW, barY + barH * 0.38);
 
     // URL — keezha small line
-    ctx.font = '600 ' + Math.round(barH * 0.22) + 'px Arial';
+    ctx.font = '600 ' + Math.round(barH * 0.22) + 'px "Arimo", Arial';   // ⭐ Arial look: PC=real Arial, mobile=Arimo
     ctx.fillStyle = '#fb7185';
     ctx.fillText('endlessnews.lk', textX, barY + barH * 0.72);
 
@@ -1305,7 +1306,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         var labelGap = Math.round(ico * 0.6);
         var rowW = ico * 4 + icoGap * 3;
         var lblSize = Math.max(11, Math.round(barH * 0.19));
-        ctx.font = '700 ' + lblSize + 'px Arial';
+        ctx.font = '700 ' + lblSize + 'px "Arimo", Arial';   // ⭐ Arial look: PC=real Arial, mobile=Arimo (metric-compatible twin)
         var lblW = ctx.measureText('FOLLOW US').width;
         var grpW = lblW + labelGap + rowW;
         var gx = barX + barW - Math.round(W * 0.022) - grpW;
@@ -1317,7 +1318,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         // Label — small, muted, vertically centered with icons
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.font = '700 ' + lblSize + 'px Arial';
+        ctx.font = '700 ' + lblSize + 'px "Arimo", Arial';   // ⭐ Arial look: PC=real Arial, mobile=Arimo (metric-compatible twin)
         ctx.fillStyle = '#94a3b8';
         ctx.fillText('FOLLOW US', gx, gy + lblSize * 0.06);
 
