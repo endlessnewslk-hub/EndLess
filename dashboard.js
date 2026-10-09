@@ -1182,8 +1182,8 @@ async function generatePoster(article, sizeKey, lang, mode) {
 
     // 8b) FOLLOW US — premium right side: label + 4 vector social icons in brand colour (BOTH modes)
     (function drawSocial() {
-        var ico = Math.round(barH * 0.32);
-        var icoGap = Math.round(ico * 0.5);
+        var ico = Math.round(barH * 0.36);   // official logos carry inner padding
+        var icoGap = Math.round(ico * 0.42);
         var labelGap = Math.round(ico * 0.6);
         var rowW = ico * 4 + icoGap * 3;
         var lblSize = Math.max(11, Math.round(barH * 0.19));
@@ -1211,52 +1211,28 @@ async function generatePoster(article, sizeKey, lang, mode) {
         var ix = gx + lblW + labelGap;
         var iy = gy - ico / 2;
 
-        // ── Facebook "f" ──
-        ctx.beginPath();
-        ctx.moveTo(ix + ico * 0.60, iy + ico);
-        ctx.lineTo(ix + ico * 0.60, iy + ico * 0.40);
-        ctx.quadraticCurveTo(ix + ico * 0.60, iy + ico * 0.14, ix + ico * 0.85, iy + ico * 0.14);
-        ctx.moveTo(ix + ico * 0.42, iy + ico * 0.58);
-        ctx.lineTo(ix + ico * 0.76, iy + ico * 0.58);
-        ctx.stroke();
+        // Icons — EXACT official logos (same paths as website), filled in brand pink
+        ctx.fillStyle = '#fb7185';
+        var GLYPHS = {
+            fb: "M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.09 24 18.1 24 12.07",
+            wa: "M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z",
+            x: "M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.4l-5.8-7.58-6.64 7.58H.47l8.6-9.83L0 1.15h7.6l5.24 6.93zm-1.29 19.5h2.04L6.49 3.24H4.3z",
+            ig: "M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.64.07-4.85.07s-3.58-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.64-.07-4.85s.01-3.58.07-4.85C2.38 3.92 3.9 2.38 7.15 2.23 8.42 2.17 8.8 2.16 12 2.16zM12 0C8.74 0 8.33.01 7.05.07 2.7.27.27 2.69.07 7.05.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.2 4.36 2.62 6.78 6.98 6.98C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c4.35-.2 6.78-2.62 6.98-6.98.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95C23.73 2.7 21.31.27 16.95.07 15.67.01 15.26 0 12 0zm0 5.84A6.16 6.16 0 1 0 18.16 12 6.16 6.16 0 0 0 12 5.84zm0 10.15A4 4 0 1 1 16 12a4 4 0 0 1-4 3.99zm6.4-11.85a1.44 1.44 0 1 0 1.44 1.44 1.44 1.44 0 0 0-1.44-1.44z"
+        };
+        function drawGlyph(d, x, y, s) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(s / 24, s / 24);
+            ctx.fill(new Path2D(d));
+            ctx.restore();
+        }
+        drawGlyph(GLYPHS.fb, ix, iy, ico);
         ix += ico + icoGap;
-
-        // ── WhatsApp: bubble + tail + phone ──
-        var wcx = ix + ico / 2, wcy = iy + ico / 2, wr = ico * 0.40;
-        ctx.beginPath();
-        ctx.arc(wcx, wcy, wr, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.beginPath();                                   // bubble tail
-        ctx.moveTo(wcx - wr * 0.55, wcy + wr * 0.62);
-        ctx.lineTo(wcx - wr * 1.02, wcy + wr * 1.12);
-        ctx.lineTo(wcx - wr * 0.12, wcy + wr * 0.82);
-        ctx.stroke();
-        ctx.beginPath();                                   // phone handset
-        ctx.moveTo(wcx - wr * 0.34, wcy + wr * 0.42);
-        ctx.quadraticCurveTo(wcx - wr * 0.5, wcy - wr * 0.12, wcx - wr * 0.02, wcy - wr * 0.46);
-        ctx.quadraticCurveTo(wcx + wr * 0.26, wcy - wr * 0.62, wr * 0 + wcx + wr * 0.44, wcy - wr * 0.36);
-        ctx.stroke();
+        drawGlyph(GLYPHS.wa, ix, iy, ico);
         ix += ico + icoGap;
-
-        // ── X logo ──
-        ctx.save();
-        ctx.lineWidth = Math.max(2.6, Math.round(W * 0.0022));
-        ctx.beginPath();
-        ctx.moveTo(ix, iy); ctx.lineTo(ix + ico, iy + ico);
-        ctx.moveTo(ix + ico, iy); ctx.lineTo(ix, iy + ico);
-        ctx.stroke();
-        ctx.restore();
+        drawGlyph(GLYPHS.x, ix, iy, ico);
         ix += ico + icoGap;
-
-        // ── Instagram: rounded square + lens + dot ──
-        pgRoundRect(ctx, ix, iy, ico, ico, ico * 0.26);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(ix + ico / 2, iy + ico / 2, ico * 0.20, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(ix + ico * 0.74, iy + ico * 0.26, ico * 0.055, 0, Math.PI * 2);
-        ctx.fill();
+        drawGlyph(GLYPHS.ig, ix, iy, ico);
 
         ctx.textBaseline = 'top';
     })();
