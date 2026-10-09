@@ -906,10 +906,11 @@ function pgLoadImg(url) {
     });
 }
 
-async function generatePoster(article, sizeKey, lang, mode) {
+async function generatePoster(article, sizeKey, lang, mode, quality) {
     mode = mode || 'full';   // 'full' = headline+excerpt | 'headline' = big text only
+    var q = (quality === 'hd') ? 2 : 1;   // 🖥️ HD = 2x resolution for crisp social sharing
     var S = POSTER_SIZES[sizeKey] || POSTER_SIZES.square;
-    var W = S.w, H = S.h;
+    var W = S.w * q, H = S.h * q;
     var isWide = W > H;                 // 16:9 landscape
     var isStory = sizeKey === 'story';  // 9:16 full portrait
 
@@ -1327,6 +1328,10 @@ async function openPosterModal(articleId) {
                     '<option value="full">🖼️ Full Poster (Headline + Excerpt)</option>' +
                     '<option value="headline">💬 Headline Only (Big Text)</option>' +
                 '</select>' +
+                '<select id="pg-quality" title="HD = 2x resolution, best for WhatsApp/social sharing" style="flex:1;min-width:130px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
+                    '<option value="std">📱 Standard (1080px)</option>' +
+                    '<option value="hd">🖥️ HD (2160px)</option>' +
+                '</select>' +
             '</div>' +
             '<div style="margin-bottom:12px;">' +
             '<button type="button" id="pg-edit-toggle" style="width:100%;padding:10px 14px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;">✏️ Edit Headline & Excerpt (optional)</button>' +
@@ -1352,6 +1357,7 @@ async function openPosterModal(articleId) {
         ov.addEventListener('click', function(e) { if (e.target === ov) ov.style.display = 'none'; });
         document.getElementById('pg-size').addEventListener('change', pgRenderPreview);
         document.getElementById('pg-mode').addEventListener('change', pgRenderPreview);
+        document.getElementById('pg-quality').addEventListener('change', pgRenderPreview);
         document.getElementById('pg-lang').addEventListener('change', function() { pgLoadEditFields(); pgRenderPreview(); });
 
         // ✏️ EDIT TEXT PANEL — live editable headline/excerpt
@@ -1452,7 +1458,8 @@ async function pgRenderPreview() {
     });
     try {
         var mode = (document.getElementById('pg-mode') || { value: 'full' }).value;
-        _pgCanvas = await generatePoster(eff, size, lang, mode);
+        var quality = (document.getElementById('pg-quality') || { value: 'std' }).value;
+        _pgCanvas = await generatePoster(eff, size, lang, mode, quality);
         img.src = _pgCanvas.toDataURL('image/png');
     } catch (e) {
         showToast('Poster error: ' + e.message, 'error');
