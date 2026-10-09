@@ -1020,12 +1020,12 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     function calcLayout(sc) {
         var hs = Math.max(minHead, Math.round(baseHead * sc));
         var lh = Math.round(hs * 1.3);
-        ctx.font = '800 ' + hs + 'px "Noto Sans Tamil", Arial';   // palaya premium sans look
+        ctx.font = '800 ' + hs + 'px "Nirmala UI", "Noto Sans Tamil", Arial';   // OLD look: PC system Tamil font first, mobile falls back to Noto
         ctx.textBaseline = 'top';
         var hl = wrapColored(title, maxW);
         var es = Math.max(minExc, Math.round(hs * 0.52));
         var elh = Math.round(es * 1.48);
-        ctx.font = '400 ' + es + 'px "Noto Sans Tamil", Arial';
+        ctx.font = '400 ' + es + 'px "Nirmala UI", "Noto Sans Tamil", Arial';
         var el = excerpt ? fullWrap(excerpt, maxW) : [];
         var need = hl.length * lh + (el.length ? gap + el.length * elh : 0);
         return { hs: hs, lh: lh, hl: hl, es: es, elh: elh, el: el, need: need };
@@ -1101,7 +1101,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
 
     // 3) Category chip (over image, top-left)
     if (cat) {
-        ctx.font = '700 ' + Math.round(W * 0.021) + 'px "Noto Sans Tamil", Arial';
+        ctx.font = '700 ' + Math.round(W * 0.021) + 'px "Nirmala UI", "Noto Sans Tamil", Arial';
         var cw = ctx.measureText(String(cat).toUpperCase()).width + Math.round(W * 0.05);
         var chH = Math.round(H * 0.045);
         pgRoundRect(ctx, mX, Math.round(H * 0.038), cw, chH, chH / 2);
@@ -1111,7 +1111,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     }
 
     // 4) 📅 Date line — image keezha, headline mela
-    ctx.font = '600 ' + Math.round(W * 0.020) + 'px "Noto Sans Tamil", Arial';
+    ctx.font = '600 ' + Math.round(W * 0.020) + 'px "Nirmala UI", "Noto Sans Tamil", Arial';
     ctx.fillStyle = '#94a3b8'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
     ctx.fillText(dateStr, mX, imgH + Math.round(H * 0.045));
 
@@ -1121,7 +1121,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     ctx.fillRect(mX, y - Math.round(H * 0.02) - accH, Math.round(W * 0.12), accH);
 
     // 6) HEADLINE — full text, auto-scaled font
-    ctx.font = '800 ' + L.hs + 'px "Noto Sans Tamil", Arial';   // palaya premium sans headline
+    ctx.font = '800 ' + L.hs + 'px "Nirmala UI", "Noto Sans Tamil", Arial';   // OLD look headline
     ctx.textBaseline = 'top';
     var spaceW = ctx.measureText(' ').width;
     L.hl.forEach(function (tokens, i) {
@@ -1136,7 +1136,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
 
     // 7) EXCERPT — full text, auto-scaled font
     if (L.el.length) {
-        ctx.font = '400 ' + L.es + 'px "Noto Sans Tamil", Arial';
+        ctx.font = '400 ' + L.es + 'px "Nirmala UI", "Noto Sans Tamil", Arial';
         ctx.fillStyle = '#b6bdc9';
         L.el.forEach(function (ln, i) {
             ctx.fillText(ln, mX, ey + i * L.elh);
@@ -1151,7 +1151,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         // Shrink font until pill fits poster width
         var tw, padX, arrowW, pillW, pillH;
         do {
-            ctx.font = '700 ' + ctaSize + 'px "Noto Sans Tamil", Arial';
+            ctx.font = '700 ' + ctaSize + 'px "Nirmala UI", "Noto Sans Tamil", Arial';
             tw = ctx.measureText(cta).width;
             padX = Math.round(W * 0.035);
             arrowW = Math.round(ctaSize * 0.95);
