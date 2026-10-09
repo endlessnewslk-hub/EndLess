@@ -1741,8 +1741,21 @@ function layerClosed(id) {
 }
 
 // 🖼️ INLINE GALLERY — article.images → paragraphs-ku nadula thumbnails (click → fullscreen)
+function pgImgKey(u) {
+    // Normalize URL for dedupe: strip Cloudinary transforms + query, keep base
+    var s = String(u || '').split('?')[0];
+    return s.replace(/\/upload\/[^/]*\//, '/upload/').toLowerCase();
+}
 function injectInlineGallery(html, article) {
-    var imgs = [article.image].concat(Array.isArray(article.images) ? article.images.filter(function(u) { return u && u !== article.image; }) : []);
+    var raw = [article.image].concat(Array.isArray(article.images) ? article.images : []);
+    var imgs = [], seen = {};
+    raw.forEach(function (u) {
+        if (!u) return;
+        var k = pgImgKey(u);
+        if (seen[k]) return;          // duplicate (Cloudinary transform variants) → skip
+        seen[k] = 1;
+        imgs.push(u);
+    });
     if (imgs.length < 2) return html; // single image = no spread needed
     var wrap = document.createElement('div');
     wrap.innerHTML = html;
@@ -1776,7 +1789,8 @@ function fsEnsureOverlay() {
         ov = document.createElement('div');
         ov.id = 'fs-img-ov';
         ov.innerHTML =
-            '<img id="fs-img-main" alt="">' +
+            '<div id="fs-img-spin" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:44px;height:44px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;"></div>' +
+            '<img id="fs-img-main" alt="" style="transition:opacity .25s ease;">' +
             '<button id="fs-img-prev" onclick="fsNav(-1)">‹</button>' +
             '<button id="fs-img-next" onclick="fsNav(1)">›</button>' +
             '<button id="fs-img-close" onclick="fsClose()">✕</button>' +
@@ -1809,7 +1823,13 @@ function fsOpen(idx) {
 }
 function fsRender() {
     var img = document.getElementById('fs-img-main');
-    if (img) img.src = _fsImgs[_fsIdx];
+    if (img) {
+        img.style.opacity = '0';
+        var spin = document.getElementById('fs-img-spin');
+        img.onload = function () { img.style.opacity = '1'; if (spin) spin.style.display = 'none'; };
+        img.onerror = function () { img.style.opacity = '1'; if (spin) spin.style.display = 'none'; };   // broken image → show anyway (not stuck)
+        img.src = _fsImgs[_fsIdx];   // src set AFTER onload wired → fires correctly first time
+    }
     var meta = document.getElementById('fs-img-meta');
     if (meta) meta.textContent = (_fsIdx + 1) + ' / ' + _fsImgs.length;
     var p = document.getElementById('fs-img-prev'), n = document.getElementById('fs-img-next');
