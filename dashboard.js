@@ -1020,7 +1020,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     function calcLayout(sc) {
         var hs = Math.max(minHead, Math.round(baseHead * sc));
         var lh = Math.round(hs * 1.3);
-        ctx.font = '800 ' + hs + 'px "Noto Serif Tamil", "Noto Sans Tamil", Arial';   // ⭐ premium serif
+        ctx.font = '800 ' + hs + 'px "Noto Sans Tamil", Arial';   // palaya premium sans look
         ctx.textBaseline = 'top';
         var hl = wrapColored(title, maxW);
         var es = Math.max(minExc, Math.round(hs * 0.52));
@@ -1121,7 +1121,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     ctx.fillRect(mX, y - Math.round(H * 0.02) - accH, Math.round(W * 0.12), accH);
 
     // 6) HEADLINE — full text, auto-scaled font
-    ctx.font = '800 ' + L.hs + 'px "Noto Serif Tamil", "Noto Sans Tamil", Arial';   // ⭐ premium serif headline
+    ctx.font = '800 ' + L.hs + 'px "Noto Sans Tamil", Arial';   // palaya premium sans headline
     ctx.textBaseline = 'top';
     var spaceW = ctx.measureText(' ').width;
     L.hl.forEach(function (tokens, i) {
