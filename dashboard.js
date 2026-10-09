@@ -1062,9 +1062,8 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     var imgH = Math.round(H * (isWide ? 0.48 : (isStory ? 0.42 : 0.45)));
     var minImgH = Math.round(H * 0.20);
     // 💬 Reserve CTA pill space in headline mode — headline NEVER touches the pill
-    var ctaReserve = (mode === 'headline')
-        ? Math.round(W * 0.018) * 1.95 + Math.round(H * 0.018) + Math.round(H * 0.026)
-        : 0;
+    // 💬 CTA pill shows in BOTH modes — always reserve its space (never overlap text)
+    var ctaReserve = Math.round(W * 0.018) * 1.95 + Math.round(H * 0.018) + Math.round(H * 0.026);
     var y, avail, L;
 
     function reflow() {
@@ -1169,8 +1168,8 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         });
     }
 
-    // 7b) 💬 CTA pill (headline-only mode) — professional "read full article" chip
-    if (mode === 'headline') {
+    // 7b) 💬 CTA pill — professional "read full news" chip (BOTH poster modes)
+    if (true) {
         var cta = lang === 'en' ? 'READ THE FULL NEWS' : '\u0BAE\u0BC1\u0BB4\u0BC1 \u0B9A\u0BC6\u0BAF\u0BCD\u0BA4\u0BBF\u0BAF\u0BC8\u0BAA\u0BCD \u0BAA\u0B9F\u0BBF\u0B95\u0BCD\u0B95';
         var ctaSize = Math.max(15, Math.round(W * 0.018));   // ⭐ smaller, decent pill
         ctx.textAlign = 'left';
