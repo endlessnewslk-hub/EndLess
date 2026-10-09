@@ -929,6 +929,12 @@ async function generatePoster(article, sizeKey, lang, mode) {
     var excerpt = lang === 'en' ? (article.excerpt_en || article.excerpt) : (article.excerpt || article.excerpt_en);
     var cat = lang === 'en' ? (article.category_en || article.category) : (article.category || article.category_en);
 
+    // 🎨 Word highlights — selected words render in brand pink
+    function pgNormWord(w) {
+        return String(w || '').replace(/^[\s\.,;:!?"'’“”\-–—()\[\]]+|[\s\.,;:!?"'’“”\-–—()\[\]]+$/g, '');
+    }
+    var hlSet = (article._hl || []).map(pgNormWord);
+
     // 🗺️ Poster category display names — e.g. "Local" news shows as இலங்கை / SRI LANKA
     //    (extend this map anytime: map key = lowercase category_en)
     var CAT_POSTER_NAMES = {
@@ -971,6 +977,20 @@ async function generatePoster(article, sizeKey, lang, mode) {
         return lines;
     }
 
+    // ── 🎨 Colored word-wrap: same greedy logic, keeps per-word highlight info ──
+    function wrapColored(text, maxWidth) {
+        var words = String(text || '').split(/\s+/), lines = [], cur = [], curStr = '';
+        for (var i = 0; i < words.length; i++) {
+            var w = words[i];
+            var test = curStr ? curStr + ' ' + w : w;
+            if (ctx.measureText(test).width > maxWidth && curStr) { lines.push(cur); cur = []; curStr = w; }
+            else curStr = test;
+            cur.push({ t: w, hl: hlSet.indexOf(pgNormWord(w)) !== -1 });
+        }
+        if (cur.length) lines.push(cur);
+        return lines;
+    }
+
     // ── Text layout calculator (scale = font multiplier) ──
     var baseHead = Math.round(W * (isWide ? 0.046 : 0.064));
     var minHead = Math.max(20, Math.round(W * 0.022));
@@ -980,7 +1000,7 @@ async function generatePoster(article, sizeKey, lang, mode) {
         var lh = Math.round(hs * 1.3);
         ctx.font = '800 ' + hs + 'px "Noto Serif Tamil", "Noto Sans Tamil", Arial';   // ⭐ premium serif
         ctx.textBaseline = 'top';
-        var hl = fullWrap(title, maxW);
+        var hl = wrapColored(title, maxW);
         var es = Math.max(minExc, Math.round(hs * 0.52));
         var elh = Math.round(es * 1.48);
         ctx.font = '400 ' + es + 'px "Noto Sans Tamil", Arial';
@@ -1080,9 +1100,15 @@ async function generatePoster(article, sizeKey, lang, mode) {
 
     // 6) HEADLINE — full text, auto-scaled font
     ctx.font = '800 ' + L.hs + 'px "Noto Serif Tamil", "Noto Sans Tamil", Arial';   // ⭐ premium serif headline
-    ctx.fillStyle = '#ffffff'; ctx.textBaseline = 'top';
-    L.hl.forEach(function (ln, i) {
-        ctx.fillText(ln, mX, y + i * L.lh);
+    ctx.textBaseline = 'top';
+    var spaceW = ctx.measureText(' ').width;
+    L.hl.forEach(function (tokens, i) {
+        var wx = mX;
+        tokens.forEach(function (tok) {
+            ctx.fillStyle = tok.hl ? '#fb7185' : '#ffffff';   // 🎨 highlighted word = brand pink
+            ctx.fillText(tok.t, wx, y + i * L.lh);
+            wx += ctx.measureText(tok.t).width + spaceW;
+        });
     });
     var ey = y + L.hl.length * L.lh + (L.el.length ? gap : 0);
 
@@ -1307,6 +1333,8 @@ async function openPosterModal(articleId) {
             '<div id="pg-edit-panel" style="display:none;margin-top:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
                 '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Headline</label>' +
                 '<textarea id="pg-edit-title" rows="2" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;font-family:inherit;resize:vertical;margin-bottom:8px;box-sizing:border-box;"></textarea>' +
+                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Highlight words (tap to make pink) <span style="color:#fb7185;">■</span></label>' +
+                '<div id="pg-hl-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
                 '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Excerpt</label>' +
                 '<textarea id="pg-edit-excerpt" rows="3" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>' +
                 '<button type="button" id="pg-edit-reset" style="margin-top:8px;padding:6px 14px;background:#fee2e2;color:#991b1b;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">↺ Reset to original</button>' +
@@ -1341,6 +1369,39 @@ async function openPosterModal(articleId) {
                 : (lang === 'en' ? (_pgArticle.excerpt_en || _pgArticle.excerpt || '') : (_pgArticle.excerpt || _pgArticle.excerpt_en || ''));
             var lbl = document.getElementById('pg-edit-lang-label');
             if (lbl) lbl.textContent = lang === 'en' ? 'English' : 'தமிழ்';
+            pgRenderChips();
+        }
+
+        // 🎨 Word highlight chips — tap a word to toggle brand-pink on the poster
+        function pgNormChip(w) {
+            return String(w || '').replace(/^[\s\.,;:!?"'’“”\-–—()\[\]]+|[\s\.,;:!?"'’“”\-–—()\[\]]+$/g, '');
+        }
+        function pgRenderChips() {
+            var box = document.getElementById('pg-hl-chips');
+            if (!box) return;
+            var lang = document.getElementById('pg-lang').value;
+            var title = (document.getElementById('pg-edit-title') || { value: '' }).value;
+            var hl = _pgOverrides['hl_' + lang] || (_pgOverrides['hl_' + lang] = []);
+            box.innerHTML = '';
+            String(title).split(/\s+/).forEach(function (w) {
+                if (!w) return;
+                var nw = pgNormChip(w);
+                if (!nw) return;
+                var b = document.createElement('button');
+                b.type = 'button';
+                b.textContent = w;
+                var on = hl.indexOf(nw) !== -1;
+                b.style.cssText = 'padding:4px 10px;border-radius:999px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;border:1.5px solid ' +
+                    (on ? '#fb7185' : '#d1d5db') + ';background:' + (on ? '#fb7185' : '#fff') + ';color:' + (on ? '#fff' : '#374151') + ';';
+                b.addEventListener('click', function () {
+                    var i = hl.indexOf(nw);
+                    if (i !== -1) hl.splice(i, 1); else hl.push(nw);
+                    pgRenderChips();
+                    clearTimeout(_pgEditT);
+                    _pgEditT = setTimeout(pgRenderPreview, 250);
+                });
+                box.appendChild(b);
+            });
         }
         var pgEditToggle = document.getElementById('pg-edit-toggle');
         var pgEditPanel = document.getElementById('pg-edit-panel');
@@ -1357,7 +1418,7 @@ async function openPosterModal(articleId) {
             _pgOverrides['title_' + lang] = pgEditTitle.value;
             _pgOverrides['excerpt_' + lang] = pgEditExcerpt.value;
             clearTimeout(_pgEditT);
-            _pgEditT = setTimeout(pgRenderPreview, 400);   // debounced live re-render
+            _pgEditT = setTimeout(function() { pgRenderPreview(); pgRenderChips(); }, 400);   // debounced live re-render
         }
         pgEditTitle.addEventListener('input', pgOnEdit);
         pgEditExcerpt.addEventListener('input', pgOnEdit);
@@ -1386,7 +1447,8 @@ async function pgRenderPreview() {
         title: o.hasOwnProperty('title_ta') ? o.title_ta : _pgArticle.title,
         title_en: o.hasOwnProperty('title_en') ? o.title_en : _pgArticle.title_en,
         excerpt: o.hasOwnProperty('excerpt_ta') ? o.excerpt_ta : _pgArticle.excerpt,
-        excerpt_en: o.hasOwnProperty('excerpt_en') ? o.excerpt_en : _pgArticle.excerpt_en
+        excerpt_en: o.hasOwnProperty('excerpt_en') ? o.excerpt_en : _pgArticle.excerpt_en,
+        _hl: o['hl_' + lang] || []   // 🎨 per-language highlighted words
     });
     try {
         var mode = (document.getElementById('pg-mode') || { value: 'full' }).value;
