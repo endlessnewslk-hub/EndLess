@@ -867,8 +867,11 @@ async function uploadToCloudinary(file, onProgress) {
 // ═══════════════════════════════════════════════════════════════
 const POSTER_SIZES = {
     square: { w: 1080, h: 1080, label: '1:1 · Instagram / FB Post' },
-    wide:   { w: 1200, h: 675,  label: '16:9 · X / FB Link Card' },
-    story:  { w: 1080, h: 1920, label: '9:16 · Story / Status' }
+    p45:    { w: 1080, h: 1350, label: '4:5 · Instagram Portrait' },
+    p34:    { w: 1080, h: 1440, label: '3:4 · Portrait' },
+    p23:    { w: 1080, h: 1620, label: '2:3 · Pinterest / FB' },
+    story:  { w: 1080, h: 1920, label: '9:16 · Story / Status' },
+    wide:   { w: 1200, h: 675,  label: '16:9 · X / FB Link Card' }
 };
 
 function pgWrapText(ctx, text, maxW) {
@@ -906,13 +909,14 @@ function pgLoadImg(url) {
 async function generatePoster(article, sizeKey, lang) {
     var S = POSTER_SIZES[sizeKey] || POSTER_SIZES.square;
     var W = S.w, H = S.h;
-    var isStory = sizeKey === 'story';
-    var isWide = sizeKey === 'wide';
+    var isWide = W > H;                 // 16:9 landscape
+    var isStory = sizeKey === 'story';  // 9:16 full portrait
 
-    // Fonts (Tamil support!)
+    // 🔤 Fonts (Tamil + Playfair brand font)
     try {
         await document.fonts.load('700 40px "Noto Sans Tamil"');
         await document.fonts.load('400 28px "Noto Sans Tamil"');
+        await document.fonts.load('800 40px "Playfair Display"');
     } catch (e) {}
 
     var cv = document.createElement('canvas');
@@ -923,13 +927,30 @@ async function generatePoster(article, sizeKey, lang) {
     var excerpt = lang === 'en' ? (article.excerpt_en || article.excerpt) : (article.excerpt || article.excerpt_en);
     var cat = lang === 'en' ? (article.category_en || article.category) : (article.category || article.category_en);
 
-    // 1) Dark brand background (gradient)
+    // 📅 Date — language ku eatha maari (weekday + full date)
+    var d = article.date ? new Date(article.date) : new Date();
+    var dateStr = '';
+    try {
+        dateStr = d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'ta-IN', {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+        });
+    } catch (e) { dateStr = d.toDateString(); }
+
+    var mX = Math.round(W * 0.045);     // side margin
+
+    // 1) Brand bar FIRST — keezha fixed place; text ithu mela dhaan varanum
+    var barH = Math.round(H * (isWide ? 0.12 : 0.082));
+    var barY = H - barH - Math.round(H * 0.026);
+    var barX = mX;
+    var barW = W - mX * 2;
+
+    // 2) Dark brand background (gradient)
     var bg = ctx.createLinearGradient(0, 0, 0, H);
     bg.addColorStop(0, '#13131f'); bg.addColorStop(1, '#0a0a0f');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
-    // 2) Article image (cover fit) — top 52% (square/wide) or 45% (story)
-    var imgH = isStory ? Math.round(H * 0.45) : Math.round(H * 0.52);
+    // 3) Article image — cover fit, aspect-ku eathu maari height
+    var imgH = Math.round(H * (isWide ? 0.48 : (isStory ? 0.42 : 0.45)));
     try {
         var img = await pgLoadImg(article.image);
         var scale = Math.max(W / img.width, imgH / img.height);
@@ -941,69 +962,99 @@ async function generatePoster(article, sizeKey, lang) {
     } catch (e) {}
 
     // Gradient fade image → bg
-    var fade = ctx.createLinearGradient(0, imgH - Math.round(H * 0.22), 0, imgH + Math.round(H * 0.06));
+    var fadeH = Math.round(H * 0.2);
+    var fade = ctx.createLinearGradient(0, imgH - fadeH, 0, imgH + Math.round(H * 0.04));
     fade.addColorStop(0, 'rgba(10,10,15,0)');
     fade.addColorStop(1, 'rgba(10,10,15,1)');
-    ctx.fillStyle = fade; ctx.fillRect(0, imgH - Math.round(H * 0.22), W, Math.round(H * 0.28));
+    ctx.fillStyle = fade; ctx.fillRect(0, imgH - fadeH, W, fadeH + Math.round(H * 0.05));
 
-    // 3) Category chip (over image, top-left)
+    // 4) Category chip (over image, top-left)
     if (cat) {
-        ctx.font = '700 ' + Math.round(H * 0.022) + 'px "Noto Sans Tamil", Arial';
+        ctx.font = '700 ' + Math.round(W * 0.021) + 'px "Noto Sans Tamil", Arial';
         var cw = ctx.measureText(String(cat).toUpperCase()).width + Math.round(W * 0.05);
-        var chH = Math.round(H * 0.05);
-        pgRoundRect(ctx, Math.round(W * 0.045), Math.round(H * 0.042), cw, chH, chH / 2);
+        var chH = Math.round(H * 0.045);
+        pgRoundRect(ctx, mX, Math.round(H * 0.038), cw, chH, chH / 2);
         ctx.fillStyle = '#e11d48'; ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle';
-        ctx.fillText(String(cat).toUpperCase(), Math.round(W * 0.045) + Math.round(W * 0.025), Math.round(H * 0.042) + chH / 2 + 2);
+        ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+        ctx.fillText(String(cat).toUpperCase(), mX + Math.round(W * 0.025), Math.round(H * 0.038) + chH / 2 + 2);
     }
 
-    // 4) Red accent line
-    var contentY = imgH + Math.round(H * 0.055);
+    // 5) 📅 Date line — image keezha, headline mela
+    var y = imgH + Math.round(H * 0.045);
+    ctx.font = '600 ' + Math.round(W * 0.020) + 'px "Noto Sans Tamil", Arial';
+    ctx.fillStyle = '#94a3b8'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+    ctx.fillText(dateStr, mX, y);
+    y += Math.round(W * 0.020 * 1.8);
+
+    // 6) Red accent line
     ctx.fillStyle = '#e11d48';
-    ctx.fillRect(Math.round(W * 0.045), contentY, Math.round(W * 0.12), Math.max(6, Math.round(H * 0.008)));
+    var accH = Math.max(6, Math.round(H * 0.007));
+    ctx.fillRect(mX, y, Math.round(W * 0.12), accH);
+    y += accH + Math.round(H * 0.02);
 
-    // 5) HEADLINE (bold, wrapped)
-    var headSize = isStory ? Math.round(H * 0.040) : Math.round(H * 0.048);
+    // 7) HEADLINE — ⭐ each poster size-ku eathu maari AUTO-SCALE
+    //    Brand bar mela fit aaga, headline + excerpt rendume kulappama varanum
+    var headSize = Math.round(W * (isWide ? 0.046 : 0.064));
+    var lineH = Math.round(headSize * 1.3);
+    var excSize = Math.max(20, Math.round(headSize * 0.52));
+    var excLineH = Math.round(excSize * 1.5);
+    var gap = Math.round(H * 0.018);
+    var maxW = W - mX * 2;
+
+    var excMax = isWide ? 2 : 3;
+    var reserve = gap * 2 + excLineH * excMax;   // excerpt-ku save panna space
+    var maxHeadLines = Math.max(2, Math.min(isWide ? 3 : 5, Math.floor((barY - y - reserve) / lineH)));
+
     ctx.font = '800 ' + headSize + 'px "Noto Sans Tamil", Arial';
-    ctx.fillStyle = '#ffffff'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
-    var headLines = pgWrapText(ctx, title, W - Math.round(W * 0.09)).slice(0, isWide ? 3 : 4);
-    var lineH = headSize * 1.28;
-    headLines.forEach(function(ln, i) {
-        ctx.fillText(ln, Math.round(W * 0.045), contentY + Math.round(H * 0.028) + i * lineH);
+    ctx.fillStyle = '#ffffff'; ctx.textBaseline = 'top';
+    var headLines = pgWrapText(ctx, title, maxW).slice(0, maxHeadLines);
+    headLines.forEach(function (ln, i) {
+        ctx.fillText(ln, mX, y + i * lineH);
     });
+    y += headLines.length * lineH + gap;
 
-    // 6) EXCERPT (gray, wrapped)
-    var excY = contentY + Math.round(H * 0.028) + headLines.length * lineH + Math.round(H * 0.02);
-    ctx.font = '400 ' + Math.round(headSize * 0.52) + 'px "Noto Sans Tamil", Arial';
+    // 8) EXCERPT — brand bar-ku mela migacha lines (auto-fit)
+    ctx.font = '400 ' + excSize + 'px "Noto Sans Tamil", Arial';
     ctx.fillStyle = '#b6bdc9';
-    var excLines = excerpt ? pgWrapText(ctx, excerpt, W - Math.round(W * 0.09)).slice(0, 3) : [];
-    excLines.forEach(function(ln, i) {
-        ctx.fillText(ln, Math.round(W * 0.045), excY + i * Math.round(headSize * 0.72));
+    var excCap = Math.max(0, Math.floor((barY - y - gap) / excLineH));
+    var excLines = excerpt ? pgWrapText(ctx, excerpt, maxW).slice(0, Math.min(excMax, excCap)) : [];
+    excLines.forEach(function (ln, i) {
+        ctx.fillText(ln, mX, y + i * excLineH);
     });
 
-    // 7) Brand bar (bottom): E logo + EndLess News + URL
-    var barH = Math.round(H * 0.085);
-    var barY = H - barH - Math.round(H * 0.03);
+    // 9) Brand bar — site logo maari correct-a set 🎨
     ctx.fillStyle = 'rgba(225,29,72,0.12)';
-    pgRoundRect(ctx, Math.round(W * 0.045), barY, W - Math.round(W * 0.09), barH, barH * 0.3);
+    pgRoundRect(ctx, barX, barY, barW, barH, barH * 0.32);
     ctx.fill();
-    // E logo
-    var logoS = barH * 0.62, logoX = Math.round(W * 0.045) + Math.round(W * 0.02), logoY = barY + (barH - logoS) / 2;
+
+    // E logo — site gradient maari (#e11d48 → #be123c), Playfair 'E'
+    var logoS = barH * 0.6;
+    var logoX = barX + Math.round(W * 0.02);
+    var logoY = barY + (barH - logoS) / 2;
     var lg = ctx.createLinearGradient(logoX, logoY, logoX + logoS, logoY + logoS);
     lg.addColorStop(0, '#e11d48'); lg.addColorStop(1, '#be123c');
     pgRoundRect(ctx, logoX, logoY, logoS, logoS, logoS * 0.28);
     ctx.fillStyle = lg; ctx.fill();
-    ctx.font = '900 ' + Math.round(logoS * 0.62) + 'px Georgia, serif';
-    ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+    ctx.font = '900 ' + Math.round(logoS * 0.6) + 'px "Playfair Display", Georgia, serif';
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('E', logoX + logoS / 2, logoY + logoS / 2 + logoS * 0.04);
-    // Name + URL
+
+    // "EndLess News" — Playfair: 'End' white + 'Less News' red (site maari)
+    var textX = logoX + logoS + Math.round(W * 0.022);
     ctx.textAlign = 'left';
-    ctx.font = '800 ' + Math.round(barH * 0.34) + 'px Georgia, serif';
+    var nameSize = Math.round(barH * 0.32);
+    ctx.font = '800 ' + nameSize + 'px "Playfair Display", Georgia, serif';
+    ctx.textBaseline = 'middle';
+    var endW = ctx.measureText('End').width;
     ctx.fillStyle = '#f1f5f9';
-    ctx.fillText('EndLess News', logoX + logoS + Math.round(W * 0.02), barY + barH * 0.36);
-    ctx.font = '600 ' + Math.round(barH * 0.24) + 'px Arial';
+    ctx.fillText('End', textX, barY + barH * 0.38);
     ctx.fillStyle = '#fb7185';
-    ctx.fillText('endlessnews.lk', logoX + logoS + Math.round(W * 0.02), barY + barH * 0.68);
+    ctx.fillText('Less News', textX + endW, barY + barH * 0.38);
+
+    // URL — keezha small line
+    ctx.font = '600 ' + Math.round(barH * 0.22) + 'px Arial';
+    ctx.fillStyle = '#fb7185';
+    ctx.fillText('endlessnews.lk', textX, barY + barH * 0.72);
 
     return cv;
 }
@@ -1027,8 +1078,11 @@ async function openPosterModal(articleId) {
             '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' +
                 '<select id="pg-size" style="flex:1;min-width:150px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;">' +
                     '<option value="square">1:1 · Instagram / FB Post</option>' +
-                    '<option value="wide">16:9 · X / FB Link Card</option>' +
+                    '<option value="p45">4:5 · Instagram Portrait</option>' +
+                    '<option value="p34">3:4 · Portrait</option>' +
+                    '<option value="p23">2:3 · Pinterest / FB</option>' +
                     '<option value="story">9:16 · Story / Status</option>' +
+                    '<option value="wide">16:9 · X / FB Link Card</option>' +
                 '</select>' +
                 '<select id="pg-lang" style="flex:1;min-width:120px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;">' +
                     '<option value="ta">தமிழ்</option>' +
