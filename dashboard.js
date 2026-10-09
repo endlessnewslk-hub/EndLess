@@ -906,7 +906,8 @@ function pgLoadImg(url) {
     });
 }
 
-async function generatePoster(article, sizeKey, lang) {
+async function generatePoster(article, sizeKey, lang, mode) {
+    mode = mode || 'full';   // 'full' = headline+excerpt | 'headline' = big text only
     var S = POSTER_SIZES[sizeKey] || POSTER_SIZES.square;
     var W = S.w, H = S.h;
     var isWide = W > H;                 // 16:9 landscape
@@ -926,6 +927,9 @@ async function generatePoster(article, sizeKey, lang) {
     var title = lang === 'en' ? (article.title_en || article.title) : (article.title || article.title_en);
     var excerpt = lang === 'en' ? (article.excerpt_en || article.excerpt) : (article.excerpt || article.excerpt_en);
     var cat = lang === 'en' ? (article.category_en || article.category) : (article.category || article.category_en);
+
+    // 💬 Headline-only mode: excerpt hidden, headline grows to fill
+    if (mode === 'headline') excerpt = '';
 
     // 📅 Date — language ku eatha maari (weekday + full date)
     var d = article.date ? new Date(article.date) : new Date();
@@ -987,12 +991,23 @@ async function generatePoster(article, sizeKey, lang) {
           + Math.max(6, Math.round(H * 0.007))            // accent bar
           + Math.round(H * 0.02);                         // gap after accent
         avail = barY - y - gap;
-        // Try full size, then shrink font until it fits
-        var sc = 1;
-        L = calcLayout(sc);
-        while (L.need > avail && L.hs > minHead) {
-            sc *= 0.93;
+        if (mode === 'headline') {
+            // ⭐⭐ Binary search: LARGEST font that exactly fills the space
+            var lo = 0.05, hi = 4.0, best = null;
+            for (var it = 0; it < 14; it++) {
+                var mid = (lo + hi) / 2;
+                var t = calcLayout(mid);
+                if (t.need <= avail) { best = t; lo = mid; } else { hi = mid; }
+            }
+            L = best || calcLayout(lo);
+        } else {
+            // Full mode: base size, shrink only if needed
+            var sc = 1;
             L = calcLayout(sc);
+            while (L.need > avail && L.hs > minHead) {
+                sc *= 0.93;
+                L = calcLayout(sc);
+            }
         }
     }
     reflow();
@@ -1065,6 +1080,24 @@ async function generatePoster(article, sizeKey, lang) {
         });
     }
 
+    // 7b) 💬 CTA line (headline-only mode) — "click to read full article"
+    if (mode === 'headline') {
+        var cta = lang === 'en'
+            ? 'Click the link below to read the full article \u{1F447}'
+            : '\u0BAE\u0BC1\u0BB4\u0BC1 \u0B95\u0B9F\u0BCD\u0B9F\u0BC1\u0BB0\u0BC8\u0BAF\u0BC8\u0BAA\u0BCD \u0BAA\u0B9F\u0BBF\u0B95\u0BCD\u0B95 \u0B95\u0BC0\u0BB4\u0BC1\u0BB3\u0BCD\u0BB3 \u0BB2\u0BBF\u0B99\u0BCD\u0B95\u0BC8 \u0B95\u0BBF\u0BB3\u0BBF\u0B95\u0BCD \u0B9A\u0BC6\u0BAF\u0BCD\u0BA4\u0BC1 \u0BAA\u0BBE\u0BB0\u0BC1\u0B99\u0BCD\u0B95\u0BB3\u0BCD \u{1F447}';
+        var ctaSize = Math.max(17, Math.round(W * 0.022));
+        ctx.textAlign = 'left';
+        do {
+            ctx.font = '600 ' + ctaSize + 'px "Noto Sans Tamil", Arial';
+            if (ctx.measureText(cta).width <= maxW || ctaSize <= 14) break;
+            ctaSize -= 2;
+        } while (true);
+        ctx.fillStyle = '#fb7185';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(cta, mX, barY - Math.round(H * 0.016));
+        ctx.textBaseline = 'top';
+    }
+
     // 8) Brand bar — site logo maari correct-a set 🎨
     var barX = mX, barW = W - mX * 2;
     ctx.fillStyle = 'rgba(225,29,72,0.12)';
@@ -1133,6 +1166,10 @@ async function openPosterModal(articleId) {
                     '<option value="ta">தமிழ்</option>' +
                     '<option value="en">English</option>' +
                 '</select>' +
+                '<select id="pg-mode" style="flex:1;min-width:160px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
+                    '<option value="full">🖼️ Full Poster (Headline + Excerpt)</option>' +
+                    '<option value="headline">💬 Headline Only (Big Text)</option>' +
+                '</select>' +
             '</div>' +
             '<div style="margin-bottom:12px;">' +
             '<button type="button" id="pg-edit-toggle" style="width:100%;padding:10px 14px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;">✏️ Edit Headline & Excerpt (optional)</button>' +
@@ -1155,6 +1192,7 @@ async function openPosterModal(articleId) {
         document.body.appendChild(ov);
         ov.addEventListener('click', function(e) { if (e.target === ov) ov.style.display = 'none'; });
         document.getElementById('pg-size').addEventListener('change', pgRenderPreview);
+        document.getElementById('pg-mode').addEventListener('change', pgRenderPreview);
         document.getElementById('pg-lang').addEventListener('change', function() { pgLoadEditFields(); pgRenderPreview(); });
 
         // ✏️ EDIT TEXT PANEL — live editable headline/excerpt
@@ -1220,7 +1258,8 @@ async function pgRenderPreview() {
         excerpt_en: o.hasOwnProperty('excerpt_en') ? o.excerpt_en : _pgArticle.excerpt_en
     });
     try {
-        _pgCanvas = await generatePoster(eff, size, lang);
+        var mode = (document.getElementById('pg-mode') || { value: 'full' }).value;
+        _pgCanvas = await generatePoster(eff, size, lang, mode);
         img.src = _pgCanvas.toDataURL('image/png');
     } catch (e) {
         showToast('Poster error: ' + e.message, 'error');
