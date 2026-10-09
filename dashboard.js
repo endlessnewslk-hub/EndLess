@@ -1080,22 +1080,64 @@ async function generatePoster(article, sizeKey, lang, mode) {
         });
     }
 
-    // 7b) 💬 CTA line (headline-only mode) — "click to read full article"
+    // 7b) 💬 CTA pill (headline-only mode) — professional "read full article" chip
     if (mode === 'headline') {
-        var cta = lang === 'en'
-            ? 'Click the link below to read the full article \u{1F447}'
-            : '\u0BAE\u0BC1\u0BB4\u0BC1 \u0B95\u0B9F\u0BCD\u0B9F\u0BC1\u0BB0\u0BC8\u0BAF\u0BC8\u0BAA\u0BCD \u0BAA\u0B9F\u0BBF\u0B95\u0BCD\u0B95 \u0B95\u0BC0\u0BB4\u0BC1\u0BB3\u0BCD\u0BB3 \u0BB2\u0BBF\u0B99\u0BCD\u0B95\u0BC8 \u0B95\u0BBF\u0BB3\u0BBF\u0B95\u0BCD \u0B9A\u0BC6\u0BAF\u0BCD\u0BA4\u0BC1 \u0BAA\u0BBE\u0BB0\u0BC1\u0B99\u0BCD\u0B95\u0BB3\u0BCD \u{1F447}';
-        var ctaSize = Math.max(17, Math.round(W * 0.022));
+        var cta = lang === 'en' ? 'READ THE FULL ARTICLE' : '\u0BAE\u0BC1\u0BB4\u0BC1 \u0B95\u0B9F\u0BCD\u0B9F\u0BC1\u0BB0\u0BC8\u0BAF\u0BC8\u0BAA\u0BCD \u0BAA\u0B9F\u0BBF\u0B95\u0BCD\u0B95';
+        var ctaSize = Math.max(18, Math.round(W * 0.024));
         ctx.textAlign = 'left';
+        // Shrink font until pill fits poster width
+        var tw, padX, arrowW, pillW, pillH;
         do {
-            ctx.font = '600 ' + ctaSize + 'px "Noto Sans Tamil", Arial';
-            if (ctx.measureText(cta).width <= maxW || ctaSize <= 14) break;
+            ctx.font = '700 ' + ctaSize + 'px "Noto Sans Tamil", Arial';
+            tw = ctx.measureText(cta).width;
+            padX = Math.round(W * 0.04);
+            arrowW = Math.round(ctaSize * 1.0);
+            pillW = tw + padX * 2 + arrowW;
+            pillH = Math.round(ctaSize * 2.15);
+            if (pillW <= maxW || ctaSize <= 13) break;
             ctaSize -= 2;
         } while (true);
-        ctx.fillStyle = '#fb7185';
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillText(cta, mX, barY - Math.round(H * 0.016));
+        var pillX = Math.round((W - pillW) / 2);
+        var pillY = barY - Math.round(H * 0.022) - pillH;
+
+        // Flanking divider lines (— chip —) premium look
+        var flY = pillY + pillH / 2;
+        ctx.strokeStyle = 'rgba(251,113,133,0.30)';
+        ctx.lineWidth = Math.max(1.5, W * 0.0015);
+        ctx.beginPath();
+        ctx.moveTo(mX, flY); ctx.lineTo(pillX - Math.round(W * 0.025), flY);
+        ctx.moveTo(pillX + pillW + Math.round(W * 0.025), flY); ctx.lineTo(W - mX, flY);
+        ctx.stroke();
+
+        // Pill: translucent brand fill + outline
+        pgRoundRect(ctx, pillX, pillY, pillW, pillH, pillH / 2);
+        ctx.fillStyle = 'rgba(225,29,72,0.12)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(251,113,133,0.9)';
+        ctx.lineWidth = Math.max(2, W * 0.002);
+        ctx.stroke();
+
+        // Text (vertically centered in pill)
+        ctx.fillStyle = '#f8fafc';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(cta, pillX + padX, pillY + pillH / 2 + ctaSize * 0.06);
+
+        // Vector down-chevron (no emoji — crisp icon)
+        var ax = pillX + pillW - padX - arrowW * 0.45;
+        var ay = pillY + pillH / 2;
+        var s = arrowW * 0.30;
+        ctx.beginPath();
+        ctx.moveTo(ax - s, ay - s * 0.55);
+        ctx.lineTo(ax, ay + s * 0.55);
+        ctx.lineTo(ax + s, ay - s * 0.55);
+        ctx.strokeStyle = '#fb7185';
+        ctx.lineWidth = Math.max(2.5, W * 0.0025);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+
         ctx.textBaseline = 'top';
+        ctx.textAlign = 'left';
     }
 
     // 8) Brand bar — site logo maari correct-a set 🎨
