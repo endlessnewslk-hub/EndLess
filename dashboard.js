@@ -1180,6 +1180,87 @@ async function generatePoster(article, sizeKey, lang, mode) {
     ctx.fillStyle = '#fb7185';
     ctx.fillText('endlessnews.lk', textX, barY + barH * 0.72);
 
+    // 8b) FOLLOW US — premium right side: label + 4 vector social icons in brand colour (BOTH modes)
+    (function drawSocial() {
+        var ico = Math.round(barH * 0.32);
+        var icoGap = Math.round(ico * 0.5);
+        var labelGap = Math.round(ico * 0.6);
+        var rowW = ico * 4 + icoGap * 3;
+        var lblSize = Math.max(11, Math.round(barH * 0.19));
+        ctx.font = '700 ' + lblSize + 'px Arial';
+        var lblW = ctx.measureText('FOLLOW US').width;
+        var grpW = lblW + labelGap + rowW;
+        var gx = barX + barW - Math.round(W * 0.022) - grpW;
+        var gy = barY + barH / 2;
+
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // Label — small, muted, vertically centered with icons
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.font = '700 ' + lblSize + 'px Arial';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('FOLLOW US', gx, gy + lblSize * 0.06);
+
+        // Icons — brand pink, consistent stroke weight = premium uniform look
+        ctx.strokeStyle = '#fb7185';
+        ctx.fillStyle = '#fb7185';
+        ctx.lineWidth = Math.max(2, Math.round(W * 0.0018));
+
+        var ix = gx + lblW + labelGap;
+        var iy = gy - ico / 2;
+
+        // ── Facebook "f" ──
+        ctx.beginPath();
+        ctx.moveTo(ix + ico * 0.60, iy + ico);
+        ctx.lineTo(ix + ico * 0.60, iy + ico * 0.40);
+        ctx.quadraticCurveTo(ix + ico * 0.60, iy + ico * 0.14, ix + ico * 0.85, iy + ico * 0.14);
+        ctx.moveTo(ix + ico * 0.42, iy + ico * 0.58);
+        ctx.lineTo(ix + ico * 0.76, iy + ico * 0.58);
+        ctx.stroke();
+        ix += ico + icoGap;
+
+        // ── WhatsApp: bubble + tail + phone ──
+        var wcx = ix + ico / 2, wcy = iy + ico / 2, wr = ico * 0.40;
+        ctx.beginPath();
+        ctx.arc(wcx, wcy, wr, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();                                   // bubble tail
+        ctx.moveTo(wcx - wr * 0.55, wcy + wr * 0.62);
+        ctx.lineTo(wcx - wr * 1.02, wcy + wr * 1.12);
+        ctx.lineTo(wcx - wr * 0.12, wcy + wr * 0.82);
+        ctx.stroke();
+        ctx.beginPath();                                   // phone handset
+        ctx.moveTo(wcx - wr * 0.34, wcy + wr * 0.42);
+        ctx.quadraticCurveTo(wcx - wr * 0.5, wcy - wr * 0.12, wcx - wr * 0.02, wcy - wr * 0.46);
+        ctx.quadraticCurveTo(wcx + wr * 0.26, wcy - wr * 0.62, wr * 0 + wcx + wr * 0.44, wcy - wr * 0.36);
+        ctx.stroke();
+        ix += ico + icoGap;
+
+        // ── X logo ──
+        ctx.save();
+        ctx.lineWidth = Math.max(2.6, Math.round(W * 0.0022));
+        ctx.beginPath();
+        ctx.moveTo(ix, iy); ctx.lineTo(ix + ico, iy + ico);
+        ctx.moveTo(ix + ico, iy); ctx.lineTo(ix, iy + ico);
+        ctx.stroke();
+        ctx.restore();
+        ix += ico + icoGap;
+
+        // ── Instagram: rounded square + lens + dot ──
+        pgRoundRect(ctx, ix, iy, ico, ico, ico * 0.26);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(ix + ico / 2, iy + ico / 2, ico * 0.20, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(ix + ico * 0.74, iy + ico * 0.26, ico * 0.055, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.textBaseline = 'top';
+    })();
+
     return cv;
 }
 
