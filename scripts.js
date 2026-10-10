@@ -1562,26 +1562,31 @@ function getLikeCount(articleId, cb) {
     } catch (e) { cb(0, {}); }
 }
 
-function submitReaction(articleId, emoji, prevEmoji) {
-    // Firestore REST commit — PROPER decrement on unlike
+// 🔒 PERMANENT LIKE FIX — server is the only source of truth.
+// Reliable write → server returns REAL total → UI shows real total (no fake +1/-1, no revert).
+function submitReaction(articleId, emoji, prevEmoji, onDone) {
+    var docPath = 'projects/endless-news/databases/(default)/documents/likes/' + encodeURIComponent(String(articleId));
+    var commitUrl = 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents:commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
     var writes = [];
-    // ALWAYS decrement prev if exists and different (or null = unlike)
+    // If doc may not exist → create with 0s first (avoids transform on missing doc)
+    writes.push({ update: { name: docPath, fields: { like: { integerValue: 0 }, love: { integerValue: 0 }, haha: { integerValue: 0 }, wow: { integerValue: 0 }, sad: { integerValue: 0 }, angry: { integerValue: 0 } } } });
     if (prevEmoji && prevEmoji !== emoji) {
-        writes.push({ transform: { document: 'projects/endless-news/databases/(default)/documents/likes/' + encodeURIComponent(String(articleId)),
-            fieldTransforms: [{ fieldPath: prevEmoji, increment: { integerValue: -1 } }] } });
+        writes.push({ transform: { document: docPath, fieldTransforms: [{ fieldPath: prevEmoji, increment: { integerValue: -1 } }] } });
     }
-    // Increment new if exists and different
     if (emoji && emoji !== prevEmoji) {
-        writes.push({ transform: { document: 'projects/endless-news/databases/(default)/documents/likes/' + encodeURIComponent(String(articleId)),
-            fieldTransforms: [{ fieldPath: emoji, increment: { integerValue: 1 } }] } });
+        writes.push({ transform: { document: docPath, fieldTransforms: [{ fieldPath: emoji, increment: { integerValue: 1 } }] } });
     }
-    if (!writes.length) return;
+    if (!writes.length) { if (onDone) onDone(); return; }
     try {
         var xhr = new XMLHttpRequest();
-        xhr.open('POST', 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents:commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA');
+        xhr.open('POST', commitUrl);
         xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.onload = function () {
+            if (onDone) onDone(xhr.status >= 200 && xhr.status < 300);
+        };
+        xhr.onerror = function () { if (onDone) onDone(false); };
         xhr.send(JSON.stringify({ writes: writes }));
-    } catch (e) {}
+    } catch (e) { if (onDone) onDone(false); }
 }
 
 // Like button UI + long-press emoji panel (Facebook style)
@@ -1659,15 +1664,26 @@ function pickReaction(articleId, emojiKey, isQuick) {
     var prev = liked[articleId] || null;
     var next = emojiKey || null;
     if (prev === next) next = null; // same = unlike
+    // 🔒 Instant local UI (emoji icon only) — count waits for server truth (no fake numbers)
     if (next) { liked[articleId] = next; } else { delete liked[articleId]; }
     try { localStorage.setItem(LIKED_KEY, JSON.stringify(liked)); } catch (e) {}
 
-    // 🚀 OPTIMISTIC UPDATE — UI immediately adjust, server verify later
-    var delta = 0;
-    if (prev && prev !== next) delta--;      // remove prev
-    if (next && next !== prev) delta++;      // add new
+    var container = document.getElementById('reaction-wrap');
+    if (container) {
+        var panel = container.querySelector('#react-panel');
+        if (panel) panel.style.display = 'none';
+        var eb = container.querySelector('#react-emoji');
+        if (eb) eb.innerHTML = (next && REACTIONS[next]) ? REACTIONS[next] : REACTIONS.like;
+    }
 
-    submitReaction(articleId, next, prev); // Firestore async write
+    // 🚀 Reliable server write → on success show REAL total (single source of truth)
+    submitReaction(articleId, next, prev, function (ok) {
+        if (!ok) { showToast('Network issue — like not saved. Try again.', 'error'); return; }
+        getLikeCount(articleId, function (total) {
+            var c2 = container && container.querySelector('#react-count');
+            if (c2) c2.textContent = total > 0 ? fmtCount(total) : '';
+        });
+    });
 
     // 🔔 LIKE aana odane push trigger + Telegram (unlike-ku illa)
     if (next && !prev) {
@@ -1676,26 +1692,6 @@ function pickReaction(articleId, emojiKey, isQuick) {
         sendPushTrigger('like', articleId, _t);
         sendTelegramNotify('👍 <b>New Like!</b>\n\n📰 ' + _t + '\n\n👉 endlessnews.lk');
         try { analyticsLike(articleId); } catch (e) {}
-    }
-
-    var container = document.getElementById('reaction-wrap');
-    if (container) {
-        var panel = container.querySelector('#react-panel');
-        if (panel) panel.style.display = 'none';
-        var eb = container.querySelector('#react-emoji');
-        if (eb) eb.innerHTML = (next && REACTIONS[next]) ? REACTIONS[next] : REACTIONS.like;
-        // Immediate local count update (optimistic)
-        var c = container.querySelector('#react-count');
-        var cur = parseInt(c.textContent) || 0;
-        var newCount = Math.max(0, cur + delta);
-        if (c) c.textContent = newCount > 0 ? newCount : '';
-        // Server verify after 800ms (eventual consistency wait)
-        setTimeout(function() {
-            getLikeCount(articleId, function(total) {
-                var c2 = container.querySelector('#react-count');
-                if (c2) c2.textContent = total > 0 ? fmtCount(total) : '';
-            });
-        }, 800);
     }
 }
 
