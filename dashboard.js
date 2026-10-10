@@ -317,7 +317,9 @@ try {
     var link = document.createElement('link');
     link.id = 'poster-fonts-css';
     link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700;800&family=Noto+Serif+Tamil:wght@700;800&family=Playfair+Display:wght@700;800;900&family=Inter:wght@500;600;700&family=Arimo:wght@400;700&family=Latha&display=swap';   // ⭐ Inter = FOLLOW US / URL text (identical on PC + mobile)
+    link.crossOrigin = 'anonymous';   // ⭐ PWA: allows SW cache match
+    link.fetchPriority = 'high';      // ⭐ load fast even on slow mobile
+    link.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700;800&family=Noto+Serif+Tamil:wght@700;800&family=Playfair+Display:wght@700;800;900&family=Inter:wght@500;600;700&family=Arimo:wght@400;700&family=Latha&family=Catamaran:wght@700;800&display=swap';   // ⭐ Catamaran = default Tamil font
     document.head.appendChild(link);
 })();
 

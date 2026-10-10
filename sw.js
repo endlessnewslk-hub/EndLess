@@ -1,12 +1,34 @@
-const CACHE_NAME = 'endless-v6';
+const CACHE_NAME = 'endless-v7';
 const BASE_URL = 'https://endlessnews.lk';
 
 const urlsToCache = [
   BASE_URL + '/styles.css',
   BASE_URL + '/scripts.js',
   BASE_URL + '/logo-og.png',
-  BASE_URL + '/manifest.json'
+  BASE_URL + '/manifest.json',
+  // 🔤 Poster fonts (PWA offline — Catamaran, Playfair, Inter, Arimo, Latha, Tamil fonts)
+  'https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700;800&family=Noto+Serif+Tamil:wght@700;800&family=Playfair+Display:wght@700;800;900&family=Inter:wght@500;600;700&family=Arimo:wght@400;700&family=Latha&family=Catamaran:wght@700;800&display=swap'
 ];
+
+// 🔤 Google Fonts: cache-first (fonts never change, safe to cache long)
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((resp) => {
+          if (resp.ok) {
+            const copy = resp.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return resp;
+        }).catch(() => cached);
+      })
+    );
+    return;
+  }
+});
 
 // HTML files — NETWORK FIRST (always fresh content, cache = backup only)
 self.addEventListener('fetch', (event) => {
