@@ -2565,17 +2565,32 @@ function openNewsModal(isEdit) {
         if (!modal || modal._enterGuard) return;
         modal._enterGuard = true;
         modal.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+            // Only block Enter on NON-input elements (buttons, etc.) — allow in text fields!
+            if (e.key === 'Enter' && e.target && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
                 e.preventDefault();
                 e.stopPropagation();
                 return false;
             }
-        }, true); // capture phase — stops mobile submit before any handler
+        }, true);
     }, 60);
     isEdit = isEdit || false;
     var modal = document.getElementById('news-modal');
     var modalTitle = document.getElementById('news-modal-title');
     var catSelect = document.getElementById('news-category');
+
+    // 📝 Inject FORMAT button next to each copy button (once)
+    document.querySelectorAll('.btn-copy').forEach(function(cb) {
+        if (cb.parentNode && !cb.parentNode.querySelector('.btn-format')) {
+            var fb = document.createElement('button');
+            fb.type = 'button';
+            fb.className = 'btn-format';
+            fb.dataset.lang = cb.dataset.lang;
+            fb.title = 'Format plain text → paragraphs (paste panna content-ku)';
+            fb.style.cssText = 'position:absolute;top:5px;right:42px;z-index:10;padding:4px 10px;background:#059669;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;';
+            fb.textContent = '📝 Format';
+            cb.parentNode.appendChild(fb);
+        }
+    });
 
     if (modal) modal.classList.add('open');
     if (modalTitle) modalTitle.textContent = isEdit ? 'Edit Article' : 'Add Article';
@@ -3812,6 +3827,31 @@ document.addEventListener('DOMContentLoaded', function() {
             }, () => {
                 showToast('Failed to copy content.', 'error');
             });
+        });
+    });
+
+    // 📝 FORMAT CONTENT button — plain text-a automatic-a paragraphs + <p> tags-ku maathum
+    document.querySelectorAll('.btn-format').forEach(function(button) {
+        button.addEventListener('click', function() {
+            var lang = button.dataset.lang;
+            var textarea = document.getElementById('news-content-' + lang);
+            if (!textarea) return;
+            var raw = textarea.value;
+            if (!raw.trim()) { showToast('Content empty!', 'error'); return; }
+            // Already HTML-a irundha skip pannu (idathai maatha vendaam)
+            if (/<p>|<br\s*\/?>/i.test(raw)) {
+                showToast('⚠️ Already formatted (HTML irukku). Direct-a save pannalam!', 'success');
+                return;
+            }
+            // Paragraphs: double newlines OR single newlines (common paste) → separate paragraphs
+            var paras = raw.split(/\n\s*\n/).map(function(p) { return p.trim(); }).filter(function(p) { return p; });
+            if (!paras.length) paras = [raw.trim()];
+            // Inner single newlines → <br>, wrap in <p>
+            var html = paras.map(function(p) {
+                return '<p>' + p.replace(/\n/g, '<br>').replace(/\r/g, '') + '</p>';
+            }).join('\n');
+            textarea.value = html;
+            showToast('✅ Formatted! ' + paras.length + ' paragraphs ready. Save pannunga.', 'success');
         });
     });
     }).catch(function(err) {

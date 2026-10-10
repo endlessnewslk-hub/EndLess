@@ -1858,6 +1858,43 @@ function openArticle(id) {
 
     let processedContent = getLocalized(article, 'content') || '';
 
+    // 🔗 Auto-linkify: URLs → clickable links, phone numbers → tap-to-call (both mobile & desktop)
+    if (processedContent && !/\bbulk-linkify-done\b/.test(processedContent)) {
+        // Escape HTML tags' attribute quotes to prevent breakage — operate on text content only
+        var tmp = document.createElement('div');
+        tmp.innerHTML = processedContent;
+        // Walk text nodes (skip existing <a> tags)
+        function linkifyNode(node) {
+            if (node.nodeType === 3) {   // text node
+                var text = node.nodeValue;
+                if (!text || !text.trim()) return;
+                // URLs (http/https/www)
+                text = text.replace(/(https?:\/\/[^\s<>"']+|www\.[a-zA-Z0-9-]+\.[^\s<>"']+)/gi, function (m) {
+                    var href = m.match(/^https?:\/\//i) ? m : 'https://' + m;
+                    return '<a href="' + href + '" target="_blank" rel="noopener noreferrer" style="color:var(--primary);text-decoration:underline;font-weight:600;">' + m + '</a>';
+                });
+                // Phone numbers (Sri Lankan + generic) — 07X, +94, 0XX-XXXXXXX
+                text = text.replace(/(\+94|0)\d{2}[-\s]?\d{3}[-\s]?\d{4}/g, function (m) {
+                    var tel = m.replace(/[^\d+]/g, '');
+                    return '<a href="tel:' + tel + '" style="color:var(--primary);text-decoration:underline;font-weight:600;">' + m + '</a>';
+                });
+                // Email
+                text = text.replace(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/g, function (m) {
+                    return '<a href="mailto:' + m + '" style="color:var(--primary);text-decoration:underline;font-weight:600;">' + m + '</a>';
+                });
+                if (text !== node.nodeValue) {
+                    var span = document.createElement('span');
+                    span.innerHTML = text;
+                    node.parentNode.replaceChild(span, node);
+                }
+            } else if (node.nodeType === 1 && node.tagName !== 'A') {
+                Array.prototype.slice.call(node.childNodes).forEach(linkifyNode);
+            }
+        }
+        Array.prototype.slice.call(tmp.childNodes).forEach(linkifyNode);
+        processedContent = tmp.innerHTML;
+    }
+
     if (!processedContent.includes('<p>') && processedContent.includes('<br')) {
         const parts = processedContent.split(/<br\s*\/?>\s*<br\s*\/?>/);
         processedContent = parts.map(part => {
@@ -2136,7 +2173,7 @@ function shareArticle(id) {
     shareOverlay.dataset.articleId = id;
 
     const title = getLocalized(article, 'title') || 'EndLess News';
-        const cloudUrl = 'https://endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang) + '&v=2026'; // Worker Custom Domain
+        const cloudUrl = 'https://endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang);   // ⭐ Smart share: auto Tamil/English label
     const linkInput = document.getElementById('share-link-input');
     if (linkInput) linkInput.value = cloudUrl;
 
@@ -2167,7 +2204,7 @@ function performShare(platform) {
     const title = getLocalized(article, 'title') || article.title_en || article.title || 'EndLess News';
     // Professional share link via Worker Custom Domain — DNS-level direct to worker,
     // no route matching needed. Dinamalar-style main domain ✅
-    const cloudUrl = 'https://endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang) + '&v=2026';
+    const cloudUrl = 'https://endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang);   // ⭐ Smart share
 
     // Language-aware share text: Tamil selected → Tamil message, English → English
     const shareText = currentLang === 'en'
