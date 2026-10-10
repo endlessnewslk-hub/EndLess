@@ -1732,17 +1732,16 @@ function pickReaction(articleId, emojiKey, isQuick) {
             sendTelegramNotify('👍 <b>New Like!</b>\n\n📰 ' + _t + '\n\n👉 endlessnews.lk');
             try { analyticsLike(articleId); } catch (e) {}
         }
+        // 🔔 LIKE aana odane push trigger + Telegram (unlike-ku illa)
+        if (next && !prev) {
+            var _art = (typeof findArticleById === 'function') ? findArticleById(articleId) : null;
+            var _t = _art ? (getLocalized(_art, 'title') || _art.title) : 'Article';
+            sendPushTrigger('like', articleId, _t);
+            sendTelegramNotify('👍 <b>New Like!</b>\n\n📰 ' + _t + '\n\n👉 endlessnews.lk');
+            try { analyticsLike(articleId); } catch (e) {}
+        }
     });
 }
-
-    // 🔔 LIKE aana odane push trigger + Telegram (unlike-ku illa)
-    if (next && !prev) {
-        var _art = (typeof findArticleById === 'function') ? findArticleById(articleId) : null;
-        var _t = _art ? (getLocalized(_art, 'title') || _art.title) : 'Article';
-        sendPushTrigger('like', articleId, _t);
-        sendTelegramNotify('👍 <b>New Like!</b>\n\n📰 ' + _t + '\n\n👉 endlessnews.lk');
-        try { analyticsLike(articleId); } catch (e) {}
-    }
 
 // 🔗 RELATED ARTICLES — same category, exclude current, top 3
 function getRelatedArticles(article, limit) {
