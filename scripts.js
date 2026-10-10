@@ -1752,7 +1752,7 @@ function injectInlineGallery(html, article) {
     raw.forEach(function (u) {
         if (!u) return;
         var k = pgImgKey(u);
-        if (seen[k]) return;          // duplicate (Cloudinary transform variants) → skip
+        if (seen[k]) return;
         seen[k] = 1;
         imgs.push(u);
     });
@@ -1824,11 +1824,11 @@ function fsOpen(idx) {
 function fsRender() {
     var img = document.getElementById('fs-img-main');
     if (img) {
-        img.style.opacity = '0';
         var spin = document.getElementById('fs-img-spin');
+        img.style.opacity = '0';
         img.onload = function () { img.style.opacity = '1'; if (spin) spin.style.display = 'none'; };
-        img.onerror = function () { img.style.opacity = '1'; if (spin) spin.style.display = 'none'; };   // broken image → show anyway (not stuck)
-        img.src = _fsImgs[_fsIdx];   // src set AFTER onload wired → fires correctly first time
+        img.onerror = function () { img.style.opacity = '1'; if (spin) spin.style.display = 'none'; };
+        img.src = _fsImgs[_fsIdx];   // src AFTER onload wired → first tap-la kooda correct
     }
     var meta = document.getElementById('fs-img-meta');
     if (meta) meta.textContent = (_fsIdx + 1) + ' / ' + _fsImgs.length;
@@ -1858,54 +1858,44 @@ function openArticle(id) {
 
     let processedContent = getLocalized(article, 'content') || '';
 
-    // 🔗 Auto-linkify: URLs → clickable links, phone numbers → tap-to-call (both mobile & desktop)
-    if (processedContent && !/\bbulk-linkify-done\b/.test(processedContent)) {
-        // Escape HTML tags' attribute quotes to prevent breakage — operate on text content only
-        var tmp = document.createElement('div');
-        tmp.innerHTML = processedContent;
-        // Walk text nodes (skip existing <a> tags)
-        function linkifyNode(node) {
-            if (node.nodeType === 3) {   // text node
-                var text = node.nodeValue;
-                if (!text || !text.trim()) return;
-                // URLs (http/https/www)
-                text = text.replace(/(https?:\/\/[^\s<>"']+|www\.[a-zA-Z0-9-]+\.[^\s<>"']+)/gi, function (m) {
+    // 📝 SMART RENDER — single pipeline (double-conversion bug fixed):
+    // 1) Already HTML (<p>, <br>) → KEEP AS-IS — spacing/breaks perfect-a irukkum
+    // 2) Plain text → newlines to <p> + <br>
+    // 3) Auto-linkify URLs / phones / emails (text nodes only, safe on HTML)
+    var isHtmlContent = /<[a-z][\s\S]*>/i.test(processedContent);
+    if (processedContent && !isHtmlContent) {
+        const paras = processedContent.split(/\n\s*\n/).map(p => p.trim()).filter(p => p);
+        processedContent = (paras.length ? paras : [processedContent.trim()])
+            .map(p => '<p>' + p.replace(/\n/g, '<br>').replace(/\r/g, '') + '</p>').join('');
+    }
+    if (processedContent) {
+        var tmpL = document.createElement('div');
+        tmpL.innerHTML = processedContent;
+        function linkifyNode(n) {
+            if (n.nodeType === 3) {
+                var txt = n.nodeValue;
+                if (!txt || !txt.trim()) return;
+                txt = txt.replace(/(https?:\/\/[^\s<>"']+|www\.[a-zA-Z0-9-]+\.[^\s<>"']+)/gi, function (m) {
                     var href = m.match(/^https?:\/\//i) ? m : 'https://' + m;
                     return '<a href="' + href + '" target="_blank" rel="noopener noreferrer" style="color:var(--primary);text-decoration:underline;font-weight:600;">' + m + '</a>';
                 });
-                // Phone numbers (Sri Lankan + generic) — 07X, +94, 0XX-XXXXXXX
-                text = text.replace(/(\+94|0)\d{2}[-\s]?\d{3}[-\s]?\d{4}/g, function (m) {
-                    var tel = m.replace(/[^\d+]/g, '');
-                    return '<a href="tel:' + tel + '" style="color:var(--primary);text-decoration:underline;font-weight:600;">' + m + '</a>';
+                txt = txt.replace(/(\+94|0)\d{2}[-\s]?\d{3}[-\s]?\d{4}/g, function (m) {
+                    return '<a href="tel:' + m.replace(/[^\d+]/g, '') + '" style="color:var(--primary);text-decoration:underline;font-weight:600;">' + m + '</a>';
                 });
-                // Email
-                text = text.replace(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/g, function (m) {
+                txt = txt.replace(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/g, function (m) {
                     return '<a href="mailto:' + m + '" style="color:var(--primary);text-decoration:underline;font-weight:600;">' + m + '</a>';
                 });
-                if (text !== node.nodeValue) {
-                    var span = document.createElement('span');
-                    span.innerHTML = text;
-                    node.parentNode.replaceChild(span, node);
+                if (txt !== n.nodeValue) {
+                    var sp = document.createElement('span');
+                    sp.innerHTML = txt;
+                    n.parentNode.replaceChild(sp, n);
                 }
-            } else if (node.nodeType === 1 && node.tagName !== 'A') {
-                Array.prototype.slice.call(node.childNodes).forEach(linkifyNode);
+            } else if (n.nodeType === 1 && n.tagName !== 'A') {
+                Array.prototype.slice.call(n.childNodes).forEach(linkifyNode);
             }
         }
-        Array.prototype.slice.call(tmp.childNodes).forEach(linkifyNode);
-        processedContent = tmp.innerHTML;
-    }
-
-    if (!processedContent.includes('<p>') && processedContent.includes('<br')) {
-        const parts = processedContent.split(/<br\s*\/?>\s*<br\s*\/?>/);
-        processedContent = parts.map(part => {
-            const cleanPart = part.replace(/<br\s*\/?>/g, ' ').trim();
-            return cleanPart ? `<p>${cleanPart}</p>` : '';
-        }).join('');
-    }
-
-    if (!processedContent.includes('<') || !processedContent.includes('>')) {
-        const paragraphs = processedContent.split(/\n\n|\n/).filter(p => p.trim());
-        processedContent = paragraphs.map(p => `<p>${p.trim()}</p>`).join('');
+        Array.prototype.slice.call(tmpL.childNodes).forEach(linkifyNode);
+        processedContent = tmpL.innerHTML;
     }
 
     // 🖼️ INLINE GALLERY — extra images paragraphs-ku nadula spread (click → fullscreen)
@@ -2173,7 +2163,7 @@ function shareArticle(id) {
     shareOverlay.dataset.articleId = id;
 
     const title = getLocalized(article, 'title') || 'EndLess News';
-        const cloudUrl = 'https://endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang);   // ⭐ Smart share: auto Tamil/English label
+        const cloudUrl = 'https://endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang); // Worker Custom Domain
     const linkInput = document.getElementById('share-link-input');
     if (linkInput) linkInput.value = cloudUrl;
 
@@ -2204,7 +2194,7 @@ function performShare(platform) {
     const title = getLocalized(article, 'title') || article.title_en || article.title || 'EndLess News';
     // Professional share link via Worker Custom Domain — DNS-level direct to worker,
     // no route matching needed. Dinamalar-style main domain ✅
-    const cloudUrl = 'https://endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang);   // ⭐ Smart share
+    const cloudUrl = 'https://endlessnews.lk/news/' + encodeURIComponent(id) + '?lang=' + encodeURIComponent(currentLang);
 
     // Language-aware share text: Tamil selected → Tamil message, English → English
     const shareText = currentLang === 'en'
