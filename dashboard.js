@@ -40,14 +40,15 @@ function renderAnalyticsPage() {
         document.getElementById('an-engage').textContent = engage + '%';
     });
 
-    // ❤️ Total likes (sum of all likes docs)
+    // ❤️ Total likes (zero-safe, live from Firebase — public counts)
     db.collection('likes').get().then(function(snap) {
         var total = 0;
         snap.docs.forEach(function(d) {
             var f = d.data();
-            ['like','love','haha','wow','sad','angry'].forEach(function(k) { total += parseInt(f[k]) || 0; });
+            ['like','love','haha','wow','sad','angry'].forEach(function(k) { total += Math.max(0, parseInt(f[k]) || 0); });
         });
-        document.getElementById('an-likes').textContent = (total || 0).toLocaleString();
+        var el = document.getElementById('an-likes');
+        if (el) el.textContent = (total || 0).toLocaleString();
     }).catch(function() {});
 
     // 📈 7-day views chart

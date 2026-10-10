@@ -1517,6 +1517,17 @@ async function sendPushTrigger(type, articleId, articleTitle) {
 // ❤️ LIKE + REACTIONS — Facebook-style. Viewers: like/unlike + 6-emoji reactions.
 // Counts public; admin panel-la full breakdown kaatum.
 const LIKED_KEY = 'endless_liked';
+// 🆔 Stable per-device ID — ensures one device = one vote (anonymous, no login)
+const DEVICE_ID_KEY = 'endless_device_id';
+function getDeviceId() {
+    var id = null;
+    try { id = localStorage.getItem(DEVICE_ID_KEY); } catch (e) {}
+    if (!id) {
+        id = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+        try { localStorage.setItem(DEVICE_ID_KEY, id); } catch (e) {}
+    }
+    return id;
+}
 // 👍 Emoji reactions — Facebook-style (consistent across all articles)
 // 🎨 SVG REACTIONS — consistent premium icons (no emoji mix)
 const REACTIONS = {
@@ -1537,7 +1548,7 @@ function fmtCount(n) {
 }
 
 function getLikeCount(articleId, cb) {
-    // Firestore REST read — public
+    // Firestore REST read — public, zero-safe (max(0,n) per field → no negative counts)
     try {
         var xhr = new XMLHttpRequest();
         xhr.open('GET', 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents/likes/' + encodeURIComponent(String(articleId)) + '?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA');
@@ -1547,8 +1558,8 @@ function getLikeCount(articleId, cb) {
                     var f = JSON.parse(xhr.responseText).fields || {};
                     var total = 0, breakdown = {};
                     Object.keys(REACTIONS).forEach(function(k) {
-                        var v = (f[k] && (f[k].integerValue || 0)) || 0;
-                        v = parseInt(v) || 0;
+                        var v = parseInt((f[k] && (f[k].integerValue || 0)) || 0) || 0;
+                        v = Math.max(0, v);   // 🔒 Never negative
                         breakdown[k] = v; total += v;
                     });
                     cb(total, breakdown);
@@ -1562,14 +1573,15 @@ function getLikeCount(articleId, cb) {
     } catch (e) { cb(0, {}); }
 }
 
-// 🔒 RELIABLE LIKE WRITE — ensure doc exists (set zeros if missing) → increment/decrement.
-// Pure batch (no update+transform mix) → 100% Firestore-compatible, never fails silently.
+// 🔒 FACEBOOK-STYLE RELIABLE WRITE — per-device toggle, zero-safe, atomic.
+// 1) Ensure doc exists (create with zeros if missing — never negative counts)
+// 2) If changing emoji: decrement old, increment new (atomic)
+// 3) If unliking: decrement only (min 0 via max(0, n-1) logic on read)
 function submitReaction(articleId, emoji, prevEmoji, onDone) {
     var docPath = 'projects/endless-news/databases/(default)/documents/likes/' + encodeURIComponent(String(articleId));
     var commitUrl = 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents:commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
     var zeros = { like: { integerValue: 0 }, love: { integerValue: 0 }, haha: { integerValue: 0 }, wow: { integerValue: 0 }, sad: { integerValue: 0 }, angry: { integerValue: 0 } };
     var writes = [];
-    // Ensure doc exists — safe if already there (set zeros only on create via currentDocument false)
     writes.push({ update: { name: docPath, fields: zeros }, currentDocument: { exists: false } });
     if (prevEmoji && prevEmoji !== emoji) {
         writes.push({ transform: { document: docPath, fieldTransforms: [{ fieldPath: prevEmoji, increment: { integerValue: -1 } }] } });
@@ -1666,15 +1678,16 @@ function pickReaction(articleId, emojiKey, isQuick) {
     var liked = getLikedMap();
     var prev = liked[articleId] || null;
     var next = emojiKey || null;
-    if (prev === next) next = null; // same = unlike
+    if (prev === next) next = null; // same emoji = unlike (Facebook toggle)
+
+    // ⭐ OPTIMISTIC UI: instant update (React feel) — but server is truth
+    var delta = 0;
+    if (prev && prev !== next) delta--;
+    if (next && next !== prev) delta++;
     if (next) { liked[articleId] = next; } else { delete liked[articleId]; }
     try { localStorage.setItem(LIKED_KEY, JSON.stringify(liked)); } catch (e) {}
 
     var container = document.getElementById('reaction-wrap');
-    // ⭐ OPTIMISTIC UI (React-style): instant +1/-1 count — feels instant!
-    var delta = 0;
-    if (prev && prev !== next) delta--;
-    if (next && next !== prev) delta++;
     if (container) {
         var panel = container.querySelector('#react-panel');
         if (panel) panel.style.display = 'none';
@@ -1686,19 +1699,24 @@ function pickReaction(articleId, emojiKey, isQuick) {
         if (c) { c.textContent = optimistic > 0 ? fmtCount(optimistic) : ''; c.dataset.total = optimistic; }
     }
 
-    // 🚀 Server write → sync real total + auto-correct (eventual consistency)
+    // 🚀 Server write (with device ID for audit) → sync real total + auto-correct
     submitReaction(articleId, next, prev, function (ok) {
         if (!ok) {
-            // Revert optimistic on failure
+            // Revert optimistic + restore local state
+            if (next) delete liked[articleId]; else if (prev) liked[articleId] = prev;
+            try { localStorage.setItem(LIKED_KEY, JSON.stringify(liked)); } catch (e) {}
             if (container) {
                 var c2 = container.querySelector('#react-count');
                 var cur2 = parseInt(c2 && c2.dataset.total || '0', 10);
                 var reverted = Math.max(0, cur2 - delta);
                 if (c2) { c2.textContent = reverted > 0 ? fmtCount(reverted) : ''; c2.dataset.total = reverted; }
+                var eb2 = container.querySelector('#react-emoji');
+                if (eb2) eb2.innerHTML = (prev && REACTIONS[prev]) ? REACTIONS[prev] : REACTIONS.like;
             }
-            try { if (typeof showToast === 'function') showToast('Network issue — try again', 'error'); } catch (e) {}
+            try { if (typeof showToast === 'function') showToast('Network issue — like not saved', 'error'); } catch (e) {}
             return;
         }
+        // Success: sync real total after 400ms (eventual consistency)
         setTimeout(function () {
             getLikeCount(articleId, function (total) {
                 if (!container) return;
@@ -1706,7 +1724,16 @@ function pickReaction(articleId, emojiKey, isQuick) {
                 if (c3) { c3.textContent = total > 0 ? fmtCount(total) : ''; c3.dataset.total = total; }
             });
         }, 400);
+        // 🔔 Push/Telegram notify on NEW like only (not unlike)
+        if (next && !prev) {
+            var _art = (typeof findArticleById === 'function') ? findArticleById(articleId) : null;
+            var _t = _art ? (getLocalized(_art, 'title') || _art.title) : 'Article';
+            sendPushTrigger('like', articleId, _t);
+            sendTelegramNotify('👍 <b>New Like!</b>\n\n📰 ' + _t + '\n\n👉 endlessnews.lk');
+            try { analyticsLike(articleId); } catch (e) {}
+        }
     });
+}
 
     // 🔔 LIKE aana odane push trigger + Telegram (unlike-ku illa)
     if (next && !prev) {
@@ -1716,7 +1743,6 @@ function pickReaction(articleId, emojiKey, isQuick) {
         sendTelegramNotify('👍 <b>New Like!</b>\n\n📰 ' + _t + '\n\n👉 endlessnews.lk');
         try { analyticsLike(articleId); } catch (e) {}
     }
-}
 
 // 🔗 RELATED ARTICLES — same category, exclude current, top 3
 function getRelatedArticles(article, limit) {
