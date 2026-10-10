@@ -953,8 +953,8 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     var isStory = sizeKey === 'story';  // 9:16 full portrait
 
     // 🔤🔤 FONT PICKER — resolve headline & brand fonts (per language override)
-    var defaultFont = (article._font && article._font[lang]) || { head: 'Nirmala UI', brand: 'Playfair Display' };
-    var TAMIL_STACK = '"' + (defaultFont.head || 'Nirmala UI') + '", "Latha", "Noto Sans Tamil", Arial';   // ⭐ Latha = Nirmala UI mobile-twin (same metrics)
+    var defaultFont = (article._font && article._font[lang]) || { head: 'Catamaran', brand: 'Playfair Display' };   // ⭐ default
+    var TAMIL_STACK = '"' + (defaultFont.head || 'Catamaran') + '", "Latha", "Noto Sans Tamil", Arial';   // ⭐ default: Catamaran   // ⭐ Latha = Nirmala UI mobile-twin (same metrics)
     var BRAND_STACK = '"' + (defaultFont.brand || 'Playfair Display') + '", Georgia, serif';
     // Preload any selected Google fonts (system fonts resolve instantly), with timeout
     var chosen = [{ name: 'Inter', g: 'Inter:wght@500;600;700' }];   // ⭐ always preload (FOLLOW US + URL)
@@ -1440,7 +1440,7 @@ async function openPosterModal(articleId) {
         // 🔤 FONT PICKER PANEL
         var _pgCustomFonts = [];
         function pgDefaultFont() {
-            return { head: 'Nirmala UI', brand: 'Playfair Display' };
+            return { head: 'Catamaran', brand: 'Playfair Display' };   // ⭐ DEFAULT: Catamaran (same on PC + mobile)
         }
         function pgGetFont() {
             var lang = document.getElementById('pg-lang').value;
