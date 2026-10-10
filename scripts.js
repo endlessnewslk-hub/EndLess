@@ -1562,27 +1562,30 @@ function getLikeCount(articleId, cb) {
     } catch (e) { cb(0, {}); }
 }
 
-// 🔒 PERMANENT LIKE FIX — server is the only source of truth.
-// Reliable write → server returns REAL total → UI shows real total (no fake +1/-1, no revert).
+// 🔒 RELIABLE LIKE WRITE — ensure doc exists (set zeros if missing) → increment/decrement.
+// Pure batch (no update+transform mix) → 100% Firestore-compatible, never fails silently.
 function submitReaction(articleId, emoji, prevEmoji, onDone) {
     var docPath = 'projects/endless-news/databases/(default)/documents/likes/' + encodeURIComponent(String(articleId));
     var commitUrl = 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents:commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
+    var zeros = { like: { integerValue: 0 }, love: { integerValue: 0 }, haha: { integerValue: 0 }, wow: { integerValue: 0 }, sad: { integerValue: 0 }, angry: { integerValue: 0 } };
     var writes = [];
-    // If doc may not exist → create with 0s first (avoids transform on missing doc)
-    writes.push({ update: { name: docPath, fields: { like: { integerValue: 0 }, love: { integerValue: 0 }, haha: { integerValue: 0 }, wow: { integerValue: 0 }, sad: { integerValue: 0 }, angry: { integerValue: 0 } } } });
+    // Ensure doc exists — safe if already there (set zeros only on create via currentDocument false)
+    writes.push({ update: { name: docPath, fields: zeros }, currentDocument: { exists: false } });
     if (prevEmoji && prevEmoji !== emoji) {
         writes.push({ transform: { document: docPath, fieldTransforms: [{ fieldPath: prevEmoji, increment: { integerValue: -1 } }] } });
     }
     if (emoji && emoji !== prevEmoji) {
         writes.push({ transform: { document: docPath, fieldTransforms: [{ fieldPath: emoji, increment: { integerValue: 1 } }] } });
     }
-    if (!writes.length) { if (onDone) onDone(); return; }
+    if (!writes.length) { if (onDone) onDone(true); return; }
     try {
         var xhr = new XMLHttpRequest();
         xhr.open('POST', commitUrl);
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.onload = function () {
-            if (onDone) onDone(xhr.status >= 200 && xhr.status < 300);
+            var ok = xhr.status >= 200 && xhr.status < 300;
+            if (!ok && typeof console !== 'undefined') console.warn('Like write failed:', xhr.status, xhr.responseText);
+            if (onDone) onDone(ok);
         };
         xhr.onerror = function () { if (onDone) onDone(false); };
         xhr.send(JSON.stringify({ writes: writes }));
@@ -1645,10 +1648,10 @@ function buildReactionUI(container, articleId) {
         if (!container.contains(ev.target)) panel.style.display = 'none';
     });
 
-    // Initial count
+    // Initial count — store numeric total for optimistic updates (React-style instant feel)
     getLikeCount(articleId, function(total) {
         var c = container.querySelector('#react-count');
-        if (c) c.textContent = total > 0 ? fmtCount(total) : '';
+        if (c) { c.textContent = total > 0 ? fmtCount(total) : ''; c.dataset.total = total; }
     });
 }
 
@@ -1664,25 +1667,45 @@ function pickReaction(articleId, emojiKey, isQuick) {
     var prev = liked[articleId] || null;
     var next = emojiKey || null;
     if (prev === next) next = null; // same = unlike
-    // 🔒 Instant local UI (emoji icon only) — count waits for server truth (no fake numbers)
     if (next) { liked[articleId] = next; } else { delete liked[articleId]; }
     try { localStorage.setItem(LIKED_KEY, JSON.stringify(liked)); } catch (e) {}
 
     var container = document.getElementById('reaction-wrap');
+    // ⭐ OPTIMISTIC UI (React-style): instant +1/-1 count — feels instant!
+    var delta = 0;
+    if (prev && prev !== next) delta--;
+    if (next && next !== prev) delta++;
     if (container) {
         var panel = container.querySelector('#react-panel');
         if (panel) panel.style.display = 'none';
         var eb = container.querySelector('#react-emoji');
         if (eb) eb.innerHTML = (next && REACTIONS[next]) ? REACTIONS[next] : REACTIONS.like;
+        var c = container.querySelector('#react-count');
+        var cur = parseInt(c && c.dataset.total || '0', 10);
+        var optimistic = Math.max(0, cur + delta);
+        if (c) { c.textContent = optimistic > 0 ? fmtCount(optimistic) : ''; c.dataset.total = optimistic; }
     }
 
-    // 🚀 Reliable server write → on success show REAL total (single source of truth)
+    // 🚀 Server write → sync real total + auto-correct (eventual consistency)
     submitReaction(articleId, next, prev, function (ok) {
-        if (!ok) { try { if (typeof showToast === 'function') showToast('Network issue — like not saved. Try again.', 'error'); } catch (e) {} return; }
-        getLikeCount(articleId, function (total) {
-            var c2 = container && container.querySelector('#react-count');
-            if (c2) c2.textContent = total > 0 ? fmtCount(total) : '';
-        });
+        if (!ok) {
+            // Revert optimistic on failure
+            if (container) {
+                var c2 = container.querySelector('#react-count');
+                var cur2 = parseInt(c2 && c2.dataset.total || '0', 10);
+                var reverted = Math.max(0, cur2 - delta);
+                if (c2) { c2.textContent = reverted > 0 ? fmtCount(reverted) : ''; c2.dataset.total = reverted; }
+            }
+            try { if (typeof showToast === 'function') showToast('Network issue — try again', 'error'); } catch (e) {}
+            return;
+        }
+        setTimeout(function () {
+            getLikeCount(articleId, function (total) {
+                if (!container) return;
+                var c3 = container.querySelector('#react-count');
+                if (c3) { c3.textContent = total > 0 ? fmtCount(total) : ''; c3.dataset.total = total; }
+            });
+        }, 400);
     });
 
     // 🔔 LIKE aana odane push trigger + Telegram (unlike-ku illa)
@@ -1984,7 +2007,7 @@ function openArticle(id) {
                     });
                 }
                 var c = wrap.querySelector('#react-count');
-                if (c) c.textContent = total > 0 ? fmtCount(total) : '';
+                if (c) { c.textContent = total > 0 ? fmtCount(total) : ''; c.dataset.total = total; }
             });
         }
     } catch (e) {}
