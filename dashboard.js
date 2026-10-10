@@ -946,8 +946,17 @@ function pgLoadImg(url) {
     });
 }
 
-async function generatePoster(article, sizeKey, lang, mode, quality) {
+const POSTER_FORMATS = {
+    classic:  'Classic (Image + Text + Brand)',
+    breaking: '🔴 Breaking News (Alert banner)',
+    quote:    'Quote Card (Text only, minimal)',
+    flash:    'News Flash (Ticker style)',
+    minimal:  'Minimal (Image dominant)'
+};
+
+async function generatePoster(article, sizeKey, lang, mode, quality, format) {
     mode = mode || 'full';   // 'full' = headline+excerpt | 'headline' = big text only
+    format = format || 'classic';   // 🎨 5 innovative poster formats
     var q = (quality === 'hd') ? 2 : 1;   // 🖥️ HD = 2x resolution for crisp social sharing
     var S = POSTER_SIZES[sizeKey] || POSTER_SIZES.square;
     var W = S.w * q, H = S.h * q;
@@ -1123,21 +1132,64 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
 
     // ═══ DRAW ═══
 
+    // ── 🎨 FORMAT-specific layout adjustments ──
+    var barH2, barY2;   // brand bar metrics per format
+    if (format === 'quote') {
+        imgH = 0;   // no image — pure text card
+    } else if (format === 'breaking') {
+        imgH = Math.round(H * 0.35);   // smaller image, room for alert
+    } else if (format === 'flash') {
+        imgH = Math.round(H * 0.40);
+    } else if (format === 'minimal') {
+        imgH = Math.round(H * 0.68);   // image dominant
+    }
+    barY2 = barY; barH2 = barH;   // default
+
     // 1) Dark brand background (gradient)
     var bg = ctx.createLinearGradient(0, 0, 0, H);
     bg.addColorStop(0, '#13131f'); bg.addColorStop(1, '#0a0a0f');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
-    // 2) Article image — cover fit at final (possibly shrunk) height
-    try {
-        var img = await pgLoadImg(article.image);
-        var scale = Math.max(W / img.width, imgH / img.height);
-        var iw = img.width * scale, ih = img.height * scale;
-        ctx.save();
-        ctx.beginPath(); ctx.rect(0, 0, W, imgH); ctx.clip();
-        ctx.drawImage(img, (W - iw) / 2, (imgH - ih) / 2, iw, ih);
-        ctx.restore();
-    } catch (e) {}
+    // 🔴 BREAKING: red alert banner at top
+    if (format === 'breaking') {
+        var alertH = Math.round(H * 0.065);
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(0, 0, W, alertH);
+        ctx.font = '800 ' + Math.round(W * 0.038) + 'px "Inter", Arial';
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(lang === 'ta' ? '🔴 உடனடி செய்தி' : '🔴 BREAKING NEWS', W / 2, alertH / 2);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        imgH = Math.round(H * 0.35);   // reflow: image below alert
+    }
+
+    // 2) Article image — cover fit (skip for quote card)
+    if (format !== 'quote') {
+        try {
+            var img = await pgLoadImg(article.image);
+            var scale = Math.max(W / img.width, imgH / img.height);
+            var iw = img.width * scale, ih = img.height * scale;
+            ctx.save();
+            ctx.beginPath(); ctx.rect(0, format === 'breaking' ? Math.round(H * 0.065) : 0, W, imgH); ctx.clip();
+            ctx.drawImage(img, (W - iw) / 2, (format === 'breaking' ? Math.round(H * 0.065) : 0) + (imgH - ih) / 2, iw, ih);
+            ctx.restore();
+        } catch (e) {}
+    }
+
+    // 🖼️ MINIMAL: white gradient overlay on image (text readability)
+    if (format === 'minimal') {
+        var mg = ctx.createLinearGradient(0, imgH - Math.round(H * 0.25), 0, H);
+        mg.addColorStop(0, 'rgba(10,10,15,0)');
+        mg.addColorStop(0.7, 'rgba(10,10,15,0.85)');
+        mg.addColorStop(1, 'rgba(10,10,15,1)');
+        ctx.fillStyle = mg; ctx.fillRect(0, imgH - Math.round(H * 0.25), W, Math.round(H * 0.25) + Math.round(H * 0.05));
+    }
+
+    // 💬 QUOTE CARD: subtle vertical accent line on left
+    if (format === 'quote') {
+        ctx.fillStyle = '#e11d48';
+        ctx.fillRect(Math.round(W * 0.06), Math.round(H * 0.12), Math.round(W * 0.008), Math.round(H * 0.76));
+    }
 
     // Gradient fade image → bg
     var fadeH = Math.round(H * 0.2);
@@ -1146,8 +1198,8 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     fade.addColorStop(1, 'rgba(10,10,15,1)');
     ctx.fillStyle = fade; ctx.fillRect(0, imgH - fadeH, W, fadeH + Math.round(H * 0.05));
 
-    // 3) Category chip (over image, top-left)
-    if (cat) {
+    // 3) Category chip (skip for quote/minimal formats)
+    if (cat && format !== 'quote' && format !== 'minimal') {
         ctx.font = '700 ' + Math.round(W * 0.021) + 'px ' + TAMIL_STACK;
         var cw = ctx.measureText(String(cat).toUpperCase()).width + Math.round(W * 0.05);
         var chH = Math.round(H * 0.045);
@@ -1157,22 +1209,38 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         ctx.fillText(String(cat).toUpperCase(), mX + Math.round(W * 0.025), Math.round(H * 0.038) + chH / 2 + 2);
     }
 
-    // 4) 📅 Date line — image keezha, headline mela
+    // 4) 📅 Date line — position per format
+    var textX = mX;
+    var textY = imgH + Math.round(H * 0.045);
+    if (format === 'quote') {
+        textX = Math.round(W * 0.10);
+        textY = Math.round(H * 0.10);
+    } else if (format === 'breaking') {
+        textY = Math.round(H * 0.065) + imgH + Math.round(H * 0.035);
+    } else if (format === 'minimal') {
+        textY = imgH - Math.round(H * 0.16);   // overlay on image fade
+    }
     ctx.font = '600 ' + Math.round(W * 0.020) + 'px ' + TAMIL_STACK;
-    ctx.fillStyle = '#94a3b8'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
-    ctx.fillText(dateStr, mX, imgH + Math.round(H * 0.045));
+    ctx.fillStyle = format === 'minimal' ? '#cbd5e1' : '#94a3b8';
+    ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+    ctx.fillText(dateStr, textX, textY);
 
-    // 5) Red accent line
+    // 5) Red accent line (quote format: already have vertical line)
     var accH = Math.max(6, Math.round(H * 0.007));
-    ctx.fillStyle = '#e11d48';
-    ctx.fillRect(mX, y - Math.round(H * 0.02) - accH, Math.round(W * 0.12), accH);
+    if (format !== 'quote') {
+        ctx.fillStyle = '#e11d48';
+        ctx.fillRect(textX, y - Math.round(H * 0.02) - accH, Math.round(W * 0.12), accH);
+    }
 
     // 6) HEADLINE — full text, auto-scaled font
+    var headX = (format === 'quote') ? textX : textX;
+    var headColor = (format === 'breaking') ? '#ffffff' : '#ffffff';
+    ctx.fillStyle = headColor;
     ctx.font = '800 ' + L.hs + 'px ' + TAMIL_STACK;
     ctx.textBaseline = 'top';
     var spaceW = ctx.measureText(' ').width;
     L.hl.forEach(function (tokens, i) {
-        var wx = mX;
+        var wx = textX;
         tokens.forEach(function (tok) {
             ctx.fillStyle = tok.hl ? '#fb7185' : '#ffffff';   // 🎨 highlighted word = brand pink
             ctx.fillText(tok.t, wx, y + i * L.lh);
@@ -1184,14 +1252,30 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     // 7) EXCERPT — full text, auto-scaled font
     if (L.el.length) {
         ctx.font = '400 ' + L.es + 'px ' + TAMIL_STACK;
-        ctx.fillStyle = '#b6bdc9';
+        ctx.fillStyle = format === 'minimal' ? '#94a3b8' : '#b6bdc9';
         L.el.forEach(function (ln, i) {
             ctx.fillText(ln, mX, ey + i * L.elh);
         });
     }
 
-    // 7b) 💬 CTA pill — professional "read full news" chip (BOTH poster modes)
-    if (true) {
+    // ⚡ FLASH: moving ticker strip above brand bar
+    if (format === 'flash') {
+        var tickH = Math.round(H * 0.055);
+        var tickY = barY - tickH - Math.round(H * 0.012);
+        ctx.fillStyle = 'rgba(225,29,72,0.15)';
+        ctx.fillRect(0, tickY, W, tickH);
+        ctx.fillStyle = '#e11d48';
+        ctx.fillRect(0, tickY, Math.round(W * 0.008), tickH);   // left accent
+        ctx.font = '700 ' + Math.round(W * 0.024) + 'px "Inter", Arial';
+        ctx.fillStyle = '#fb7185';
+        ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+        var flashTxt = lang === 'ta' ? '⚡ LATEST UPDATE' : '⚡ LATEST UPDATE';
+        ctx.fillText(flashTxt + '  •  ' + (title || '').substring(0, 60), mX, tickY + tickH / 2);
+        ctx.textBaseline = 'top';
+    }
+
+    // 7b) 💬 CTA pill — professional "read full news" chip (BOTH poster modes, skip flash)
+    if (format !== 'flash' && format !== 'minimal') {
         var cta = lang === 'en' ? 'READ THE FULL NEWS' : '\u0BAE\u0BC1\u0BB4\u0BC1 \u0B9A\u0BC6\u0BAF\u0BCD\u0BA4\u0BBF\u0BAF\u0BC8\u0BAA\u0BCD \u0BAA\u0B9F\u0BBF\u0B95\u0BCD\u0B95';
         var ctaSize = Math.max(15, Math.round(W * 0.018));   // ⭐ smaller, decent pill
         ctx.textAlign = 'left';
@@ -1267,7 +1351,16 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         ctx.textAlign = 'left';
     }
 
-    // 8) Brand bar — site logo maari correct-a set 🎨
+    // 8) Brand bar — site logo maari correct-a set 🎨 (skip for quote/minimal)
+    if (format === 'quote' || format === 'minimal') {
+        // Quote/Minimal: just small "EndLess" text bottom-center, no bar
+        ctx.font = '700 ' + Math.round(W * 0.022) + 'px "Inter", Arial';
+        ctx.fillStyle = 'rgba(251,113,133,0.8)';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+        ctx.fillText('EndLess News · endlessnews.lk', W / 2, H - Math.round(H * 0.04));
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        return cv;
+    }
     var barX = mX, barW = W - mX * 2;
     ctx.fillStyle = 'rgba(225,29,72,0.12)';
     pgRoundRect(ctx, barX, barY, barW, barH, barH * 0.32);
@@ -1400,6 +1493,13 @@ async function openPosterModal(articleId) {
                     '<option value="std">📱 Standard (1080px)</option>' +
                     '<option value="hd">🖥️ HD (2160px)</option>' +
                 '</select>' +
+                '<select id="pg-format" title="5 innovative poster styles" style="flex:1;min-width:170px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
+                    '<option value="classic">🎨 Classic</option>' +
+                    '<option value="breaking">🔴 Breaking News</option>' +
+                    '<option value="quote">💬 Quote Card</option>' +
+                    '<option value="flash">⚡ News Flash</option>' +
+                    '<option value="minimal">🖼️ Minimal</option>' +
+                '</select>' +
             '</div>' +
             '<div style="margin-bottom:12px;">' +
             '<button type="button" id="pg-edit-toggle" style="width:100%;padding:10px 14px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;">✏️ Edit Headline & Excerpt (optional)</button>' +
@@ -1437,6 +1537,7 @@ async function openPosterModal(articleId) {
         document.getElementById('pg-size').addEventListener('change', pgRenderPreview);
         document.getElementById('pg-mode').addEventListener('change', pgRenderPreview);
         document.getElementById('pg-quality').addEventListener('change', pgRenderPreview);
+        document.getElementById('pg-format').addEventListener('change', pgRenderPreview);
         document.getElementById('pg-lang').addEventListener('change', function() { pgLoadEditFields(); pgRenderFontPicker(); pgRenderPreview(); });
 
         // 🔤 FONT PICKER PANEL
@@ -1614,7 +1715,8 @@ async function pgRenderPreview() {
     try {
         var mode = (document.getElementById('pg-mode') || { value: 'full' }).value;
         var quality = (document.getElementById('pg-quality') || { value: 'std' }).value;
-        _pgCanvas = await generatePoster(eff, size, lang, mode, quality);
+        var format = (document.getElementById('pg-format') || { value: 'classic' }).value;
+        _pgCanvas = await generatePoster(eff, size, lang, mode, quality, format);
         img.src = _pgCanvas.toDataURL('image/png');
     } catch (e) {
         showToast('Poster error: ' + e.message, 'error');
