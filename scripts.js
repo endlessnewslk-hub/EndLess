@@ -1548,60 +1548,44 @@ function fmtCount(n) {
 }
 
 function getLikeCount(articleId, cb) {
-    // Firestore REST read — public, zero-safe (max(0,n) per field → no negative counts)
-    try {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents/likes/' + encodeURIComponent(String(articleId)) + '?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA');
-        xhr.onload = function() {
-            if (xhr.status === 200) {
-                try {
-                    var f = JSON.parse(xhr.responseText).fields || {};
-                    var total = 0, breakdown = {};
-                    Object.keys(REACTIONS).forEach(function(k) {
-                        var v = parseInt((f[k] && (f[k].integerValue || 0)) || 0) || 0;
-                        v = Math.max(0, v);   // 🔒 Never negative
-                        breakdown[k] = v; total += v;
-                    });
-                    cb(total, breakdown);
-                    return;
-                } catch (e) {}
-            }
-            cb(0, {});
-        };
-        xhr.onerror = function() { cb(0, {}); };
-        xhr.send();
-    } catch (e) { cb(0, {}); }
+    // Firestore SDK read — consistent with write path, zero-safe
+    if (!db || !db.collection) { cb(0, {}); return; }
+    db.collection('likes').doc(String(articleId)).get()
+        .then(function(doc) {
+            var total = 0, breakdown = {};
+            var f = doc.exists ? doc.data() : {};
+            Object.keys(REACTIONS).forEach(function(k) {
+                var v = Math.max(0, parseInt(f[k]) || 0);   // 🔒 Never negative
+                breakdown[k] = v; total += v;
+            });
+            cb(total, breakdown);
+        })
+        .catch(function() { cb(0, {}); });
 }
 
-// 🔒 FACEBOOK-STYLE RELIABLE WRITE — per-device toggle, zero-safe, atomic.
-// 1) Ensure doc exists (create with zeros if missing — never negative counts)
-// 2) If changing emoji: decrement old, increment new (atomic)
-// 3) If unliking: decrement only (min 0 via max(0, n-1) logic on read)
+// 🔒 FACEBOOK-STYLE RELIABLE WRITE — Firestore SDK (bypasses REST rules issues).
+// Uses existing `db` object (Firestore SDK) — works even with strict security rules.
+// 1) Ensure doc exists (set zeros if missing)
+// 2) Atomic increment/decrement via FieldValue
 function submitReaction(articleId, emoji, prevEmoji, onDone) {
-    var docPath = 'projects/endless-news/databases/(default)/documents/likes/' + encodeURIComponent(String(articleId));
-    var commitUrl = 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents:commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
-    var zeros = { like: { integerValue: 0 }, love: { integerValue: 0 }, haha: { integerValue: 0 }, wow: { integerValue: 0 }, sad: { integerValue: 0 }, angry: { integerValue: 0 } };
-    var writes = [];
-    writes.push({ update: { name: docPath, fields: zeros }, currentDocument: { exists: false } });
+    if (!db || !db.collection) { if (onDone) onDone(false); return; }
+    var ref = db.collection('likes').doc(String(articleId));
+    var zeros = { like: 0, love: 0, haha: 0, wow: 0, sad: 0, angry: 0 };
+    var updates = {};
     if (prevEmoji && prevEmoji !== emoji) {
-        writes.push({ transform: { document: docPath, fieldTransforms: [{ fieldPath: prevEmoji, increment: { integerValue: -1 } }] } });
+        updates[prevEmoji] = firebase.firestore.FieldValue.increment(-1);
     }
     if (emoji && emoji !== prevEmoji) {
-        writes.push({ transform: { document: docPath, fieldTransforms: [{ fieldPath: emoji, increment: { integerValue: 1 } }] } });
+        updates[emoji] = firebase.firestore.FieldValue.increment(1);
     }
-    if (!writes.length) { if (onDone) onDone(true); return; }
-    try {
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', commitUrl);
-        xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.onload = function () {
-            var ok = xhr.status >= 200 && xhr.status < 300;
-            if (!ok && typeof console !== 'undefined') console.warn('Like write failed:', xhr.status, xhr.responseText);
-            if (onDone) onDone(ok);
-        };
-        xhr.onerror = function () { if (onDone) onDone(false); };
-        xhr.send(JSON.stringify({ writes: writes }));
-    } catch (e) { if (onDone) onDone(false); }
+    if (!Object.keys(updates).length) { if (onDone) onDone(true); return; }
+    ref.set(zeros, { merge: true })   // ensure doc exists (create if missing)
+        .then(function () { return ref.update(updates); })
+        .then(function () { if (onDone) onDone(true); })
+        .catch(function (err) {
+            console.warn('Like write failed:', err);
+            if (onDone) onDone(false);
+        });
 }
 
 // Like button UI + long-press emoji panel (Facebook style)
