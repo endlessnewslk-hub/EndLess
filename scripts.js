@@ -1678,7 +1678,7 @@ function pickReaction(articleId, emojiKey, isQuick) {
 
     // 🚀 Reliable server write → on success show REAL total (single source of truth)
     submitReaction(articleId, next, prev, function (ok) {
-        if (!ok) { showToast('Network issue — like not saved. Try again.', 'error'); return; }
+        if (!ok) { try { if (typeof showToast === 'function') showToast('Network issue — like not saved. Try again.', 'error'); } catch (e) {} return; }
         getLikeCount(articleId, function (total) {
             var c2 = container && container.querySelector('#react-count');
             if (c2) c2.textContent = total > 0 ? fmtCount(total) : '';
