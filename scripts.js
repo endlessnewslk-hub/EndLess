@@ -1538,6 +1538,8 @@ const REACTIONS = {
     sad: '<svg viewBox="0 0 24 24" fill="none" stroke="#F7B125" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"/><path d="M8 16s1.5-2 4-2 4 2 4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>',
     angry: '<svg viewBox="0 0 24 24" fill="none" stroke="#E9710F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"/><line x1="8" y1="8" x2="12" y2="11"/><line x1="16" y1="8" x2="12" y2="11"/><path d="M8 16s1.5-1.5 4-1.5 4 1.5 4 1.5"/></svg>'
 };
+// 🔑 PER-DEVICE liked map: { articleId: emoji } — independent per device/browser
+// Device A like pannalum, Device B like pannalum — rendu valid, Firebase total sum
 function getLikedMap() { try { return JSON.parse(localStorage.getItem(LIKED_KEY)) || {}; } catch (e) { return {}; } }
 
 // 🔢 FB-STYLE COMPACT NUMBER — 1000 → 1K, 2500 → 2.5K, 1000000 → 1M

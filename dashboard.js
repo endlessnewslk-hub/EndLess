@@ -40,7 +40,7 @@ function renderAnalyticsPage() {
         document.getElementById('an-engage').textContent = engage + '%';
     });
 
-    // ❤️ Total likes (zero-safe, live from Firebase — public counts)
+    // ❤️ Total likes — public count, Facebook-style formatting (1K, 2.5K, 1M)
     db.collection('likes').get().then(function(snap) {
         var total = 0;
         snap.docs.forEach(function(d) {
@@ -48,7 +48,7 @@ function renderAnalyticsPage() {
             ['like','love','haha','wow','sad','angry'].forEach(function(k) { total += Math.max(0, parseInt(f[k]) || 0); });
         });
         var el = document.getElementById('an-likes');
-        if (el) el.textContent = (total || 0).toLocaleString();
+        if (el) el.textContent = (typeof fmtCount === 'function' ? fmtCount(total) : (total || 0).toLocaleString());
     }).catch(function() {});
 
     // 📈 7-day views chart
