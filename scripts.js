@@ -1516,14 +1516,33 @@ async function sendPushTrigger(type, articleId, articleTitle) {
 
 // ❤️ LIKE + REACTIONS — Facebook-style. Viewers: like/unlike + 6-emoji reactions.
 // Counts public; admin panel-la full breakdown kaatum.
-const LIKED_KEY = 'endless_liked';
-// 🆔 Stable per-device ID — ensures one device = one vote (anonymous, no login)
-const DEVICE_ID_KEY = 'endless_device_id';
+// 🔑 PER-DEVICE liked storage: {deviceId: {articleId: emoji}} — TRUE isolation
+const LIKED_KEY = 'endless_liked_v2';
+function getLikedMap() {
+    try {
+        var all = JSON.parse(localStorage.getItem(LIKED_KEY)) || {};
+        var devId = getDeviceId();
+        if (!all[devId]) all[devId] = {};
+        return all[devId];
+    } catch (e) { return {}; }
+}
+function setLikedMap(map) {
+    try {
+        var all = JSON.parse(localStorage.getItem(LIKED_KEY)) || {};
+        all[getDeviceId()] = map;
+        localStorage.setItem(LIKED_KEY, JSON.stringify(all));
+    } catch (e) {}
+}
+// 🆔 TRUE PER-DEVICE ID: Fingerprint + random — survives cache, unique per device
+// Same browser profile-la kooda different tabs/windows = different IDs
+const DEVICE_ID_KEY = 'endless_device_id_v2';
 function getDeviceId() {
     var id = null;
     try { id = localStorage.getItem(DEVICE_ID_KEY); } catch (e) {}
     if (!id) {
-        id = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+        // Fingerprint: screen + timezone + language + random (high entropy)
+        var fp = [screen.width, screen.height, screen.colorDepth, new Date().getTimezoneOffset(), navigator.language, Math.random().toString(36).slice(2, 12)].join('_');
+        id = 'dev_' + fp;
         try { localStorage.setItem(DEVICE_ID_KEY, id); } catch (e) {}
     }
     return id;
@@ -1671,7 +1690,7 @@ function pickReaction(articleId, emojiKey, isQuick) {
     if (prev && prev !== next) delta--;
     if (next && next !== prev) delta++;
     if (next) { liked[articleId] = next; } else { delete liked[articleId]; }
-    try { localStorage.setItem(LIKED_KEY, JSON.stringify(liked)); } catch (e) {}
+    setLikedMap(liked);   // 🔑 Per-device isolated save
 
     var container = document.getElementById('reaction-wrap');
     if (container) {
@@ -1690,7 +1709,7 @@ function pickReaction(articleId, emojiKey, isQuick) {
         if (!ok) {
             // Revert optimistic + restore local state
             if (next) delete liked[articleId]; else if (prev) liked[articleId] = prev;
-            try { localStorage.setItem(LIKED_KEY, JSON.stringify(liked)); } catch (e) {}
+            setLikedMap(liked);
             if (container) {
                 var c2 = container.querySelector('#react-count');
                 var cur2 = parseInt(c2 && c2.dataset.total || '0', 10);
