@@ -1360,6 +1360,39 @@ function videoBlockHtml(article) {
     return '';
 }
 
+// ⬆️ SMART BACK-TO-TOP ARROW — scroll down panna smooth-a meela vara button
+(function initBackToTop() {
+    if (document.getElementById('backToTop')) return;
+    var btn = document.createElement('button');
+    btn.id = 'backToTop';
+    btn.setAttribute('aria-label', 'Back to top');
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;"><polyline points="18 15 12 9 6 15"/></svg>';
+    btn.style.cssText = 'position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#e11d48,#be123c);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(225,29,72,0.4);z-index:9999;opacity:0;pointer-events:none;transform:translateY(20px);transition:all 0.3s cubic-bezier(0.4,0,0.2,1);-webkit-tap-highlight-color:transparent;';
+    document.body.appendChild(btn);
+
+    var scrollTick = false;
+    function onScroll() {
+        if (scrollTick) return;
+        scrollTick = true;
+        requestAnimationFrame(function() {
+            var show = window.scrollY > 400;   // 400px scroll aana button varum
+            btn.style.opacity = show ? '1' : '0';
+            btn.style.pointerEvents = show ? 'auto' : 'none';
+            btn.style.transform = show ? 'translateY(0)' : 'translateY(20px)';
+            scrollTick = false;
+        });
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    btn.addEventListener('click', function() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });   // smooth scroll meela
+    });
+
+    // Hover effect (desktop)
+    btn.addEventListener('mouseenter', function() { this.style.transform = 'scale(1.1)'; });
+    btn.addEventListener('mouseleave', function() { this.style.transform = 'scale(1)'; });
+})();
+
 // 📱 BACK-BUTTON LAYER SYSTEM (whole website) — BACK always closes the
 // topmost layer (article modal / share card / mobile menu) instead of
 // exiting the site. Instagram/YouTube app pattern. ✕ button-um same-a work aagum.
