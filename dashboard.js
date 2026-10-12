@@ -4032,7 +4032,7 @@ document.addEventListener('DOMContentLoaded', function() {
             adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
             saveNews();
         }
-        renderDashboard();
+        renderDashboard(); 
         if (currentPage === 'news') renderNewsTable();
     });
 });
