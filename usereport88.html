@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ta" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="robots" content="index, follow">
+    <title>EndLess News — Reporter Login</title>
+    <meta name="description" content="EndLess News reporter portal — login to publish news">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#dc2626">
+    <link rel="icon" type="image/png" href="logo-og.png">
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <style>
+        /* 🔤 CLEAN INLINE CSS — no external dependency, PWA-friendly */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --bg: #0f0f1a; --surface: #1a1a2e; --input: #0f0f1a; --text: #fff;
+            --muted: #a0a0b8; --border: #2a2a4a; --primary: #dc2626; --primary-hover: #b91c1c;
+        }
+        [data-theme="light"] {
+            --bg: #f8f9fc; --surface: #fff; --input: #f1f5f9; --text: #1e293b;
+            --muted: #64748b; --border: #e2e8f0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Tamil', sans-serif;
+            background: var(--bg); color: var(--text); min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px; line-height: 1.6; transition: all 0.3s;
+        }
+        .login-box { width: 100%; max-width: 400px; }
+        .logo-section { text-align: center; margin-bottom: 2rem; }
+        .logo-icon {
+            width: 64px; height: 64px; background: linear-gradient(135deg, var(--primary), #991b1b);
+            border-radius: 16px; display: inline-flex; align-items: center; justify-content: center;
+            font-family: Georgia, serif; font-size: 2rem; font-weight: 900; color: #fff;
+            margin-bottom: 0.75rem; box-shadow: 0 8px 32px rgba(220, 38, 38, 0.3);
+        }
+        .logo-title { font-family: Georgia, serif; font-size: 1.75rem; font-weight: 700; }
+        .logo-title span { color: var(--primary); }
+        .logo-sub { color: var(--muted); font-size: 0.9rem; margin-top: 0.25rem; }
+        .card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+            padding: 2rem; box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+        }
+        .card-header { text-align: center; margin-bottom: 1.5rem; }
+        .card-header h2 { font-size: 1.3rem; margin-bottom: 0.25rem; }
+        .card-header p { color: var(--muted); font-size: 0.9rem; }
+        .input-group { margin-bottom: 1rem; }
+        .input-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; }
+        .input-wrap { position: relative; }
+        .input-wrap .icon {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            font-size: 1.1rem; opacity: 0.7; pointer-events: none;
+        }
+        .input-wrap input {
+            width: 100%; padding: 0.85rem 1rem 0.85rem 2.8rem; background: var(--input);
+            border: 2px solid var(--border); border-radius: 10px; color: var(--text);
+            font-size: 1rem; font-family: inherit; outline: none; transition: all 0.2s;
+        }
+        .input-wrap input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(220,38,38,0.15); }
+        .btn {
+            width: 100%; padding: 0.9rem; background: linear-gradient(135deg, var(--primary), #991b1b);
+            color: #fff; border: none; border-radius: 10px; font-size: 1rem; font-weight: 700;
+            cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+        }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(220,38,38,0.4); }
+        .btn:disabled { opacity: 0.7; cursor: not-allowed; }
+        .note {
+            margin-top: 1.25rem; padding: 0.75rem; background: rgba(220,38,38,0.1);
+            border: 1px solid rgba(220,38,38,0.3); border-radius: 8px; text-align: center;
+            font-size: 0.85rem; color: var(--muted);
+        }
+        .error-msg { color: #ef4444; font-size: 0.85rem; margin-top: 0.25rem; min-height: 1.2rem; }
+        .hidden { display: none !important; }
+        .spinner {
+            width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+<base target="_blank">
+</head>
+<body>
+    <div class="login-box">
+        <div class="logo-section">
+            <div class="logo-icon">E</div>
+            <h1 class="logo-title">End<span>Less</span></h1>
+            <p class="logo-sub">Reporter Portal</p>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>🔐 Reporter Sign In</h2>
+                <p>Publish news to EndLess News</p>
+            </div>
+            <form id="rep-form" novalidate>
+                <div class="input-group">
+                    <label for="rep-username">Username</label>
+                    <div class="input-wrap">
+                        <span class="icon">👤</span>
+                        <input type="text" id="rep-username" placeholder="Your username" required autocomplete="username">
+                    </div>
+                    <div class="error-msg" id="rep-user-err"></div>
+                </div>
+                <div class="input-group">
+                    <label for="rep-password">Password</label>
+                    <div class="input-wrap">
+                        <span class="icon">🔒</span>
+                        <input type="password" id="rep-password" placeholder="Your password" required autocomplete="current-password">
+                    </div>
+                    <div class="error-msg" id="rep-pass-err"></div>
+                </div>
+                <button type="submit" class="btn" id="rep-btn">
+                    <span class="btn-text">Sign In & Publish</span>
+                    <span class="spinner hidden" id="rep-spinner"></span>
+                </button>
+            </form>
+            <div class="note">
+                🛡️ Reporters can publish/edit own news only<br>
+                <small>Admin approval required for new accounts</small>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA",
+            authDomain: "endless-news.firebaseapp.com",
+            projectId: "endless-news",
+            storageBucket: "endless-news.firebasestorage.app",
+            messagingSenderId: "363216005373",
+            appId: "1:363216005373:web:143fb950fb04dfc1cb7694"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        document.getElementById('rep-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('rep-username').value.trim().toLowerCase();
+            const password = document.getElementById('rep-password').value;
+            const btn = document.getElementById('rep-btn');
+            const spinner = document.getElementById('rep-spinner');
+            const userErr = document.getElementById('rep-user-err');
+            const passErr = document.getElementById('rep-pass-err');
+
+            userErr.textContent = ''; passErr.textContent = '';
+            if (!username) { userErr.textContent = 'Username required'; return; }
+            if (!password) { passErr.textContent = 'Password required'; return; }
+
+            btn.disabled = true;
+            btn.querySelector('.btn-text').textContent = 'Verifying...';
+            spinner.classList.remove('hidden');
+
+            try {
+                // Check reporter exists & not blocked
+                const repDoc = await db.collection('reporters').doc(username).get();
+                if (!repDoc.exists) throw new Error('Invalid username');
+                const repData = repDoc.data();
+                if (repData.blocked) throw new Error('Account blocked. Contact admin.');
+
+                // Login with synthetic email
+                const email = repData.email || `${username}@reporters.endlessnews.lk`;
+                await auth.signInWithEmailAndPassword(email, password);
+
+                // Save session
+                sessionStorage.setItem('reporter_session', JSON.stringify({
+                    username, name: repData.name, loginTime: Date.now()
+                }));
+
+                // Redirect to reporter panel
+                window.location.href = 'reporter-panel.html';
+
+            } catch (err) {
+                userErr.textContent = err.message.includes('password') ? '' : err.message;
+                passErr.textContent = err.message.includes('password') ? 'Invalid password' : '';
+                if (err.message.includes('Invalid username')) userErr.textContent = 'Invalid username';
+            } finally {
+                btn.disabled = false;
+                btn.querySelector('.btn-text').textContent = 'Sign In & Publish';
+                spinner.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ta" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>EndLess — Reporter Panel</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <style>
+        :root { --rep-primary: #e11d48; }
+        .rep-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #13131f; border-bottom: 1px solid #1e293b; }
+        .rep-brand { display: flex; align-items: center; gap: 0.5rem; font-family: Georgia, serif; font-weight: 700; font-size: 1.2rem; color: #f1f5f9; }
+        .rep-brand span { color: var(--rep-primary); }
+        .rep-user { color: #94a3b8; font-size: 0.9rem; }
+        .rep-main { max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem; }
+        .rep-card { background: #13131f; border: 1px solid #1e293b; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .rep-card h3 { margin: 0 0 1rem 0; color: #f1f5f9; font-size: 1.1rem; }
+        .rep-form input, .rep-form textarea, .rep-form select { width: 100%; padding: 0.75rem; margin-bottom: 0.75rem; background: #0f0f1a; border: 1px solid #334155; border-radius: 8px; color: #f1f5f9; font-family: inherit; font-size: 1rem; }
+        .rep-form textarea { min-height: 120px; resize: vertical; }
+        .rep-form label { display: block; margin-bottom: 0.3rem; color: #94a3b8; font-size: 0.9rem; font-weight: 600; }
+        .rep-btn { padding: 0.75rem 1.5rem; background: linear-gradient(135deg, var(--rep-primary), #be123c); color: #fff; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 1rem; }
+        .rep-btn:hover { opacity: 0.9; }
+        .rep-btn-secondary { background: #334155; margin-left: 0.5rem; }
+        .rep-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+        .rep-table th, .rep-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #1e293b; }
+        .rep-table th { color: #94a3b8; font-weight: 600; }
+        .rep-table td { color: #e2e8f0; }
+        .rep-status { padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; }
+        .rep-status.published { background: #052e16; color: #4ade80; }
+        .rep-status.draft { background: #1e293b; color: #94a3b8; }
+        .rep-edit-btn { padding: 0.4rem 0.8rem; background: #1e40af; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+        .rep-blocked { background: #450a0a; color: #f87171; padding: 1rem; border-radius: 8px; text-align: center; }
+    </style>
+<base target="_blank">
+</head>
+<body>
+    <div class="rep-header">
+        <div class="rep-brand"><span style="width:32px;height:32px;background:linear-gradient(135deg,#e11d48,#be123c);border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:1rem;">E</span> End<span>Less</span> Reporter</div>
+        <div class="rep-user" id="rep-user-info">Loading...</div>
+    </div>
+
+    <div class="rep-main" id="rep-main">
+        <!-- New Article Form -->
+        <div class="rep-card">
+            <h3>📝 Publish New Article</h3>
+            <form class="rep-form" id="rep-article-form">
+                <input type="hidden" id="rep-edit-id">
+                <label>Headline (Tamil) *</label>
+                <input type="text" id="rep-title-ta" placeholder="தலைப்பு" required>
+                <label>Headline (English)</label>
+                <input type="text" id="rep-title-en" placeholder="English headline (optional)">
+                <label>Excerpt / Summary *</label>
+                <textarea id="rep-excerpt" placeholder="Short summary..." required></textarea>
+                <label>Full Content *</label>
+                <textarea id="rep-content" placeholder="Full news article..." required style="min-height:200px;"></textarea>
+                <label>Category *</label>
+                <select id="rep-category" required>
+                    <option value="">Select category</option>
+                    <option value="Local">Local (இலங்கை)</option>
+                    <option value="World">World (உலகம்)</option>
+                    <option value="Technology">Technology</option>
+                    <option value="Business">Business</option>
+                    <option value="Sports">Sports</option>
+                    <option value="Health">Health</option>
+                    <option value="Science">Science</option>
+                </select>
+                <label>Image URL (optional)</label>
+                <input type="url" id="rep-image" placeholder="https://...">
+                <label>Author Name *</label>
+                <input type="text" id="rep-author" placeholder="Reporter name" required>
+                <div style="margin-top:1rem;">
+                    <button type="submit" class="rep-btn" id="rep-publish-btn">🚀 Publish Article</button>
+                    <button type="button" class="rep-btn rep-btn-secondary" id="rep-cancel-edit" style="display:none;">Cancel Edit</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- My Articles List -->
+        <div class="rep-card">
+            <h3>📰 My Published Articles</h3>
+            <div id="rep-articles-list" style="color:#94a3b8;">Loading...</div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase init
+        const firebaseConfig = {
+            apiKey: "AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA",
+            authDomain: "endless-news.firebaseapp.com",
+            projectId: "endless-news",
+            storageBucket: "endless-news.firebasestorage.app",
+            messagingSenderId: "363216005373",
+            appId: "1:363216005373:web:143fb950fb04dfc1cb7694"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        let currentReporter = null;
+
+        // Check session
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) {
+                window.location.href = 'usereport88.html';
+                return;
+            }
+            const session = JSON.parse(sessionStorage.getItem('reporter_session') || '{}');
+            if (!session.username) {
+                await auth.signOut();
+                window.location.href = 'usereport88.html';
+                return;
+            }
+
+            // Get reporter data
+            const repDoc = await db.collection('reporters').doc(session.username).get();
+            if (!repDoc.exists || repDoc.data().blocked) {
+                document.getElementById('rep-main').innerHTML = '<div class="rep-blocked">🚫 Account blocked or not found. Contact admin.</div>';
+                await auth.signOut();
+                return;
+            }
+
+            currentReporter = { username: session.username, ...repDoc.data() };
+            document.getElementById('rep-user-info').textContent = `Welcome, ${currentReporter.name}`;
+            loadMyArticles();
+        });
+
+        // Load my articles only
+        async function loadMyArticles() {
+            const list = document.getElementById('rep-articles-list');
+            try {
+                const snapshot = await db.collection('news')
+                    .where('reporterId', '==', currentReporter.username)
+                    .orderBy('date', 'desc')
+                    .get();
+
+                if (snapshot.empty) {
+                    list.innerHTML = '<p style="text-align:center;padding:2rem;">No articles yet. Publish your first news!</p>';
+                    return;
+                }
+
+                let html = '<table class="rep-table"><thead><tr><th>Title</th><th>Category</th><th>Date</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+                snapshot.forEach(doc => {
+                    const a = doc.data();
+                    const title = a.title_ta || a.title_en || 'Untitled';
+                    const date = a.date ? new Date(a.date).toLocaleDateString('ta-IN') : '-';
+                    const status = a.status === 'draft' ? '<span class="rep-status draft">Draft</span>' : '<span class="rep-status published">Published</span>';
+                    html += `<tr>
+                        <td>${title.substring(0, 50)}${title.length > 50 ? '...' : ''}</td>
+                        <td>${a.category_en || a.category || '-'}</td>
+                        <td>${date}</td>
+                        <td>${status}</td>
+                        <td><button class="rep-edit-btn" onclick="editArticle('${doc.id}')">Edit</button></td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                list.innerHTML = html;
+            } catch (e) {
+                list.innerHTML = '<p style="color:#f87171;">Error loading articles</p>';
+            }
+        }
+
+        // Publish new article
+        document.getElementById('rep-article-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('rep-publish-btn');
+            btn.disabled = true;
+            btn.textContent = 'Publishing...';
+
+            try {
+                const editId = document.getElementById('rep-edit-id').value;
+                const articleData = {
+                    title_ta: document.getElementById('rep-title-ta').value.trim(),
+                    title_en: document.getElementById('rep-title-en').value.trim() || document.getElementById('rep-title-ta').value.trim(),
+                    excerpt: document.getElementById('rep-excerpt').value.trim(),
+                    excerpt_en: document.getElementById('rep-excerpt').value.trim(),
+                    content: document.getElementById('rep-content').value.trim(),
+                    content_en: document.getElementById('rep-content').value.trim(),
+                    category: document.getElementById('rep-category').value,
+                    category_en: document.getElementById('rep-category').value,
+                    author: document.getElementById('rep-author').value.trim(),
+                    author_en: document.getElementById('rep-author').value.trim(),
+                    image: document.getElementById('rep-image').value.trim() || 'https://via.placeholder.com/800x400?text=EndLess+News',
+                    date: new Date().toISOString(),
+                    status: 'published',
+                    reporterId: currentReporter.username,
+                    reporterName: currentReporter.name,
+                    lastModified: new Date().toISOString()
+                };
+
+                if (editId) {
+                    // Edit own article only
+                    await db.collection('news').doc(editId).update(articleData);
+                    alert('✅ Article updated!');
+                } else {
+                    // Create new
+                    const docRef = await db.collection('news').add(articleData);
+                    console.log('Published:', docRef.id);
+                    alert('✅ Article published to EndLess News!');
+                }
+
+                // Reset form
+                document.getElementById('rep-article-form').reset();
+                document.getElementById('rep-edit-id').value = '';
+                document.getElementById('rep-publish-btn').textContent = '🚀 Publish Article';
+                document.getElementById('rep-cancel-edit').style.display = 'none';
+                loadMyArticles();
+
+            } catch (err) {
+                alert('❌ Error: ' + err.message);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        // Edit article (own only)
+        window.editArticle = async (id) => {
+            try {
+                const doc = await db.collection('news').doc(id).get();
+                if (!doc.exists || doc.data().reporterId !== currentReporter.username) {
+                    alert('You can only edit your own articles!');
+                    return;
+                }
+                const a = doc.data();
+                document.getElementById('rep-edit-id').value = id;
+                document.getElementById('rep-title-ta').value = a.title_ta || '';
+                document.getElementById('rep-title-en').value = a.title_en || '';
+                document.getElementById('rep-excerpt').value = a.excerpt || '';
+                document.getElementById('rep-content').value = a.content || '';
+                document.getElementById('rep-category').value = a.category_en || a.category || '';
+                document.getElementById('rep-image').value = a.image || '';
+                document.getElementById('rep-author').value = a.author || '';
+                document.getElementById('rep-publish-btn').textContent = '💾 Update Article';
+                document.getElementById('rep-cancel-edit').style.display = 'inline-block';
+                window.scrollTo({top: 0, behavior: 'smooth'});
+            } catch (e) {
+                alert('Error loading article');
+            }
+        };
+
+        // Cancel edit
+        document.getElementById('rep-cancel-edit').addEventListener('click', () => {
+            document.getElementById('rep-article-form').reset();
+            document.getElementById('rep-edit-id').value = '';
+            document.getElementById('rep-publish-btn').textContent = '🚀 Publish Article';
+            document.getElementById('rep-cancel-edit').style.display = 'none';
+        });
+    </script>
+</body>
+</html>

@@ -342,6 +342,122 @@ try {
     document.head.appendChild(st);
 })();
 
+// 👥 REPORTERS MANAGER — admin add/block reporters, view their articles
+function ensureReportersUI() {
+    if (document.getElementById('page-reporters')) return;
+    // Sidebar nav
+    var nav = document.querySelector('.sidebar-nav');
+    if (nav && !nav.querySelector('[data-page="reporters"]')) {
+        var b = document.createElement('button');
+        b.className = 'nav-item'; b.dataset.page = 'reporters';
+        b.innerHTML = '<span>👥</span> Reporters';
+        nav.insertBefore(b, nav.querySelector('[data-page="newsletter"]') || null);
+        b.addEventListener('click', function() { showPage('reporters'); setTimeout(renderReportersPage, 100); });
+    }
+    // Page content
+    var anchor = document.getElementById('page-newsletter');
+    if (!anchor || !anchor.parentNode) return;
+    var page = document.createElement('div');
+    page.id = 'page-reporters'; page.className = 'page-content hidden';
+    page.innerHTML =
+        '<div class="stats-grid">' +
+        '  <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-info"><h3 id="rep-count">0</h3><p>Total Reporters</p></div></div>' +
+        '  <div class="stat-card"><div class="stat-icon">📝</div><div class="stat-info"><h3 id="rep-active">0</h3><p>Active</p></div></div>' +
+        '  <div class="stat-card"><div class="stat-icon">🚫</div><div class="stat-info"><h3 id="rep-blocked">0</h3><p>Blocked</p></div></div>' +
+        '</div>' +
+        '<div class="panel"><h3>➕ Add New Reporter</h3>' +
+        '  <div class="form-row">' +
+        '    <div class="form-group"><label>Full Name *</label><input type="text" id="rep-name" placeholder="Reporter name"></div>' +
+        '    <div class="form-group"><label>Username * (lowercase, no spaces)</label><input type="text" id="rep-username" placeholder="e.g. kumar_jaffna"></div>' +
+        '  </div>' +
+        '  <div class="form-row">' +
+        '    <div class="form-group"><label>Password * (min 6 chars)</label><input type="password" id="rep-password" placeholder="Secure password"></div>' +
+        '    <div class="form-group"><label>Email (optional)</label><input type="email" id="rep-email" placeholder="contact@email.com"></div>' +
+        '  </div>' +
+        '  <div class="form-group"><label>Bio / Details</label><textarea id="rep-bio" rows="2" placeholder="Reporter background, beat, etc."></textarea></div>' +
+        '  <button class="btn-primary" id="btn-add-reporter" type="button">Create Reporter Account</button>' +
+        '  <p style="color:#6b7280;font-size:0.8rem;margin-top:0.5rem;">Reporter login: <strong>endlessnews.lk/usereport88</strong></p></div>' +
+        '<div class="panel"><h3>📋 Reporters List</h3>' +
+        '  <div class="table-scroll"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Articles</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead><tbody id="reporters-list"></tbody></table></div></div>';
+    anchor.parentNode.insertBefore(page, anchor.nextSibling);
+    document.getElementById('btn-add-reporter').addEventListener('click', addReporter);
+}
+
+async function addReporter() {
+    var name = document.getElementById('rep-name').value.trim();
+    var username = document.getElementById('rep-username').value.trim().toLowerCase();
+    var password = document.getElementById('rep-password').value;
+    var email = document.getElementById('rep-email').value.trim();
+    var bio = document.getElementById('rep-bio').value.trim();
+    if (!name || !username || !password) { showToast('Name, username, password required', 'error'); return; }
+    if (!/^[a-z0-9_]{3,20}$/.test(username)) { showToast('Username: 3-20 chars, lowercase/numbers/underscore only', 'error'); return; }
+    if (password.length < 6) { showToast('Password min 6 chars', 'error'); return; }
+    if (!db) { showToast('No Firebase', 'error'); return; }
+
+    try {
+        // Create Firebase Auth account (username@reporters.endlessnews.lk)
+        var email = email || `${username}@reporters.endlessnews.lk`;
+        var cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
+        // Create reporter doc
+        await db.collection('reporters').doc(username).set({
+            name, username, email, bio,
+            blocked: false,
+            createdAt: new Date().toISOString(),
+            articleCount: 0
+        });
+        showToast(`✅ Reporter "${name}" created! Login: usereport88`, 'success');
+        ['rep-name','rep-username','rep-password','rep-email','rep-bio'].forEach(id => document.getElementById(id).value = '');
+        renderReportersPage();
+    } catch (e) {
+        showToast('Error: ' + (e.message || e), 'error');
+    }
+}
+
+async function renderReportersPage() {
+    ensureReportersUI();
+    if (!db) return;
+    try {
+        var snap = await db.collection('reporters').get();
+        var list = document.getElementById('reporters-list');
+        var total = snap.size, active = 0, blocked = 0;
+        if (!snap.empty) {
+            var rows = [];
+            for (var doc of snap.docs) {
+                var r = doc.data();
+                if (r.blocked) blocked++; else active++;
+                // Count articles
+                var arts = await db.collection('news').where('reporterId', '==', doc.id).get();
+                rows.push('<tr><td><strong>' + esc(r.name) + '</strong>' + (r.bio ? '<br><small style="color:#6b7280;">' + esc(r.bio) + '</small>' : '') + '</td>' +
+                    '<td>' + esc(r.username) + '</td><td>' + esc(r.email || '-') + '</td>' +
+                    '<td>' + arts.size + '</td>' +
+                    '<td><span class="badge ' + (r.blocked ? 'badge-red">Blocked' : 'badge-green">Active') + '</span></td>' +
+                    '<td>' + (r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '-') + '</td>' +
+                    '<td><button class="btn-icon ' + (r.blocked ? 'btn-edit' : 'btn-delete') + '" onclick="toggleReporterBlock(\'' + esc(doc.id) + '\',' + !r.blocked + ')">' + (r.blocked ? 'Unblock' : 'Block') + '</button></td></tr>');
+            }
+            list.innerHTML = rows.join('');
+        } else {
+            list.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;">No reporters yet</td></tr>';
+        }
+        document.getElementById('rep-count').textContent = total;
+        document.getElementById('rep-active').textContent = active;
+        document.getElementById('rep-blocked').textContent = blocked;
+    } catch (e) { console.warn(e); }
+}
+
+async function toggleReporterBlock(username, block) {
+    if (!db) return;
+    if (!confirm(block ? `Block ${username}? They cannot login/publish.` : `Unblock ${username}?`)) return;
+    try {
+        await db.collection('reporters').doc(username).update({ blocked: block });
+        showToast(block ? 'Reporter blocked' : 'Reporter unblocked', 'success');
+        renderReportersPage();
+    } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
+function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+// Auto-init
+ensureReportersUI();
+
 // 📬 NEWSLETTER ADMIN — subscribers, auto-briefing, one-click send
 function ensureNewsletterUI() {
     if (document.getElementById('page-newsletter')) return;
