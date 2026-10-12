@@ -1728,37 +1728,38 @@ async function openPosterModal(articleId) {
         document.getElementById('pg-social-row').addEventListener('click', async function(e) {
             var btn = e.target.closest('button[data-platform]');
             if (!btn || !_pgCanvas) return;
-            // Image-only share: no text, no links — just the poster image
-            var blob = await new Promise(function(res) { _pgCanvas.toBlob(res, 'image/png'); });
-            if (!blob) { showToast('Image error', 'error'); return; }
-            var file = new File([blob], 'endless-news-poster.png', { type: 'image/png' });
+            var platform = btn.dataset.platform;
+            var isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
 
-            // Mobile: native share sheet (select WhatsApp/FB/X/IG contact → image only)
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            // Mobile: direct app share (no Windows share card)
+            if (isMobile && navigator.canShare) {
                 try {
-                    await navigator.share({
-                        files: [file],
-                        title: 'EndLess News Poster',
-                        text: ''   // No text — image only
-                    });
-                    return;  // Success — share sheet opened, user picks app
+                    var blob = await new Promise(function(res) { _pgCanvas.toBlob(res, 'image/png'); });
+                    if (blob) {
+                        var file = new File([blob], 'endless-news-poster.png', { type: 'image/png' });
+                        if (navigator.canShare({ files: [file] })) {
+                            await navigator.share({ files: [file], title: 'EndLess News Poster', text: '' });
+                            return;
+                        }
+                    }
                 } catch (err) {
-                    if (err.name === 'AbortError') return;  // User cancelled
-                    // Fall through to platform-specific URL
+                    if (err.name === 'AbortError') return;
                 }
             }
 
-            // Desktop fallback: platform-specific share URL (image attached via OG)
-            var platform = btn.dataset.platform;
-            var url = 'https://endlessnews.lk/?article=' + encodeURIComponent(_pgArticle.id);
-            var shareUrls = {
-                whatsapp: 'https://wa.me/?text=' + encodeURIComponent(''),
-                facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url),
-                x: 'https://twitter.com/intent/tweet?url=' + encodeURIComponent(url),
+            // Windows/Desktop: download poster + open platform directly
+            var a = document.createElement('a');
+            a.download = 'endless-news-poster.png';
+            a.href = _pgCanvas.toDataURL('image/png');
+            a.click();
+            var urls = {
+                whatsapp: 'https://wa.me/?text=' + encodeURIComponent('https://endlessnews.lk/?article=' + _pgArticle.id),
+                facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent('https://endlessnews.lk/?article=' + _pgArticle.id),
+                x: 'https://twitter.com/intent/tweet?url=' + encodeURIComponent('https://endlessnews.lk/?article=' + _pgArticle.id),
                 instagram: 'https://www.instagram.com/'
             };
-            window.open(shareUrls[platform], '_blank');
-            showToast('🖼️ Poster ready! Upload to ' + platform.charAt(0).toUpperCase() + platform.slice(1), 'success');
+            setTimeout(function() { window.open(urls[platform], '_blank'); }, 400);
+            showToast('⬇️ Poster downloaded! Upload to ' + platform.charAt(0).toUpperCase() + platform.slice(1), 'success');
         });
     }
     ov.style.display = 'flex';
