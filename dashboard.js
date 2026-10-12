@@ -1725,30 +1725,29 @@ async function openPosterModal(articleId) {
             st.textContent = '.pg-soc-btn{width:48px;height:48px;border-radius:50%;border:2px solid #fb7185;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:all 0.2s;}.pg-soc-btn:hover{background:#fb7185;transform:scale(1.1);}.pg-soc-btn:hover svg{fill:#fff;}';
             document.head.appendChild(st);
         }
-        document.getElementById('pg-social-row').addEventListener('click', function(e) {
+        document.getElementById('pg-social-row').addEventListener('click', async function(e) {
             var btn = e.target.closest('button[data-platform]');
-            if (!btn || !_pgArticle) return;
-            var lang = (document.getElementById('pg-lang') || { value: 'ta' }).value;
-            var title = lang === 'en' ? (_pgArticle.title_en || _pgArticle.title) : (_pgArticle.title || _pgArticle.title_en);
-            var url = 'https://endlessnews.lk/?article=' + encodeURIComponent(_pgArticle.id);
-            var shareUrls = {
-                facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url) + '&quote=' + encodeURIComponent(title),
-                whatsapp: 'https://wa.me/?text=' + encodeURIComponent(title + '\n\n' + url),
-                x: 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(title) + '&url=' + encodeURIComponent(url),
-                instagram: 'https://www.instagram.com/'   // IG: direct share illama — profile open (caption copy)
-            };
+            if (!btn || !_pgCanvas) return;
             var platform = btn.dataset.platform;
-            if (platform === 'instagram') {
-                // Instagram: download prompt + copy caption
-                pgDownload();
-                setTimeout(function() {
-                    var caption = title + '\n\n' + url + '\n\n#EndLessNews #' + (lang === 'ta' ? 'இலங்கைசெய்தி' : 'SriLankaNews');
-                    navigator.clipboard.writeText(caption).catch(function(){});
-                    showToast('📸 Poster downloaded! Caption copied — paste in Instagram', 'success');
-                }, 500);
-                return;
+            // Convert canvas → image file
+            var blob = await new Promise(function(res) { _pgCanvas.toBlob(res, 'image/png'); });
+            if (!blob) { showToast('Image error', 'error'); return; }
+            var file = new File([blob], 'endless-news-poster.png', { type: 'image/png' });
+            // Try native share (mobile: direct image share, no text)
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({ files: [file], title: 'EndLess News Poster', text: '' });
+                    return;
+                } catch (err) {
+                    if (err.name === 'AbortError') return;
+                }
             }
-            window.open(shareUrls[platform], '_blank', 'width=600,height=500');
+            // Desktop fallback: download image
+            var a = document.createElement('a');
+            a.download = 'endless-news-poster.png';
+            a.href = _pgCanvas.toDataURL('image/png');
+            a.click();
+            showToast('⬇️ Poster downloaded! Upload to ' + platform.charAt(0).toUpperCase() + platform.slice(1), 'success');
         });
     }
     ov.style.display = 'flex';
