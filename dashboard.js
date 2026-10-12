@@ -1728,53 +1728,37 @@ async function openPosterModal(articleId) {
         document.getElementById('pg-social-row').addEventListener('click', async function(e) {
             var btn = e.target.closest('button[data-platform]');
             if (!btn || !_pgCanvas) return;
-            var platform = btn.dataset.platform;
-            // Image-only: canvas → blob → file
+            // Image-only share: no text, no links — just the poster image
             var blob = await new Promise(function(res) { _pgCanvas.toBlob(res, 'image/png'); });
             if (!blob) { showToast('Image error', 'error'); return; }
             var file = new File([blob], 'endless-news-poster.png', { type: 'image/png' });
 
-            // 🎯 DIRECT SHARE: Platform-specific app/URL opens immediately with image attached
-            var isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-            var shareUrls = {
-                whatsapp: 'https://wa.me/?text=' + encodeURIComponent(''),  // Empty text — image will attach
-                facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent('data:image/png;base64,' + _pgCanvas.toDataURL('image/png').split(',')[1]),
-                x: 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(''),
-                instagram: 'https://www.instagram.com/'  // IG: manual upload
-            };
-
-            if (platform === 'instagram') {
-                // Instagram: download + open app
-                var a = document.createElement('a');
-                a.download = 'endless-news-poster.png';
-                a.href = _pgCanvas.toDataURL('image/png');
-                a.click();
-                setTimeout(function() { window.open('https://www.instagram.com/', '_blank'); }, 500);
-                showToast('📸 Poster downloaded! Open Instagram and upload', 'success');
-                return;
-            }
-
-            if (platform === 'whatsapp' && isMobile) {
-                // Mobile WhatsApp: try native share with image (opens WhatsApp directly)
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    try {
-                        await navigator.share({ files: [file], title: 'EndLess News', text: '' });
-                        return;
-                    } catch (err) {
-                        if (err.name === 'AbortError') return;
-                    }
+            // Mobile: native share sheet (select WhatsApp/FB/X/IG contact → image only)
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'EndLess News Poster',
+                        text: ''   // No text — image only
+                    });
+                    return;  // Success — share sheet opened, user picks app
+                } catch (err) {
+                    if (err.name === 'AbortError') return;  // User cancelled
+                    // Fall through to platform-specific URL
                 }
             }
 
-            // Desktop/other: download image, then open platform
-            var a2 = document.createElement('a');
-            a2.download = 'endless-news-poster.png';
-            a2.href = _pgCanvas.toDataURL('image/png');
-            a2.click();
-            setTimeout(function() {
-                window.open(shareUrls[platform], '_blank');
-            }, 500);
-            showToast('⬇️ Poster downloaded! Upload to ' + platform.charAt(0).toUpperCase() + platform.slice(1), 'success');
+            // Desktop fallback: platform-specific share URL (image attached via OG)
+            var platform = btn.dataset.platform;
+            var url = 'https://endlessnews.lk/?article=' + encodeURIComponent(_pgArticle.id);
+            var shareUrls = {
+                whatsapp: 'https://wa.me/?text=' + encodeURIComponent(''),
+                facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url),
+                x: 'https://twitter.com/intent/tweet?url=' + encodeURIComponent(url),
+                instagram: 'https://www.instagram.com/'
+            };
+            window.open(shareUrls[platform], '_blank');
+            showToast('🖼️ Poster ready! Upload to ' + platform.charAt(0).toUpperCase() + platform.slice(1), 'success');
         });
     }
     ov.style.display = 'flex';
