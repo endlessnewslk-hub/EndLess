@@ -1393,6 +1393,21 @@ function videoBlockHtml(article) {
     btn.addEventListener('mouseleave', function() { this.style.transform = 'scale(1)'; });
 })();
 
+
+// ⚡ PERFORMANCE BOOST: Preload critical fonts + smooth rendering
+(function perfBoost() {
+    // Load Catamaran font early (prevents FOUT)
+    if (document.fonts && document.fonts.load) {
+        document.fonts.load('700 16px "Catamaran"').catch(function(){});
+    }
+    // Optimize images: decode async
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('img').forEach(function(img) {
+            if (img.decode) img.decode().catch(function(){});
+        });
+    });
+})();
+
 // 📱 BACK-BUTTON LAYER SYSTEM (whole website) — BACK always closes the
 // topmost layer (article modal / share card / mobile menu) instead of
 // exiting the site. Instagram/YouTube app pattern. ✕ button-um same-a work aagum.
@@ -2942,7 +2957,12 @@ addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    window.addEventListener('resize', debounce(handleResize, 250));
+    // ⚡ PERFORMANCE: Throttled resize (max 1/250ms)
+    var resizeTimer;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(handleResize, 250);
+    }, { passive: true });
 
     // 🎨 Sidebar h3 icons — 🔥📂📬 → professional SVG (index.html touch pannama)
     try {
