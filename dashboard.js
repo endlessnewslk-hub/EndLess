@@ -772,6 +772,109 @@ if (typeof window.showToast !== 'function') {
     };
 }
 
+// ✈️ TELEGRAM BOT SETUP — Settings page-la inject (simple: token paste → auto chat ID!)
+async function ensureTelegramUI() {
+    var page = document.getElementById('page-settings');
+    if (!page || document.getElementById('tg-setup-panel')) return;
+
+    var panel = document.createElement('div');
+    panel.className = 'panel';
+    panel.id = 'tg-setup-panel';
+    panel.style.marginTop = '1.5rem';
+    panel.innerHTML =
+        '<h3>✈️ Telegram Notifications (New Like/Share alerts)</h3>' +
+        '<p style="color:#6b7280;font-size:0.85rem;margin-bottom:0.75rem;">' +
+        'Like/share aana odane unga Telegram app-ku notification varum! Setup (2 min):' +
+        '<br>1️⃣ Telegram-la <b>@BotFather</b> search → /newbot → name kudunga → <b>Token</b> copy pannunga<br>' +
+        '2️⃣ Token-a keezha paste pannunga → "Find My Chat ID" click pannunga<br>' +
+        '3️⃣ Telegram-la unga bot-ku oru message anuppuunga (e.g., "hi") → approm button click!</p>' +
+        '<div class="form-group"><label>Bot Token</label>' +
+        '<input type="text" id="tg-bot-token" placeholder="123456:ABC-DEF..." style="width:100%;padding:0.6rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;"></div>' +
+        '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">' +
+        '<button class="btn-primary" id="tg-find-chat" type="button">🔍 Find My Chat ID</button>' +
+        '<button class="btn-primary" id="tg-save" type="button">💾 Save</button>' +
+        '<button class="btn-secondary" id="tg-test" type="button">🧪 Test Message</button>' +
+        '</div>' +
+        '<p id="tg-status" style="margin-top:0.75rem;font-size:0.85rem;font-weight:600;color:#6b7280;">Status: —</p>';
+
+    page.appendChild(panel);
+
+    // Load saved config
+    try {
+        if (db) {
+            var doc = await db.collection('settings').doc('telegram_bot').get();
+            if (doc.exists) {
+                var c = doc.data();
+                document.getElementById('tg-bot-token').value = c.botToken || '';
+                document.getElementById('tg-status').textContent = 'Status: ✅ Connected (Chat ID: ' + (c.chatId || '?') + ')';
+                document.getElementById('tg-status').style.color = '#059669';
+            }
+        }
+    } catch (e) {}
+
+    // Find Chat ID — fetches bot updates, finds user's chat
+    document.getElementById('tg-find-chat').addEventListener('click', async function() {
+        var token = document.getElementById('tg-bot-token').value.trim();
+        var status = document.getElementById('tg-status');
+        if (!token) { status.textContent = 'Status: ❌ Token first paste pannunga!'; status.style.color = '#dc2626'; return; }
+
+        status.textContent = 'Status: ⏳ Searching... (unga bot-ku Telegram-la oru message anuppuunga!)';
+        try {
+            var r = await fetch('https://api.telegram.org/bot' + token + '/getUpdates');
+            var j = await r.json();
+            if (j.ok && j.result && j.result.length) {
+                // Latest message-oda chat id
+                var chatId = j.result[j.result.length - 1].message.chat.id;
+                status.textContent = 'Status: ✅ Chat ID found: ' + chatId + ' → Ipo "Save" click pannunga!';
+                status.style.color = '#059669';
+                window._tgChatId = chatId;
+            } else {
+                status.textContent = 'Status: ❌ Messages illa! Bot-ku oru "hi" message anuppu, approm thirumba try pannu.';
+                status.style.color = '#dc2626';
+            }
+        } catch (e) {
+            status.textContent = 'Status: ❌ Error — token sariya check pannu';
+            status.style.color = '#dc2626';
+        }
+    });
+
+    // Save
+    document.getElementById('tg-save').addEventListener('click', async function() {
+        var token = document.getElementById('tg-bot-token').value.trim();
+        var chatId = window._tgChatId;
+        var status = document.getElementById('tg-status');
+        if (!token || !chatId) { status.textContent = 'Status: ❌ Token + Chat ID venum (Find Chat ID click pannu!)'; status.style.color = '#dc2626'; return; }
+        try {
+            await db.collection('settings').doc('telegram_bot').set({
+                botToken: token, chatId: String(chatId), savedAt: new Date().toISOString()
+            });
+            status.textContent = 'Status: ✅ SAVED! Ippo vera browser-la LIKE pannu — Telegram-la varum!';
+            status.style.color = '#059669';
+            showToast('✈️ Telegram connected!', 'success');
+        } catch (e) {
+            status.textContent = 'Status: ❌ Save failed';
+            status.style.color = '#dc2626';
+        }
+    });
+
+    // Test
+    document.getElementById('tg-test').addEventListener('click', async function() {
+        var status = document.getElementById('tg-status');
+        try {
+            var doc = await db.collection('settings').doc('telegram_bot').get();
+            if (!doc.exists || !doc.data().botToken) { status.textContent = 'Status: ❌ First Save pannu!'; return; }
+            var c = doc.data();
+            var r = await fetch('https://api.telegram.org/bot' + c.botToken + '/sendMessage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: c.chatId, text: '🧪 Test OK! Telegram notifications WORKING! 🎉\n\n👉 endlessnews.lk' })
+            });
+            var j = await r.json();
+            status.textContent = j.ok ? 'Status: ✅ Test sent! Telegram app check pannu!' : 'Status: ❌ Test failed: ' + (j.description || '');
+            status.style.color = j.ok ? '#059669' : '#dc2626';
+        } catch (e) { status.textContent = 'Status: ❌ Error'; }
+    });
+}
 
 // ☁️ CLOUDINARY DIRECT UPLOAD — Device image → auto Cloudinary → URL!
 // Cloudinary account create pannunga → Cloud Name + Unsigned Preset eduthukkunga!
@@ -859,150 +962,6 @@ async function uploadToCloudinary(file, onProgress) {
     } catch (e) {
         showToast('❌ Upload error: ' + e.message, 'error');
         return null;
-    }
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-// 📰 NEWS SHARE CARD — head image + Tamil/English headline + article link
-// Auto-generates branded card for WhatsApp/social sharing
-// ═══════════════════════════════════════════════════════════════
-async function generateNewsCard(article, lang) {
-    var W = 1080, H = 1350;
-    var cv = document.createElement('canvas');
-    cv.width = W; cv.height = H;
-    var ctx = cv.getContext('2d');
-
-    // Fonts
-    try {
-        await document.fonts.load('700 40px "Catamaran"');
-        await document.fonts.load('800 40px "Noto Sans Tamil"');
-    } catch (e) {}
-
-    var title = lang === 'en' ? (article.title_en || article.title) : (article.title || article.title_en);
-    var excerpt = lang === 'en' ? (article.excerpt_en || article.excerpt) : (article.excerpt || article.excerpt_en);
-    var link = 'endlessnews.lk/?article=' + encodeURIComponent(article.id);
-
-    // Background
-    var bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#13131f'); bg.addColorStop(1, '#0a0a0f');
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-
-    // Head image (top 45%)
-    var imgH = Math.round(H * 0.45);
-    try {
-        var img = await pgLoadImg(article.image);
-        var scale = Math.max(W / img.width, imgH / img.height);
-        ctx.save();
-        ctx.beginPath(); ctx.rect(0, 0, W, imgH); ctx.clip();
-        ctx.drawImage(img, (W - img.width * scale) / 2, (imgH - img.height * scale) / 2, img.width * scale, img.height * scale);
-        ctx.restore();
-        // Fade
-        var fade = ctx.createLinearGradient(0, imgH - 100, 0, imgH + 40);
-        fade.addColorStop(0, 'rgba(10,10,15,0)');
-        fade.addColorStop(1, 'rgba(10,10,15,1)');
-        ctx.fillStyle = fade; ctx.fillRect(0, imgH - 100, W, 140);
-    } catch (e) {}
-
-    // Category chip
-    var cat = lang === 'en' ? (article.category_en || article.category) : (article.category || article.category_en);
-    if (cat) {
-        ctx.font = '700 24px "Noto Sans Tamil", Arial';
-        var cw = ctx.measureText(String(cat).toUpperCase()).width + 50;
-        ctx.fillStyle = '#e11d48';
-        pgRoundRect(ctx, 45, 40, cw, 48, 24); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle';
-        ctx.fillText(String(cat).toUpperCase(), 70, 66);
-    }
-
-    // Headline (auto-fit)
-    var y = imgH + 50;
-    ctx.font = '800 56px "Catamaran", "Noto Sans Tamil", Arial';
-    var maxW = W - 90;
-    var words = String(title).split(/\s+/), lines = [], line = '';
-    words.forEach(function(w) {
-        var test = line ? line + ' ' + w : w;
-        if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; }
-        else line = test;
-    });
-    if (line) lines.push(line);
-    lines = lines.slice(0, 4);
-    ctx.fillStyle = '#fff'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
-    lines.forEach(function(l, i) { ctx.fillText(l, 45, y + i * 74); });
-    y += lines.length * 74 + 30;
-
-    // Excerpt (2 lines)
-    if (excerpt) {
-        ctx.font = '400 30px "Noto Sans Tamil", Arial';
-        ctx.fillStyle = '#b6bdc9';
-        var eLines = [];
-        line = '';
-        String(excerpt).split(/\s+/).forEach(function(w) {
-            var test = line ? line + ' ' + w : w;
-            if (ctx.measureText(test).width > maxW && line) { eLines.push(line); line = w; }
-            else line = test;
-        });
-        if (line) eLines.push(line);
-        eLines.slice(0, 2).forEach(function(l, i) { ctx.fillText(l, 45, y + i * 44); });
-        y += Math.min(eLines.length, 2) * 44 + 30;
-    }
-
-    // 🔗 Article link (highlighted box)
-    var linkY = H - 180;
-    ctx.fillStyle = 'rgba(225,29,72,0.15)';
-    pgRoundRect(ctx, 45, linkY, W - 90, 70, 35); ctx.fill();
-    ctx.strokeStyle = '#fb7185'; ctx.lineWidth = 2;
-    pgRoundRect(ctx, 45, linkY, W - 90, 70, 35); ctx.stroke();
-    ctx.font = '700 28px "Arimo", Arial';
-    ctx.fillStyle = '#fb7185'; ctx.textBaseline = 'middle';
-    ctx.fillText('🔗 ' + link, 70, linkY + 37);
-
-    // Brand
-    ctx.font = '800 26px "Playfair Display", Georgia, serif';
-    ctx.fillStyle = '#f1f5f9';
-    ctx.fillText('End', 45, H - 80);
-    var ew = ctx.measureText('End').width;
-    ctx.fillStyle = '#fb7185';
-    ctx.fillText('Less News', 45 + ew, H - 80);
-    ctx.font = '600 20px "Arimo", Arial';
-    ctx.fillStyle = '#fb7185';
-    ctx.fillText('endlessnews.lk', 45, H - 45);
-
-    return cv;
-}
-
-// 📤 SHARE NEWS CARD — WhatsApp with image + text
-async function shareNewsCard(articleId, lang) {
-    var article = (typeof adminNews !== 'undefined' ? adminNews : []).find(function(n) { return String(n.id) === String(articleId); });
-    if (!article) { showToast('Article not found', 'error'); return; }
-    lang = lang || 'ta';
-    showToast('📰 Generating share card...', 'success');
-    try {
-        var canvas = await generateNewsCard(article, lang);
-        var blob = await new Promise(function(res) { canvas.toBlob(res, 'image/png'); });
-        var isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-        var title = lang === 'en' ? (article.title_en || article.title) : (article.title || article.title_en);
-        var url = 'https://endlessnews.lk/?article=' + encodeURIComponent(articleId);
-        var text = title + '\n\n' + url;
-
-        if (isMobile && navigator.canShare && blob) {
-            var file = new File([blob], 'news-card.png', { type: 'image/png' });
-            if (navigator.canShare({ files: [file] })) {
-                await navigator.share({ files: [file], title: 'EndLess News', text: text });
-                return;
-            }
-        }
-        // Fallback: download + open WhatsApp
-        var a = document.createElement('a');
-        a.download = 'news-card.png';
-        a.href = canvas.toDataURL('image/png');
-        a.click();
-        setTimeout(function() {
-            window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
-        }, 500);
-        showToast('⬇️ Card downloaded! Caption: ' + title, 'success');
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
     }
 }
 
@@ -2086,7 +2045,7 @@ function showPageContinue(page) {
     if (pageTitle) pageTitle.textContent = page.charAt(0).toUpperCase() + page.slice(1);
     
     // CRITICAL FIX: Always render tables when showing page
-    // Telegram removed
+    if (page === 'settings') ensureTelegramUI();
     if (page === 'dashboard') renderDashboard();
     if (page === 'analytics') renderAnalyticsPage();
     if (page === 'news') renderNewsTable();
@@ -2271,9 +2230,7 @@ function renderNewsTable() {
                 '<td><span class="badge ' + (n.status === 'published' ? 'badge-green' : 'badge-gray') + '">' + (n.status || 'draft') + '</span></td>' +
                 '<td><button class="btn-icon btn-edit" style="' + btnEditStyle + '" onmouseover="' + btnEditHover + '" onmouseout="' + btnEditOut + '" onclick="editNews(' + n.id + ')" title="Edit">&#9999;&#65039;</button>' +
                 '<button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onclick="deleteNews(' + n.id + ')" title="Delete">&#128465;&#65039;</button>' +
-                '<button onclick="openPosterModal(' + n.id + ')" title="🎨 Social Poster" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;cursor:pointer;font-size:16px;margin-left:6px;">🎨</button>' +
-                '<button onclick="shareNewsCard(' + n.id + ',\'ta\')" title="📤 Share Card (Tamil)" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;cursor:pointer;font-size:16px;margin-left:6px;">📤</button>' +
-                '<button onclick="shareNewsCard(' + n.id + ',\'en\')" title="📤 Share Card (English)" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:linear-gradient(135deg,#1877F2,#0e5fca);color:#fff;cursor:pointer;font-size:16px;font-weight:800;margin-left:4px;">📤</button></td></tr>';
+                '<button onclick="openPosterModal(' + n.id + ')" title="🎨 Social Poster" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;cursor:pointer;font-size:16px;margin-left:6px;">🎨</button></td></tr>';
         }).join('');
     }
 
@@ -2314,9 +2271,7 @@ function renderNewsTable() {
                     '<div class="card-actions" style="display:flex;gap:0.5rem;">' +
                     '<button style="' + btnEditStyle + 'width:44px;height:44px;" onmouseover="' + btnEditHover + '" onmouseout="' + btnEditOut + '" onclick="editNews(' + n.id + ')" title="Edit">&#9999;&#65039;</button>' +
                     '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onclick="deleteNews(' + n.id + ')" title="Delete">&#128465;&#65039;</button>' +
-                    '<button onclick="openPosterModal(' + n.id + ')" title="🎨 Poster" style="width:44px;height:44px;border:none;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;cursor:pointer;font-size:18px;">🎨</button>' +
-                    '<button onclick="shareNewsCard(' + n.id + ',\'ta\')" title="📤 Share TA" style="width:44px;height:44px;border:none;border-radius:6px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;cursor:pointer;font-size:18px;margin-left:6px;">📤</button>' +
-                    '<button onclick="shareNewsCard(' + n.id + ',\'en\')" title="📤 Share EN" style="width:44px;height:44px;border:none;border-radius:6px;background:linear-gradient(135deg,#1877F2,#0e5fca);color:#fff;cursor:pointer;font-size:18px;font-weight:800;margin-left:6px;">📤</button></div></div>';
+                    '<button onclick="openPosterModal(' + n.id + ')" title="🎨 Poster" style="width:44px;height:44px;border:none;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;cursor:pointer;font-size:18px;">🎨</button></div></div>';
             }).join('');
         }
     }
