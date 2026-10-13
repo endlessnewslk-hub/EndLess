@@ -1561,14 +1561,34 @@ async function openPosterModal(articleId) {
         }
         document.getElementById('pg-social-row').addEventListener('click', async function(e) {
             var btn = e.target.closest('button[data-platform]');
-            if (!btn || !_pgCanvas) return;
+            if (!btn || !_pgCanvas || !_pgArticle) return;
             var platform = btn.dataset.platform;
             var isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+            // 🖥️ ALWAYS SHARE IN HD — re-generate poster at 2x resolution
+            var size = document.getElementById('pg-size').value;
+            var lang = document.getElementById('pg-lang').value;
+            var mode = (document.getElementById('pg-mode') || { value: 'full' }).value;
+            var o = _pgOverrides;
+            var eff = Object.assign({}, _pgArticle, {
+                title: o.hasOwnProperty('title_ta') ? o.title_ta : _pgArticle.title,
+                title_en: o.hasOwnProperty('title_en') ? o.title_en : _pgArticle.title_en,
+                excerpt: o.hasOwnProperty('excerpt_ta') ? o.excerpt_ta : _pgArticle.excerpt,
+                excerpt_en: o.hasOwnProperty('excerpt_en') ? o.excerpt_en : _pgArticle.excerpt_en,
+                _hl: o['hl_' + lang] || [],
+                _font: (o['font_ta'] || o['font_en']) ? { ta: o['font_ta'] || { head: 'Catamaran', brand: 'Playfair Display' }, en: o['font_en'] || { head: 'Catamaran', brand: 'Playfair Display' } } : null
+            });
+            var hdCanvas;
+            try {
+                showToast('🖥️ Generating HD poster...', 'success');
+                hdCanvas = await generatePoster(eff, size, lang, mode, 'hd');
+            } catch (err) {
+                hdCanvas = _pgCanvas;   // fallback: current preview
+            }
             if (isMobile && navigator.canShare) {
                 try {
-                    var blob = await new Promise(function(res) { _pgCanvas.toBlob(res, 'image/png'); });
+                    var blob = await new Promise(function(res) { hdCanvas.toBlob(res, 'image/png'); });
                     if (blob) {
-                        var file = new File([blob], 'endless-news-poster.png', { type: 'image/png' });
+                        var file = new File([blob], 'endless-news-poster-hd.png', { type: 'image/png' });
                         if (navigator.canShare({ files: [file] })) {
                             await navigator.share({ files: [file], title: 'EndLess News Poster', text: '' });
                             return;
@@ -1577,8 +1597,8 @@ async function openPosterModal(articleId) {
                 } catch (err) { if (err.name === 'AbortError') return; }
             }
             var a = document.createElement('a');
-            a.download = 'endless-news-poster.png';
-            a.href = _pgCanvas.toDataURL('image/png');
+            a.download = 'endless-news-poster-hd.png';
+            a.href = hdCanvas.toDataURL('image/png');
             a.click();
             var urls = {
                 whatsapp: 'https://wa.me/?text=' + encodeURIComponent('https://endlessnews.lk/?article=' + _pgArticle.id),
