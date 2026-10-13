@@ -1575,8 +1575,10 @@ async function openPosterModal(articleId) {
                 instagram: 'https://www.instagram.com/'
             };
 
-        document.getElementById('pg-download').addEventListener('click', pgDownload);
-        document.getElementById('pg-share').addEventListener('click', pgShare);
+        var _pgDl = document.getElementById('pg-download');
+        var _pgSh = document.getElementById('pg-share');
+        if (_pgDl) _pgDl.addEventListener('click', function() { pgDownload(); });
+        if (_pgSh) _pgSh.addEventListener('click', function() { pgShare(); });
     }
     ov.style.display = 'flex';
     pgRenderPreview();
