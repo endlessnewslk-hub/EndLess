@@ -1422,6 +1422,13 @@ async function openPosterModal(articleId) {
             '</div></div>';
         document.body.appendChild(ov);
         ov.addEventListener('click', function(e) { if (e.target === ov) ov.style.display = 'none'; });
+        // Wire Download/Share AFTER modal is fully in DOM
+        setTimeout(function() {
+            var _pgDl = document.getElementById('pg-download');
+            var _pgSh = document.getElementById('pg-share');
+            if (_pgDl) _pgDl.addEventListener('click', function() { pgDownload(); });
+            if (_pgSh) _pgSh.addEventListener('click', function() { pgShare(); });
+        }, 50);
         document.getElementById('pg-size').addEventListener('change', pgRenderPreview);
         document.getElementById('pg-lang').addEventListener('change', function() { pgLoadEditFields(); pgRenderFontPicker(); pgRenderPreview(); });
         document.getElementById('pg-mode').addEventListener('change', pgRenderPreview);
@@ -1575,10 +1582,7 @@ async function openPosterModal(articleId) {
                 instagram: 'https://www.instagram.com/'
             };
 
-        var _pgDl = document.getElementById('pg-download');
-        var _pgSh = document.getElementById('pg-share');
-        if (_pgDl) _pgDl.addEventListener('click', function() { pgDownload(); });
-        if (_pgSh) _pgSh.addEventListener('click', function() { pgShare(); });
+
     }
     ov.style.display = 'flex';
     pgRenderPreview();
