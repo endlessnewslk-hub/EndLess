@@ -2275,15 +2275,40 @@ button,
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
-    padding: 1rem 0.25rem;
-    background: var(--bg);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 1.25rem 0.5rem;
+    background: #fff;
+    border: 2px solid #fb7185;
+    border-radius: 16px;
     cursor: pointer;
-    transition: all var(--transition-fast);
-    color: var(--text);
+    transition: all 0.25s ease;
+    color: #fb7185;
     font-family: inherit;
+    min-height: 110px;
+}
+.share-btn:hover {
+    transform: translateY(-4px) scale(1.03);
+    background: #fb7185;
+    border-color: #fb7185;
+    box-shadow: 0 12px 30px rgba(251,113,133,0.35);
+}
+.share-btn:hover svg {
+    fill: #fff !important;
+}
+.share-btn:hover span {
+    color: #fff;
+}
+.share-btn svg {
+    width: 30px;
+    height: 30px;
+    transition: all 0.2s;
+}
+.share-btn span {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #374151;
+    transition: all 0.2s;
 }
 
 .share-btn svg {
