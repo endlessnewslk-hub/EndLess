@@ -1355,6 +1355,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
 
 // 🎨 POSTER MODAL — size + language + preview + download + share
 let _pgArticle = null;
+let _pgOverrides = {};   // ✏️ user text/highlight/font edits per lang
 async function openPosterModal(articleId) {
     _pgArticle = (typeof adminNews !== 'undefined' ? adminNews : []).find(function(n) { return String(n.id) === String(articleId); });
     if (!_pgArticle) { showToast('Article not found', 'error'); return; }
