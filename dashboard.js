@@ -40,15 +40,14 @@ function renderAnalyticsPage() {
         document.getElementById('an-engage').textContent = engage + '%';
     });
 
-    // ❤️ Total likes — public count, Facebook-style formatting (1K, 2.5K, 1M)
+    // ❤️ Total likes (sum of all likes docs)
     db.collection('likes').get().then(function(snap) {
         var total = 0;
         snap.docs.forEach(function(d) {
             var f = d.data();
-            ['like','love','haha','wow','sad','angry'].forEach(function(k) { total += Math.max(0, parseInt(f[k]) || 0); });
+            ['like','love','haha','wow','sad','angry'].forEach(function(k) { total += parseInt(f[k]) || 0; });
         });
-        var el = document.getElementById('an-likes');
-        if (el) el.textContent = (typeof fmtCount === 'function' ? fmtCount(total) : (total || 0).toLocaleString());
+        document.getElementById('an-likes').textContent = (total || 0).toLocaleString();
     }).catch(function() {});
 
     // 📈 7-day views chart
@@ -308,22 +307,6 @@ try {
     console.error('Firebase init error:', err);
 }
 
-// 🔤🔤 POSTER FONTS — Noto Sans/Serif Tamil + Playfair Display.
-// CRITICAL: the poster canvas NEEDS these @font-face declarations. Without the
-// stylesheet, document.fonts.load() silently fails on fresh devices (especially
-// mobile!) and Tamil text renders in the plain system font. PC-la cache-nala
-// work aagum, mobile-la illa — ithan fix.
-(function injectPosterFonts() {
-    if (document.getElementById('poster-fonts-css')) return;
-    var link = document.createElement('link');
-    link.id = 'poster-fonts-css';
-    link.rel = 'stylesheet';
-    link.crossOrigin = 'anonymous';   // ⭐ PWA: allows SW cache match
-    link.fetchPriority = 'high';      // ⭐ load fast even on slow mobile
-    link.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700;800&family=Noto+Serif+Tamil:wght@700;800&family=Playfair+Display:wght@700;800;900&family=Inter:wght@500;600;700&family=Arimo:wght@400;700&family=Latha&family=Catamaran:wght@700;800&display=swap';   // ⭐ Catamaran = default Tamil font
-    document.head.appendChild(link);
-})();
-
 // 🔤 BRAND FONT — admin panel "EndLess" logo = same premium Playfair font
 // as the main site (Georgia missing on Android → logo looked different).
 (function injectAdminBrandFont() {
@@ -342,10 +325,9 @@ try {
     document.head.appendChild(st);
 })();
 
-// 👥 REPORTERS MANAGER — admin add/block reporters, view their articles
+// 👥 REPORTERS MANAGER — admin add/block reporters
 function ensureReportersUI() {
     if (document.getElementById('page-reporters')) return;
-    // Sidebar nav
     var nav = document.querySelector('.sidebar-nav');
     if (nav && !nav.querySelector('[data-page="reporters"]')) {
         var b = document.createElement('button');
@@ -354,7 +336,6 @@ function ensureReportersUI() {
         nav.insertBefore(b, nav.querySelector('[data-page="newsletter"]') || null);
         b.addEventListener('click', function() { showPage('reporters'); setTimeout(renderReportersPage, 100); });
     }
-    // Page content
     var anchor = document.getElementById('page-newsletter');
     if (!anchor || !anchor.parentNode) return;
     var page = document.createElement('div');
@@ -368,15 +349,15 @@ function ensureReportersUI() {
         '<div class="panel"><h3>➕ Add New Reporter</h3>' +
         '  <div class="form-row">' +
         '    <div class="form-group"><label>Full Name *</label><input type="text" id="rep-name" placeholder="Reporter name"></div>' +
-        '    <div class="form-group"><label>Username * (lowercase, no spaces)</label><input type="text" id="rep-username" placeholder="e.g. kumar_jaffna"></div>' +
+        '    <div class="form-group"><label>Username * (lowercase)</label><input type="text" id="rep-username" placeholder="e.g. kumar_jaffna"></div>' +
         '  </div>' +
         '  <div class="form-row">' +
-        '    <div class="form-group"><label>Password * (min 6 chars)</label><input type="password" id="rep-password" placeholder="Secure password"></div>' +
-        '    <div class="form-group"><label>Email (optional)</label><input type="email" id="rep-email" placeholder="contact@email.com"></div>' +
+        '    <div class="form-group"><label>Password * (min 6)</label><input type="password" id="rep-password"></div>' +
+        '    <div class="form-group"><label>Email (optional)</label><input type="email" id="rep-email"></div>' +
         '  </div>' +
-        '  <div class="form-group"><label>Bio / Details</label><textarea id="rep-bio" rows="2" placeholder="Reporter background, beat, etc."></textarea></div>' +
+        '  <div class="form-group"><label>Bio / Details</label><textarea id="rep-bio" rows="2"></textarea></div>' +
         '  <button class="btn-primary" id="btn-add-reporter" type="button">Create Reporter Account</button>' +
-        '  <p style="color:#6b7280;font-size:0.8rem;margin-top:0.5rem;">Reporter login: <strong>endlessnews.lk/usereport88</strong></p></div>' +
+        '  <p style="color:#6b7280;font-size:0.8rem;margin-top:0.5rem;">Login: <strong>endlessnews.lk/usereport88</strong></p></div>' +
         '<div class="panel"><h3>📋 Reporters List</h3>' +
         '  <div class="table-scroll"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Articles</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead><tbody id="reporters-list"></tbody></table></div></div>';
     anchor.parentNode.insertBefore(page, anchor.nextSibling);
@@ -390,27 +371,20 @@ async function addReporter() {
     var email = document.getElementById('rep-email').value.trim();
     var bio = document.getElementById('rep-bio').value.trim();
     if (!name || !username || !password) { showToast('Name, username, password required', 'error'); return; }
-    if (!/^[a-z0-9_]{3,20}$/.test(username)) { showToast('Username: 3-20 chars, lowercase/numbers/underscore only', 'error'); return; }
+    if (!/^[a-z0-9_]{3,20}$/.test(username)) { showToast('Username: 3-20 chars lowercase/numbers/_', 'error'); return; }
     if (password.length < 6) { showToast('Password min 6 chars', 'error'); return; }
     if (!db) { showToast('No Firebase', 'error'); return; }
-
     try {
-        // Create Firebase Auth account (username@reporters.endlessnews.lk)
-        var email = email || `${username}@reporters.endlessnews.lk`;
-        var cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
-        // Create reporter doc
+        var em = email || (username + '@reporters.endlessnews.lk');
+        await firebase.auth().createUserWithEmailAndPassword(em, password);
         await db.collection('reporters').doc(username).set({
-            name, username, email, bio,
-            blocked: false,
-            createdAt: new Date().toISOString(),
-            articleCount: 0
+            name: name, username: username, email: em, bio: bio,
+            blocked: false, createdAt: new Date().toISOString(), articleCount: 0
         });
-        showToast(`✅ Reporter "${name}" created! Login: usereport88`, 'success');
-        ['rep-name','rep-username','rep-password','rep-email','rep-bio'].forEach(id => document.getElementById(id).value = '');
+        showToast('✅ Reporter "' + name + '" created!', 'success');
+        ['rep-name','rep-username','rep-password','rep-email','rep-bio'].forEach(function(id) { document.getElementById(id).value = ''; });
         renderReportersPage();
-    } catch (e) {
-        showToast('Error: ' + (e.message || e), 'error');
-    }
+    } catch (e) { showToast('Error: ' + (e.message || e), 'error'); }
 }
 
 async function renderReportersPage() {
@@ -422,17 +396,17 @@ async function renderReportersPage() {
         var total = snap.size, active = 0, blocked = 0;
         if (!snap.empty) {
             var rows = [];
-            for (var doc of snap.docs) {
+            for (var k = 0; k < snap.docs.length; k++) {
+                var doc = snap.docs[k];
                 var r = doc.data();
                 if (r.blocked) blocked++; else active++;
-                // Count articles
                 var arts = await db.collection('news').where('reporterId', '==', doc.id).get();
                 rows.push('<tr><td><strong>' + esc(r.name) + '</strong>' + (r.bio ? '<br><small style="color:#6b7280;">' + esc(r.bio) + '</small>' : '') + '</td>' +
                     '<td>' + esc(r.username) + '</td><td>' + esc(r.email || '-') + '</td>' +
                     '<td>' + arts.size + '</td>' +
                     '<td><span class="badge ' + (r.blocked ? 'badge-red">Blocked' : 'badge-green">Active') + '</span></td>' +
                     '<td>' + (r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '-') + '</td>' +
-                    '<td><button class="btn-icon ' + (r.blocked ? 'btn-edit' : 'btn-delete') + '" onclick="toggleReporterBlock(\'' + esc(doc.id) + '\',' + !r.blocked + ')">' + (r.blocked ? 'Unblock' : 'Block') + '</button></td></tr>');
+                    '<td><button class="btn-icon ' + (r.blocked ? 'btn-edit' : 'btn-delete') + '" onclick="toggleReporterBlock(&#39;' + esc(doc.id) + '&#39;,' + (!r.blocked) + ')">' + (r.blocked ? 'Unblock' : 'Block') + '</button></td></tr>');
             }
             list.innerHTML = rows.join('');
         } else {
@@ -446,7 +420,7 @@ async function renderReportersPage() {
 
 async function toggleReporterBlock(username, block) {
     if (!db) return;
-    if (!confirm(block ? `Block ${username}? They cannot login/publish.` : `Unblock ${username}?`)) return;
+    if (!confirm(block ? ('Block ' + username + '?') : ('Unblock ' + username + '?'))) return;
     try {
         await db.collection('reporters').doc(username).update({ blocked: block });
         showToast(block ? 'Reporter blocked' : 'Reporter unblocked', 'success');
@@ -454,8 +428,6 @@ async function toggleReporterBlock(username, block) {
     } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
 function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
-
-// Auto-init
 ensureReportersUI();
 
 // 📬 NEWSLETTER ADMIN — subscribers, auto-briefing, one-click send
@@ -994,30 +966,6 @@ async function uploadToCloudinary(file, onProgress) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🔤 POSTER FONT PICKER — built-in Tamil & English fonts + custom add
-// Selected font = per-language override (neenga easy-a maatha mudiyum)
-const POSTER_FONT_LIST = [
-    { name: 'Noto Sans Tamil',   g: 'Noto Sans Tamil:wght@400;700;800',  tags: 'ta' },
-    { name: 'Catamaran',         g: 'Catamaran:wght@700;800',            tags: 'ta' },
-    { name: 'Mukta Malar',       g: 'Mukta Malar:wght@700;800',          tags: 'ta' },
-    { name: 'Nirmala UI',        g: null,                                 tags: 'ta system' },
-    { name: 'Catamaran',         g: 'Catamaran:wght@700;800',            tags: 'en ta' },
-    { name: 'Playfair Display',  g: 'Playfair Display:wght@700;800;900', tags: 'en' },
-    { name: 'Georgia (system)',  g: null,                                 tags: 'en system' },
-    { name: 'Inter',             g: 'Inter:wght@700;800',                tags: 'en' },
-    { name: 'Lora',              g: 'Lora:wght@700',                     tags: 'en' }
-];
-
-// 🔤 Ensure a Google font is loaded (returns promise). Local/system fonts resolve instantly.
-function pgLoadFont(spec) {
-    if (!spec || !spec.g) return Promise.resolve();       // system font — nothing to load
-    var parts = spec.g.split(':');
-    var fam = parts[0].replace(/\+/g, ' ');
-    if (document.fonts.check('700 20px "' + fam + '"')) return Promise.resolve();
-    return document.fonts.load('700 20px "' + fam + '"').catch(function () {});
-}
-
-// ═══════════════════════════════════════════════════════════════
 // 🎨 SOCIAL POSTER GENERATOR — Al Jazeera/BBC style news cards!
 // One click → branded poster (image + headline + excerpt + brand)
 // Sizes: 1:1 (IG/FB), 16:9 (X), 9:16 (Story) · Tamil/English · Download/Share
@@ -1030,6 +978,37 @@ const POSTER_SIZES = {
     story:  { w: 1080, h: 1920, label: '9:16 · Story / Status' },
     wide:   { w: 1200, h: 675,  label: '16:9 · X / FB Link Card' }
 };
+
+// 🔤 POSTER FONT PICKER — built-in + custom add
+const POSTER_FONT_LIST = [
+    { name: 'Catamaran',        g: 'Catamaran:wght@700;800',            tags: 'ta en' },
+    { name: 'Noto Sans Tamil',  g: 'Noto+Sans+Tamil:wght@400;600;700;800', tags: 'ta' },
+    { name: 'Mukta Malar',      g: 'Mukta+Malar:wght@700;800',          tags: 'ta' },
+    { name: 'Nirmala UI',       g: null,                                 tags: 'ta system' },
+    { name: 'Playfair Display', g: 'Playfair+Display:wght@700;800;900', tags: 'en' },
+    { name: 'Inter',            g: 'Inter:wght@500;600;700',            tags: 'en' },
+    { name: 'Lora',             g: 'Lora:wght@700',                     tags: 'en' }
+];
+function pgLoadFont(spec) {
+    if (!spec || !spec.g) return Promise.resolve();
+    var fam = spec.g.split(':')[0].replace(/\+/g, ' ');
+    if (document.fonts.check('700 20px "' + fam + '"')) return Promise.resolve();
+    return document.fonts.load('700 20px "' + fam + '"').catch(function () {});
+}
+function pgNormWord(w) {
+    return String(w || '').replace(/^[\s\.,;:!?"'’“”\-–—()\[\]]+|[\s\.,;:!?"'’“”\-–—()\[\]]+$/g, '');
+}
+
+// 🔤 Poster fonts stylesheet — mobile/PWA-safe (guaranteed @font-face)
+(function injectPosterFonts() {
+    if (document.getElementById('poster-fonts-css')) return;
+    var link = document.createElement('link');
+    link.id = 'poster-fonts-css';
+    link.rel = 'stylesheet';
+    link.crossOrigin = 'anonymous';
+    link.href = 'https://fonts.googleapis.com/css2?family=Catamaran:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700;800&family=Noto+Serif+Tamil:wght@700;800&family=Playfair+Display:wght@700;800;900&family=Inter:wght@500;600;700&family=Arimo:wght@400;700&family=Latha&family=Mukta+Malar:wght@700;800&display=swap';
+    document.head.appendChild(link);
+})();
 
 function pgWrapText(ctx, text, maxW) {
     var words = String(text || '').split(/\s+/), lines = [], line = '';
@@ -1064,27 +1043,22 @@ function pgLoadImg(url) {
 }
 
 async function generatePoster(article, sizeKey, lang, mode, quality) {
-    mode = mode || 'full';   // 'full' = headline+excerpt | 'headline' = big text only
-    var q = (quality === 'hd') ? 2 : 1;   // 🖥️ HD = 2x resolution for crisp social sharing
+    mode = mode || 'full';
+    var q = (quality === 'hd') ? 2 : 1;   // 🖥️ HD = 2x
     var S = POSTER_SIZES[sizeKey] || POSTER_SIZES.square;
     var W = S.w * q, H = S.h * q;
-    var isWide = W > H;                 // 16:9 landscape
-    var isStory = sizeKey === 'story';  // 9:16 full portrait
+    var isWide = W > H;
+    var isStory = sizeKey === 'story';
 
-    // 🔤🔤 FONT PICKER — resolve headline & brand fonts (per language override)
-    var defaultFont = (article._font && article._font[lang]) || { head: 'Catamaran', brand: 'Playfair Display' };   // ⭐ default
-    var TAMIL_STACK = '"' + (defaultFont.head || 'Catamaran') + '", "Latha", "Noto Sans Tamil", Arial';   // ⭐ default: Catamaran   // ⭐ Latha = Nirmala UI mobile-twin (same metrics)
+    // 🔤 Fonts per picker (default Catamaran / Playfair)
+    var defaultFont = (article._font && article._font[lang]) || { head: 'Catamaran', brand: 'Playfair Display' };
+    var TAMIL_STACK = '"' + (defaultFont.head || 'Catamaran') + '", "Noto Sans Tamil", Arial';
     var BRAND_STACK = '"' + (defaultFont.brand || 'Playfair Display') + '", Georgia, serif';
-    // Preload any selected Google fonts (system fonts resolve instantly), with timeout
-    var chosen = [{ name: 'Inter', g: 'Inter:wght@500;600;700' }];   // ⭐ always preload (FOLLOW US + URL)
-    chosen.push({ name: 'Arimo', g: 'Arimo:wght@400;700' });          // ⭐ Arial-twin for mobile (metric-compatible)
-    chosen.push({ name: 'Latha', g: 'Latha' });                        // ⭐ Nirmala UI mobile-twin (metric-compatible)
+    var chosen = [{ name: 'Inter', g: 'Inter:wght@500;600;700' }, { name: 'Arimo', g: 'Arimo:wght@400;700' }, { name: 'Latha', g: 'Latha' }];
     POSTER_FONT_LIST.forEach(function (s) {
         var n = s.name.replace(/\s*\(system\)\s*$/, '');
         if ((defaultFont.head && n === defaultFont.head) || (defaultFont.brand && n === defaultFont.brand)) chosen.push(s);
     });
-    // 🔤 Font wait — PC/mobile IDENTICAL layout-ku mukkiyam:
-    // measure & draw with the SAME loaded font. Slow networks-la 1 retry + 5s cap.
     try {
         for (var _try = 0; _try < 2; _try++) {
             await Promise.race([
@@ -1092,9 +1066,8 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
                 new Promise(function (res) { setTimeout(res, 5000); })
             ]);
             var allOk = chosen.every(function (s) {
-                if (!s.g) return true;   // system font — nothing to verify
-                var fam = s.g.split(':')[0].replace(/\+/g, ' ');
-                return document.fonts.check('700 20px "' + fam + '"');
+                if (!s.g) return true;
+                return document.fonts.check('700 20px "' + s.g.split(':')[0].replace(/\+/g, ' ') + '"');
             });
             if (allOk) break;
         }
@@ -1108,43 +1081,30 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     var excerpt = lang === 'en' ? (article.excerpt_en || article.excerpt) : (article.excerpt || article.excerpt_en);
     var cat = lang === 'en' ? (article.category_en || article.category) : (article.category || article.category_en);
 
-    // 🎨 Word highlights — selected words render in brand pink
-    function pgNormWord(w) {
-        return String(w || '').replace(/^[\s\.,;:!?"'’“”\-–—()\[\]]+|[\s\.,;:!?"'’“”\-–—()\[\]]+$/g, '');
-    }
-    var hlSet = (article._hl || []).map(pgNormWord);
-
-    // 🗺️ Poster category display names — e.g. "Local" news shows as இலங்கை / SRI LANKA
-    //    (extend this map anytime: map key = lowercase category_en)
-    var CAT_POSTER_NAMES = {
-        'local': { ta: 'இலங்கை', en: 'SRI LANKA' }
-    };
-    var catKey = String(article.category_en || article.category || '').trim().toLowerCase();
-    if (CAT_POSTER_NAMES[catKey]) {
-        cat = lang === 'en' ? CAT_POSTER_NAMES[catKey].en : CAT_POSTER_NAMES[catKey].ta;
-    }
-
-    // 💬 Headline-only mode: excerpt hidden, headline grows to fill
+    // 💬 Headline-only: excerpt hidden
     if (mode === 'headline') excerpt = '';
 
-    // 📅 Date — language ku eatha maari (weekday + full date)
+    // 🗺️ Local → இலங்கை / SRI LANKA
+    var CAT_POSTER_NAMES = { 'local': { ta: 'இலங்கை', en: 'SRI LANKA' } };
+    var catKey = String(article.category_en || article.category || '').trim().toLowerCase();
+    if (CAT_POSTER_NAMES[catKey]) cat = lang === 'en' ? CAT_POSTER_NAMES[catKey].en : CAT_POSTER_NAMES[catKey].ta;
+
+    // 📅 Language date
     var d = article.date ? new Date(article.date) : new Date();
     var dateStr = '';
     try {
-        dateStr = d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'ta-IN', {
-            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-        });
+        dateStr = d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'ta-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     } catch (e) { dateStr = d.toDateString(); }
 
-    var mX = Math.round(W * 0.045);     // side margin
+    var mX = Math.round(W * 0.045);
     var maxW = W - mX * 2;
     var gap = Math.round(H * 0.016);
-
-    // Brand bar metrics (fixed at bottom)
     var barH = Math.round(H * (isWide ? 0.12 : 0.082));
     var barY = H - barH - Math.round(H * 0.026);
 
-    // ── FULL text wrapping (no line cap — user wants EVERYTHING) ──
+    // 🎨 Word highlights
+    var hlSet = (article._hl || []).map(pgNormWord);
+
     function fullWrap(text, maxWidth) {
         var words = String(text || '').split(/\s+/), lines = [], line = '';
         for (var i = 0; i < words.length; i++) {
@@ -1155,8 +1115,6 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         if (line) lines.push(line);
         return lines;
     }
-
-    // ── 🎨 Colored word-wrap: same greedy logic, keeps per-word highlight info ──
     function wrapColored(text, maxWidth) {
         var words = String(text || '').split(/\s+/), lines = [], cur = [], curStr = '';
         for (var i = 0; i < words.length; i++) {
@@ -1170,42 +1128,30 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         return lines;
     }
 
-    // ── Text layout calculator (scale = font multiplier) ──
     var baseHead = Math.round(W * (isWide ? 0.046 : 0.064));
     var minHead = Math.max(20, Math.round(W * 0.022));
-    var minExc = 15;
     function calcLayout(sc) {
-        var hs = Math.max(minHead, Math.round(baseHead * sc));
-        var lh = Math.round(hs * 1.3);
+        var hs = Math.max(minHead, Math.round(baseHead * sc)); var lh = Math.round(hs * 1.3);
         ctx.font = '800 ' + hs + 'px ' + TAMIL_STACK;
         ctx.textBaseline = 'top';
         var hl = wrapColored(title, maxW);
-        var es = Math.max(minExc, Math.round(hs * 0.52));
-        var elh = Math.round(es * 1.48);
+        var es = Math.max(15, Math.round(hs * 0.52)); var elh = Math.round(es * 1.48);
         ctx.font = '400 ' + es + 'px ' + TAMIL_STACK;
         var el = excerpt ? fullWrap(excerpt, maxW) : [];
         var need = hl.length * lh + (el.length ? gap + el.length * elh : 0);
         return { hs: hs, lh: lh, hl: hl, es: es, elh: elh, el: el, need: need };
     }
 
-    // ── ⭐ AUTO-FIT: full text must fit above the brand bar ──
-    // 1) Start with base image height
+    // 💬 CTA pill space reserve (BOTH modes)
+    var ctaReserve = Math.round(W * 0.018) * 1.95 + Math.round(H * 0.018) + Math.round(H * 0.026);
+
     var imgH = Math.round(H * (isWide ? 0.48 : (isStory ? 0.42 : 0.45)));
     var minImgH = Math.round(H * 0.20);
-    // 💬 Reserve CTA pill space in headline mode — headline NEVER touches the pill
-    // 💬 CTA pill shows in BOTH modes — always reserve its space (never overlap text)
-    var ctaReserve = Math.round(W * 0.018) * 1.95 + Math.round(H * 0.018) + Math.round(H * 0.026);
     var y, avail, L;
-
     function reflow() {
-        // y = where headline starts (after image + date + accent)
-        y = imgH + Math.round(H * 0.045)                 // date
-          + Math.round(W * 0.020 * 1.8)                   // date line height
-          + Math.max(6, Math.round(H * 0.007))            // accent bar
-          + Math.round(H * 0.02);                         // gap after accent
-        avail = barY - y - gap - ctaReserve;   // keep text clear of the CTA pill
+        y = imgH + Math.round(H * 0.045) + Math.round(W * 0.020 * 1.8) + Math.max(6, Math.round(H * 0.007)) + Math.round(H * 0.02);
+        avail = barY - y - gap - ctaReserve;
         if (mode === 'headline') {
-            // ⭐⭐ Binary search: LARGEST font that exactly fills the space
             var lo = 0.05, hi = 4.0, best = null;
             for (var it = 0; it < 14; it++) {
                 var mid = (lo + hi) / 2;
@@ -1214,38 +1160,28 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
             }
             L = best || calcLayout(lo);
         } else {
-            // Full mode: base size, shrink only if needed
-            var sc = 1;
-            L = calcLayout(sc);
-            while (L.need > avail && L.hs > minHead) {
-                sc *= 0.93;
-                L = calcLayout(sc);
-            }
+            var sc = 1; L = calcLayout(sc);
+            while (L.need > avail && L.hs > minHead) { sc *= 0.93; L = calcLayout(sc); }
         }
     }
     reflow();
-    // 2) If STILL too tall → shrink image area to free vertical space, retry
     if (L.need > avail && imgH > minImgH) {
         imgH = Math.max(minImgH, imgH - (L.need - avail) - Math.round(H * 0.01));
         reflow();
     }
 
-    // 🔄 LAYOUT VERIFY — measurement & drawing must use the identical loaded font.
-    // If a font finished loading after measuring, re-measure & reflow once.
-    (function pgVerifyLayout() {
+    // 🔄 Verify: measure & draw same font
+    (function () {
         ctx.font = '800 ' + L.hs + 'px ' + TAMIL_STACK;
         var recheck = wrapColored(title, maxW);
         if (recheck.length !== L.hl.length) reflow();
     })();
 
     // ═══ DRAW ═══
-
-    // 1) Dark brand background (gradient)
     var bg = ctx.createLinearGradient(0, 0, 0, H);
     bg.addColorStop(0, '#13131f'); bg.addColorStop(1, '#0a0a0f');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
-    // 2) Article image — cover fit at final (possibly shrunk) height
     try {
         var img = await pgLoadImg(article.image);
         var scale = Math.max(W / img.width, imgH / img.height);
@@ -1256,14 +1192,12 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         ctx.restore();
     } catch (e) {}
 
-    // Gradient fade image → bg
     var fadeH = Math.round(H * 0.2);
     var fade = ctx.createLinearGradient(0, imgH - fadeH, 0, imgH + Math.round(H * 0.04));
     fade.addColorStop(0, 'rgba(10,10,15,0)');
     fade.addColorStop(1, 'rgba(10,10,15,1)');
     ctx.fillStyle = fade; ctx.fillRect(0, imgH - fadeH, W, fadeH + Math.round(H * 0.05));
 
-    // 3) Category chip (over image, top-left)
     if (cat) {
         ctx.font = '700 ' + Math.round(W * 0.021) + 'px ' + TAMIL_STACK;
         var cw = ctx.measureText(String(cat).toUpperCase()).width + Math.round(W * 0.05);
@@ -1274,125 +1208,84 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         ctx.fillText(String(cat).toUpperCase(), mX + Math.round(W * 0.025), Math.round(H * 0.038) + chH / 2 + 2);
     }
 
-    // 4) 📅 Date line — image keezha, headline mela
-    var textX = mX;
     ctx.font = '600 ' + Math.round(W * 0.020) + 'px ' + TAMIL_STACK;
-    ctx.fillStyle = '#94a3b8';
-    ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+    ctx.fillStyle = '#94a3b8'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
     ctx.fillText(dateStr, mX, imgH + Math.round(H * 0.045));
 
-    // 5) Red accent line
     var accH = Math.max(6, Math.round(H * 0.007));
     ctx.fillStyle = '#e11d48';
     ctx.fillRect(mX, y - Math.round(H * 0.02) - accH, Math.round(W * 0.12), accH);
 
-    // 6) HEADLINE — full text, auto-scaled font
+    // HEADLINE (per-word pink highlights)
     ctx.font = '800 ' + L.hs + 'px ' + TAMIL_STACK;
     ctx.textBaseline = 'top';
     var spaceW = ctx.measureText(' ').width;
     L.hl.forEach(function (tokens, i) {
-        var wx = textX;
+        var wx = mX;
         tokens.forEach(function (tok) {
-            ctx.fillStyle = tok.hl ? '#fb7185' : '#ffffff';   // 🎨 highlighted word = brand pink
+            ctx.fillStyle = tok.hl ? '#fb7185' : '#ffffff';
             ctx.fillText(tok.t, wx, y + i * L.lh);
             wx += ctx.measureText(tok.t).width + spaceW;
         });
     });
     var ey = y + L.hl.length * L.lh + (L.el.length ? gap : 0);
-
-    // 7) EXCERPT — full text, auto-scaled font
     if (L.el.length) {
         ctx.font = '400 ' + L.es + 'px ' + TAMIL_STACK;
         ctx.fillStyle = '#b6bdc9';
-        L.el.forEach(function (ln, i) {
-            ctx.fillText(ln, mX, ey + i * L.elh);
-        });
+        L.el.forEach(function (ln, i) { ctx.fillText(ln, mX, ey + i * L.elh); });
     }
 
-    // 7b) 💬 CTA pill — professional "read full news" chip (BOTH poster modes)
-    if (true) {
+    // 💬 CTA pill (BOTH modes)
+    (function () {
         var cta = lang === 'en' ? 'READ THE FULL NEWS' : '\u0BAE\u0BC1\u0BB4\u0BC1 \u0B9A\u0BC6\u0BAF\u0BCD\u0BA4\u0BBF\u0BAF\u0BC8\u0BAA\u0BCD \u0BAA\u0B9F\u0BBF\u0B95\u0BCD\u0B95';
-        var ctaSize = Math.max(15, Math.round(W * 0.018));   // ⭐ smaller, decent pill
+        var ctaSize = Math.max(15, Math.round(W * 0.018));
         ctx.textAlign = 'left';
-        // Shrink font until pill fits poster width
         var tw, padX, arrowW, pillW, pillH;
         do {
             ctx.font = '700 ' + ctaSize + 'px ' + TAMIL_STACK;
             tw = ctx.measureText(cta).width;
-            padX = Math.round(W * 0.035);
-            arrowW = Math.round(ctaSize * 0.95);
-            pillW = tw + padX * 2 + arrowW;
-            pillH = Math.round(ctaSize * 1.95);
+            padX = Math.round(W * 0.035); arrowW = Math.round(ctaSize * 0.95);
+            pillW = tw + padX * 2 + arrowW; pillH = Math.round(ctaSize * 1.95);
             if (pillW <= maxW || ctaSize <= 11) break;
             ctaSize -= 2;
         } while (true);
         var pillX = Math.round((W - pillW) / 2);
         var pillY = barY - Math.round(H * 0.018) - pillH;
-
-        // ⭐ Premium divider: full-width hairlines aligned to poster margins (image borders),
-        //    gradient-fading toward the pill — editorial print style
         var flY = pillY + pillH / 2;
         var lw = Math.max(1.5, W * 0.0015);
-        var lineL = mX, lineR = W - mX;
-        var gapToPill = Math.round(W * 0.025);
-        // Left hairline: strong at margin → fades into pill
-        var gl = ctx.createLinearGradient(lineL, 0, pillX - gapToPill, 0);
-        gl.addColorStop(0, 'rgba(251,113,133,0.55)');
-        gl.addColorStop(1, 'rgba(251,113,133,0.06)');
-        ctx.strokeStyle = gl;
-        ctx.lineWidth = lw;
-        ctx.beginPath();
-        ctx.moveTo(lineL, flY); ctx.lineTo(pillX - gapToPill, flY);
-        ctx.stroke();
-        // Right hairline: fades out from pill → strong at margin
-        var gr = ctx.createLinearGradient(pillX + pillW + gapToPill, 0, lineR, 0);
-        gr.addColorStop(0, 'rgba(251,113,133,0.06)');
-        gr.addColorStop(1, 'rgba(251,113,133,0.55)');
+        var gl = ctx.createLinearGradient(mX, 0, pillX - Math.round(W * 0.025), 0);
+        gl.addColorStop(0, 'rgba(251,113,133,0.55)'); gl.addColorStop(1, 'rgba(251,113,133,0.06)');
+        ctx.strokeStyle = gl; ctx.lineWidth = lw;
+        ctx.beginPath(); ctx.moveTo(mX, flY); ctx.lineTo(pillX - Math.round(W * 0.025), flY); ctx.stroke();
+        var gr = ctx.createLinearGradient(pillX + pillW + Math.round(W * 0.025), 0, W - mX, 0);
+        gr.addColorStop(0, 'rgba(251,113,133,0.06)'); gr.addColorStop(1, 'rgba(251,113,133,0.55)');
         ctx.strokeStyle = gr;
-        ctx.beginPath();
-        ctx.moveTo(pillX + pillW + gapToPill, flY); ctx.lineTo(lineR, flY);
-        ctx.stroke();
-
-        // Pill: mask the line cleanly, then brand fill + outline
+        ctx.beginPath(); ctx.moveTo(pillX + pillW + Math.round(W * 0.025), flY); ctx.lineTo(W - mX, flY); ctx.stroke();
         pgRoundRect(ctx, pillX, pillY, pillW, pillH, pillH / 2);
-        ctx.fillStyle = 'rgba(10,10,15,0.94)';   // covers the divider line under the pill
-        ctx.fill();
-        ctx.fillStyle = 'rgba(225,29,72,0.14)';
-        ctx.fill();
+        ctx.fillStyle = 'rgba(10,10,15,0.94)'; ctx.fill();
+        ctx.fillStyle = 'rgba(225,29,72,0.14)'; ctx.fill();
         ctx.strokeStyle = 'rgba(251,113,133,0.9)';
         ctx.lineWidth = Math.max(2, W * 0.002);
         ctx.stroke();
-
-        // Text (vertically centered in pill)
-        ctx.fillStyle = '#f8fafc';
-        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#f8fafc'; ctx.textBaseline = 'middle';
         ctx.fillText(cta, pillX + padX, pillY + pillH / 2 + ctaSize * 0.06);
-
-        // Vector down-chevron (no emoji — crisp icon)
         var ax = pillX + pillW - padX - arrowW * 0.45;
         var ay = pillY + pillH / 2;
         var s = arrowW * 0.30;
         ctx.beginPath();
-        ctx.moveTo(ax - s, ay - s * 0.55);
-        ctx.lineTo(ax, ay + s * 0.55);
-        ctx.lineTo(ax + s, ay - s * 0.55);
+        ctx.moveTo(ax - s, ay - s * 0.55); ctx.lineTo(ax, ay + s * 0.55); ctx.lineTo(ax + s, ay - s * 0.55);
         ctx.strokeStyle = '#fb7185';
         ctx.lineWidth = Math.max(2.5, W * 0.0025);
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
         ctx.stroke();
-
         ctx.textBaseline = 'top';
-        ctx.textAlign = 'left';
-    }
+    })();
 
-    // 8) Brand bar — site logo maari correct-a set 🎨
+    // Brand bar
     var barX = mX, barW = W - mX * 2;
     ctx.fillStyle = 'rgba(225,29,72,0.12)';
     pgRoundRect(ctx, barX, barY, barW, barH, barH * 0.32);
     ctx.fill();
-
-    // E logo — site gradient maari (#e11d48 → #be123c), Playfair 'E'
     var logoS = barH * 0.6;
     var logoX = barX + Math.round(W * 0.02);
     var logoY = barY + (barH - logoS) / 2;
@@ -1403,63 +1296,42 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     ctx.font = '900 ' + Math.round(logoS * 0.6) + 'px ' + BRAND_STACK;
     ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('E', logoX + logoS / 2, logoY + logoS / 2 + logoS * 0.04);
-
-    // "EndLess News" — Playfair: 'End' white + 'Less News' red (site maari)
     var textX = logoX + logoS + Math.round(W * 0.022);
     ctx.textAlign = 'left';
-    var nameSize = Math.round(barH * 0.32);
-    ctx.font = '800 ' + nameSize + 'px ' + BRAND_STACK;
+    ctx.font = '800 ' + Math.round(barH * 0.32) + 'px ' + BRAND_STACK;
     ctx.textBaseline = 'middle';
     var endW = ctx.measureText('End').width;
     ctx.fillStyle = '#f1f5f9';
     ctx.fillText('End', textX, barY + barH * 0.38);
     ctx.fillStyle = '#fb7185';
     ctx.fillText('Less News', textX + endW, barY + barH * 0.38);
-
-    // URL — keezha small line
-    ctx.font = '600 ' + Math.round(barH * 0.22) + 'px "Arimo", Arial';   // ⭐ Arial look: PC=real Arial, mobile=Arimo
+    ctx.font = '600 ' + Math.round(barH * 0.22) + 'px "Arimo", Arial';
     ctx.fillStyle = '#fb7185';
     ctx.fillText('endlessnews.lk', textX, barY + barH * 0.72);
 
-    // 8b) FOLLOW US — premium right side: label + 4 vector social icons in brand colour (BOTH modes)
+    // 8b) FOLLOW US — 4 official logos in brand pink
     (function drawSocial() {
-        var ico = Math.round(barH * 0.36);   // official logos carry inner padding
+        var ico = Math.round(barH * 0.36);
         var icoGap = Math.round(ico * 0.42);
         var labelGap = Math.round(ico * 0.6);
-        var rowW = ico * 4 + icoGap * 3;
         var lblSize = Math.max(11, Math.round(barH * 0.19));
-        ctx.font = '700 ' + lblSize + 'px "Arimo", Arial';   // ⭐ Arial look: PC=real Arial, mobile=Arimo (metric-compatible twin)
+        ctx.font = '700 ' + lblSize + 'px "Inter", Arial';
         var lblW = ctx.measureText('FOLLOW US').width;
-        var grpW = lblW + labelGap + rowW;
-        var gx = barX + barW - Math.round(W * 0.022) - grpW;
+        var rowW = ico * 4 + icoGap * 3;
+        var gx = barX + barW - Math.round(W * 0.022) - (lblW + labelGap + rowW);
         var gy = barY + barH / 2;
-
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-
-        // Label — small, muted, vertically centered with icons
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.font = '700 ' + lblSize + 'px "Arimo", Arial';   // ⭐ Arial look: PC=real Arial, mobile=Arimo (metric-compatible twin)
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
         ctx.fillStyle = '#94a3b8';
         ctx.fillText('FOLLOW US', gx, gy + lblSize * 0.06);
-
-        // Icons — brand pink, consistent stroke weight = premium uniform look
-        ctx.strokeStyle = '#fb7185';
-        ctx.fillStyle = '#fb7185';
-        ctx.lineWidth = Math.max(2, Math.round(W * 0.0018));
-
-        var ix = gx + lblW + labelGap;
-        var iy = gy - ico / 2;
-
-        // Icons — EXACT official logos (same paths as website), filled in brand pink
-        ctx.fillStyle = '#fb7185';
         var GLYPHS = {
             fb: "M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.09 24 18.1 24 12.07",
             wa: "M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z",
             x: "M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.4l-5.8-7.58-6.64 7.58H.47l8.6-9.83L0 1.15h7.6l5.24 6.93zm-1.29 19.5h2.04L6.49 3.24H4.3z",
-            ig: "M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.64.07-4.85.07s-3.58-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.64-.07-4.85s.01-3.58.07-4.85C2.38 3.92 3.9 2.38 7.15 2.23 8.42 2.17 8.8 2.16 12 2.16zM12 0C8.74 0 8.33.01 7.05.07 2.7.27.27 2.69.07 7.05.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.2 4.36 2.62 6.78 6.98 6.98C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c4.35-.2 6.78-2.62 6.98-6.98.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95C23.73 2.7 21.31.27 16.95.07 15.67.01 15.26 0 12 0zm0 5.84A6.16 6.16 0 1 0 18.16 12 6.16 6.16 0 0 0 12 5.84zm0 10.15A4 4 0 1 1 16 12a4 4 0 0 1-4 3.99zm6.4-11.85a1.44 1.44 0 1 0 1.44 1.44 1.44 1.44 0 0 0-1.44-1.44z"
+            ig: "M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.64.07-4.85.07s-3.58-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.64-.07-4.85s.01-3.58.07-4.85C2.38 3.92 3.9 2.38 7.15 2.23 8.42 2.18 8.8 2.16 12 2.16zM12 0C8.74 0 8.33.01 7.05.07 2.7.27.27 2.69.07 7.05.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.2 4.36 2.62 6.78 6.98 6.98C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c4.35-.2 6.78-2.62 6.98-6.98.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95C23.73 2.7 21.31.27 16.95.07 15.67.01 15.26 0 12 0zm0 5.84A6.16 6.16 0 1 0 18.16 12 6.16 6.16 0 0 0 12 5.84zm0 10.15A4 4 0 1 1 16 12a4 4 0 0 1-4 3.99zm6.4-11.85a1.44 1.44 0 1 0 1.44 1.44 1.44 1.44 0 0 0-1.44-1.44z"
         };
+        var ix = gx + lblW + labelGap;
+        var iy = gy - ico / 2;
         function drawGlyph(d, x, y, s) {
             ctx.save();
             ctx.translate(x, y);
@@ -1467,6 +1339,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
             ctx.fill(new Path2D(d));
             ctx.restore();
         }
+        ctx.fillStyle = '#fb7185';
         drawGlyph(GLYPHS.fb, ix, iy, ico);
         ix += ico + icoGap;
         drawGlyph(GLYPHS.wa, ix, iy, ico);
@@ -1474,7 +1347,6 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         drawGlyph(GLYPHS.x, ix, iy, ico);
         ix += ico + icoGap;
         drawGlyph(GLYPHS.ig, ix, iy, ico);
-
         ctx.textBaseline = 'top';
     })();
 
@@ -1483,7 +1355,6 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
 
 // 🎨 POSTER MODAL — size + language + preview + download + share
 let _pgArticle = null;
-let _pgOverrides = {};   // ✏️ user text edits per lang: {title_ta, excerpt_ta, title_en, excerpt_en}
 async function openPosterModal(articleId) {
     _pgArticle = (typeof adminNews !== 'undefined' ? adminNews : []).find(function(n) { return String(n.id) === String(articleId); });
     if (!_pgArticle) { showToast('Article not found', 'error'); return; }
@@ -1511,29 +1382,17 @@ async function openPosterModal(articleId) {
                     '<option value="ta">தமிழ்</option>' +
                     '<option value="en">English</option>' +
                 '</select>' +
-                '<select id="pg-mode" style="flex:1;min-width:160px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
+                '<select id="pg-mode" style="flex:1;min-width:150px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
                     '<option value="full">🖼️ Full Poster (Headline + Excerpt)</option>' +
                     '<option value="headline">💬 Headline Only (Big Text)</option>' +
                 '</select>' +
-                '<select id="pg-quality" title="HD = 2x resolution, best for WhatsApp/social sharing" style="flex:1;min-width:130px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
+                '<select id="pg-quality" title="HD = 2x resolution" style="flex:1;min-width:130px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
                     '<option value="std">📱 Standard (1080px)</option>' +
                     '<option value="hd">🖥️ HD (2160px)</option>' +
                 '</select>' +
             '</div>' +
-            '<div style="margin-bottom:12px;">' +
-            '<button type="button" id="pg-edit-toggle" style="width:100%;padding:10px 14px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;">✏️ Edit Headline & Excerpt (optional)</button>' +
-            '<button type="button" id="pg-font-toggle" style="margin-top:8px;width:100%;padding:10px 14px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;">🔤 Fonts (Tamil & English)</button>' +
-            '<div id="pg-font-panel" style="display:none;margin-top:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
-                '<p id="pg-font-lang-note" style="margin:0 0 8px;font-size:0.72rem;color:#6b7280;font-weight:700;"></p>' +
-                '<label style="display:block;font-size:0.72rem;font-weight:700;color:#374151;margin-bottom:4px;">Tamil (headline / text) font</label>' +
-                '<div id="pg-font-ta" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>' +
-                '<label style="display:block;font-size:0.72rem;font-weight:700;color:#374151;margin-bottom:4px;">English (brand) font</label>' +
-                '<div id="pg-font-en" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>' +
-                '<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:0.78rem;font-weight:700;color:#374151;">＋ Add custom font (Google Fonts)</summary>' +
-                '<input type="text" id="pg-font-custom" placeholder="e.g. Baloo 2  or  Noto Sans Tamil:wght@700" style="margin-top:6px;width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">' +
-                '<button type="button" id="pg-font-custom-add" style="margin-top:6px;padding:6px 14px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">Add font</button></details>' +
-            '</div>' +
-            '<div id="pg-edit-panel" style="display:none;margin-top:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
+            '<button type="button" id="pg-edit-toggle" style="width:100%;padding:10px 14px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;margin-bottom:8px;">✏️ Edit Headline & Excerpt (optional)</button>' +
+            '<div id="pg-edit-panel" style="display:none;margin-bottom:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
                 '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Headline</label>' +
                 '<textarea id="pg-edit-title" rows="2" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;font-family:inherit;resize:vertical;margin-bottom:8px;box-sizing:border-box;"></textarea>' +
                 '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Highlight words (tap to make pink) <span style="color:#fb7185;">■</span></label>' +
@@ -1541,19 +1400,28 @@ async function openPosterModal(articleId) {
                 '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Excerpt</label>' +
                 '<textarea id="pg-edit-excerpt" rows="3" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>' +
                 '<button type="button" id="pg-edit-reset" style="margin-top:8px;padding:6px 14px;background:#fee2e2;color:#991b1b;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">↺ Reset to original</button>' +
-                '<p style="margin:8px 0 0;font-size:0.72rem;color:#9ca3af;">Your edits apply to <b id="pg-edit-lang-label">தமிழ்</b> version only — switch language to edit that version separately.</p>' +
             '</div>' +
+            '<button type="button" id="pg-font-toggle" style="margin-bottom:8px;width:100%;padding:10px 14px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;">🔤 Fonts (Tamil & English)</button>' +
+            '<div id="pg-font-panel" style="display:none;margin-bottom:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
+                '<p id="pg-font-lang-note" style="margin:0 0 8px;font-size:0.72rem;color:#6b7280;font-weight:700;"></p>' +
+                '<label style="display:block;font-size:0.72rem;font-weight:700;color:#374151;margin-bottom:4px;">Tamil (headline/text) font</label>' +
+                '<div id="pg-font-ta" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>' +
+                '<label style="display:block;font-size:0.72rem;font-weight:700;color:#374151;margin-bottom:4px;">English (brand) font</label>' +
+                '<div id="pg-font-en" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>' +
+                '<details><summary style="cursor:pointer;font-size:0.78rem;font-weight:700;color:#374151;">＋ Add custom font (Google Fonts)</summary>' +
+                '<input type="text" id="pg-font-custom" placeholder="e.g. Baloo 2" style="margin-top:6px;width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">' +
+                '<button type="button" id="pg-font-custom-add" style="margin-top:6px;padding:6px 14px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">Add font</button></details>' +
             '</div>' +
-'<div style="background:#0a0a0f;border-radius:12px;padding:12px;display:flex;justify-content:center;margin-bottom:14px;max-height:46vh;overflow:auto;">' +
+            '<div style="background:#0a0a0f;border-radius:12px;padding:12px;display:flex;justify-content:center;margin-bottom:14px;max-height:46vh;overflow:auto;">' +
                 '<img id="pg-preview" style="max-width:100%;max-height:44vh;border-radius:8px;" alt="Poster preview">' +
             '</div>' +
-            '<div style="margin:14px 0 10px;padding-top:12px;border-top:1px solid #e5e7eb;">' +
-                '<p style="font-size:0.78rem;font-weight:700;color:#6b7280;margin-bottom:10px;text-align:center;">🔗 SHARE POSTER ON SOCIAL MEDIA</p>' +
+            '<div style="margin:14px 0 0;padding-top:12px;border-top:1px solid #e5e7eb;text-align:center;">' +
+                '<p style="font-size:0.78rem;font-weight:700;color:#6b7280;margin-bottom:10px;">🔗 SHARE POSTER (IMAGE ONLY)</p>' +
                 '<div id="pg-social-row" style="display:flex;justify-content:center;gap:14px;flex-wrap:wrap;">' +
-                    '<button data-platform="facebook" title="Facebook" class="pg-soc-btn"><svg viewBox="0 0 24 24" fill="#fb7185" style="width:24px;height:24px;pointer-events:none;"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.09 24 18.1 24 12.07"/></svg></button>' +
-                    '<button data-platform="whatsapp" title="WhatsApp" class="pg-soc-btn"><svg viewBox="0 0 24 24" fill="#fb7185" style="width:24px;height:24px;pointer-events:none;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></button>' +
-                    '<button data-platform="x" title="X (Twitter)" class="pg-soc-btn"><svg viewBox="0 0 24 24" fill="#fb7185" style="width:22px;height:22px;pointer-events:none;"><path d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.4l-5.8-7.58-6.64 7.58H.47l8.6-9.83L0 1.15h7.6l5.24 6.93zm-1.29 19.5h2.04L6.49 3.24H4.3z"/></svg></button>' +
-                    '<button data-platform="instagram" title="Instagram" class="pg-soc-btn"><svg viewBox="0 0 24 24" fill="#fb7185" style="width:24px;height:24px;pointer-events:none;"><path d="M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.64.07-4.85.07s-3.58-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.64-.07-4.85s.01-3.58.07-4.85C2.38 3.92 3.9 2.38 7.15 2.23 8.42 2.18 8.8 2.16 12 2.16zM12 0C8.74 0 8.33.01 7.05.07 2.7.27.27 2.69.07 7.05.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.2 4.36 2.62 6.78 6.98 6.98C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c4.35-.2 6.78-2.62 6.98-6.98.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95C23.73 2.7 21.31.27 16.95.07 15.67.01 15.26 0 12 0zm0 5.84A6.16 6.16 0 1 0 18.16 12 6.16 6.16 0 0 0 12 5.84zm0 10.15A4 4 0 1 1 16 12a4 4 0 0 1-4 3.99zm6.4-11.85a1.44 1.44 0 1 0 1.44 1.44 1.44 1.44 0 0 0-1.44-1.44z"/></svg></button>' +
+                    '<button data-platform="whatsapp" title="WhatsApp" class="pg-soc-btn"><svg viewBox="0 0 24 24" fill="#fb7185" style="width:24px;height:24px;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></button>' +
+                    '<button data-platform="facebook" title="Facebook" class="pg-soc-btn"><svg viewBox="0 0 24 24" fill="#fb7185" style="width:24px;height:24px;"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.09 24 18.1 24 12.07"/></svg></button>' +
+                    '<button data-platform="x" title="X" class="pg-soc-btn"><svg viewBox="0 0 24 24" fill="#fb7185" style="width:22px;height:22px;"><path d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.4l-5.8-7.58-6.64 7.58H.47l8.6-9.83L0 1.15h7.6l5.24 6.93zm-1.29 19.5h2.04L6.49 3.24H4.3z"/></svg></button>' +
+                    '<button data-platform="instagram" title="Instagram" class="pg-soc-btn"><svg viewBox="0 0 24 24" fill="#fb7185" style="width:24px;height:24px;"><path d="M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.64.07-4.85.07s-3.58-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.64-.07-4.85s.01-3.58.07-4.85C2.38 3.92 3.9 2.38 7.15 2.23 8.42 2.18 8.8 2.16 12 2.16zM12 0C8.74 0 8.33.01 7.05.07 2.7.27.27 2.69.07 7.05.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.2 4.36 2.62 6.78 6.98 6.98C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c4.35-.2 6.78-2.62 6.98-6.98.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95C23.73 2.7 21.31.27 16.95.07 15.67.01 15.26 0 12 0zm0 5.84A6.16 6.16 0 1 0 18.16 12 6.16 6.16 0 0 0 12 5.84zm0 10.15A4 4 0 1 1 16 12a4 4 0 0 1-4 3.99zm6.4-11.85a1.44 1.44 0 1 0 1.44 1.44 1.44 1.44 0 0 0-1.44-1.44z"/></svg></button>' +
                 '</div>' +
             '</div>' +
             '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
@@ -1563,106 +1431,22 @@ async function openPosterModal(articleId) {
         document.body.appendChild(ov);
         ov.addEventListener('click', function(e) { if (e.target === ov) ov.style.display = 'none'; });
         document.getElementById('pg-size').addEventListener('change', pgRenderPreview);
+        document.getElementById('pg-lang').addEventListener('change', function() { pgLoadEditFields(); pgRenderFontPicker(); pgRenderPreview(); });
         document.getElementById('pg-mode').addEventListener('change', pgRenderPreview);
         document.getElementById('pg-quality').addEventListener('change', pgRenderPreview);
-        document.getElementById('pg-lang').addEventListener('change', function() { pgLoadEditFields(); pgRenderFontPicker(); pgRenderPreview(); });
 
-        // 🔤 FONT PICKER PANEL
-        var _pgCustomFonts = [];
-        function pgDefaultFont() {
-            return { head: 'Catamaran', brand: 'Playfair Display' };   // ⭐ DEFAULT: Catamaran (same on PC + mobile)
-        }
-        function pgGetFont() {
-            var lang = document.getElementById('pg-lang').value;
-            if (!_pgOverrides['font_' + lang]) _pgOverrides['font_' + lang] = pgDefaultFont();
-            return _pgOverrides['font_' + lang];
-        }
-        function pgFontChip(containerId, listKey, currentName, onPick) {
-            var box = document.getElementById(containerId);
-            if (!box) return;
-            box.innerHTML = '';
-            function mkChip(name, sub, sys) {
-                var b = document.createElement('button');
-                b.type = 'button';
-                b.style.cssText = 'padding:5px 12px;border-radius:999px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid ' +
-                    (name === currentName ? '#dc2626' : '#d1d5db') + ';background:' + (name === currentName ? '#dc2626' : '#fff') + ';color:' + (name === currentName ? '#fff' : '#374151') + ';';
-                b.textContent = name + (sys ? ' ·' : '');
-                b.title = sub || name;
-                b.addEventListener('click', function () { onPick(name); });
-                box.appendChild(b);
-            }
-            POSTER_FONT_LIST.forEach(function (s) {
-                var isSys = !s.g;
-                var name = s.name.replace(/\s*\(system\)\s*$/, '');
-                if (listKey === 'ta' && s.tags.indexOf('ta') !== -1) mkChip(name, s.name + (isSys ? ' (system font)' : ''), isSys);
-                if (listKey === 'en' && s.tags.indexOf('en') !== -1) mkChip(name, s.name, isSys);
-            });
-            _pgCustomFonts.forEach(function (f) {
-                mkChip(f.name, 'custom', false);
-            });
-        }
-        function pgRenderFontPicker() {
-            var lang = document.getElementById('pg-lang').value;
-            var note = document.getElementById('pg-font-lang-note');
-            if (note) note.textContent = 'Selecting fonts for: ' + (lang === 'en' ? 'English version' : 'தமிழ் version') + ' — switch language to set the other.';
-            var cur = pgGetFont();
-            pgFontChip('pg-font-ta', 'ta', cur.head, function (name) {
-                pgGetFont().head = name;
-                pgRenderFontPicker();
-                clearTimeout(_pgEditT);
-                _pgEditT = setTimeout(pgRenderPreview, 350);
-            });
-            pgFontChip('pg-font-en', 'en', cur.brand, function (name) {
-                pgGetFont().brand = name;
-                pgRenderFontPicker();
-                clearTimeout(_pgEditT);
-                _pgEditT = setTimeout(pgRenderPreview, 350);
-            });
-        }
-        var pgFontToggle = document.getElementById('pg-font-toggle');
-        var pgFontPanel = document.getElementById('pg-font-panel');
-        pgFontToggle.addEventListener('click', function () {
-            var open = pgFontPanel.style.display !== 'none';
-            pgFontPanel.style.display = open ? 'none' : 'block';
-            pgFontToggle.textContent = open ? '🔤 Fonts (Tamil & English)' : '🔤 Hide Fonts';
-            if (!open) pgRenderFontPicker();
-        });
-        document.getElementById('pg-font-custom-add').addEventListener('click', function () {
-            var raw = (document.getElementById('pg-font-custom').value || '').trim();
-            if (!raw) return;
-            var name = raw.split(':')[0].trim();
-            if (!name) return;
-            var exists = POSTER_FONT_LIST.some(function (s) { return s.name.replace(/\s*\(system\)\s*$/, '') === name; }) ||
-                         _pgCustomFonts.some(function (f) { return f.name === name; });
-            if (!exists) {
-                POSTER_FONT_LIST.push({ name: name, g: raw.replace(/\s+/g, '+').replace(':', ':'), tags: 'ta en' });
-                _pgCustomFonts.push({ name: name, g: raw });
-            }
-            document.getElementById('pg-font-custom').value = '';
-            pgRenderFontPicker();
-        });
-
-        // ✏️ EDIT TEXT PANEL — live editable headline/excerpt
+        // ✏️ EDIT TEXT PANEL
         var _pgEditT = null;
         function pgLoadEditFields() {
             var lang = document.getElementById('pg-lang').value;
             var t = document.getElementById('pg-edit-title');
             var x = document.getElementById('pg-edit-excerpt');
             if (!t || !x || !_pgArticle) return;
-            t.value = _pgOverrides.hasOwnProperty('title_' + lang)
-                ? _pgOverrides['title_' + lang]
+            t.value = _pgOverrides.hasOwnProperty('title_' + lang) ? _pgOverrides['title_' + lang]
                 : (lang === 'en' ? (_pgArticle.title_en || _pgArticle.title || '') : (_pgArticle.title || _pgArticle.title_en || ''));
-            x.value = _pgOverrides.hasOwnProperty('excerpt_' + lang)
-                ? _pgOverrides['excerpt_' + lang]
+            x.value = _pgOverrides.hasOwnProperty('excerpt_' + lang) ? _pgOverrides['excerpt_' + lang]
                 : (lang === 'en' ? (_pgArticle.excerpt_en || _pgArticle.excerpt || '') : (_pgArticle.excerpt || _pgArticle.excerpt_en || ''));
-            var lbl = document.getElementById('pg-edit-lang-label');
-            if (lbl) lbl.textContent = lang === 'en' ? 'English' : 'தமிழ்';
             pgRenderChips();
-        }
-
-        // 🎨 Word highlight chips — tap a word to toggle brand-pink on the poster
-        function pgNormChip(w) {
-            return String(w || '').replace(/^[\s\.,;:!?"'’“”\-–—()\[\]]+|[\s\.,;:!?"'’“”\-–—()\[\]]+$/g, '');
         }
         function pgRenderChips() {
             var box = document.getElementById('pg-hl-chips');
@@ -1673,14 +1457,13 @@ async function openPosterModal(articleId) {
             box.innerHTML = '';
             String(title).split(/\s+/).forEach(function (w) {
                 if (!w) return;
-                var nw = pgNormChip(w);
+                var nw = pgNormWord(w);
                 if (!nw) return;
                 var b = document.createElement('button');
                 b.type = 'button';
                 b.textContent = w;
                 var on = hl.indexOf(nw) !== -1;
-                b.style.cssText = 'padding:4px 10px;border-radius:999px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;border:1.5px solid ' +
-                    (on ? '#fb7185' : '#d1d5db') + ';background:' + (on ? '#fb7185' : '#fff') + ';color:' + (on ? '#fff' : '#374151') + ';';
+                b.style.cssText = 'padding:4px 10px;border-radius:999px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid ' + (on ? '#fb7185' : '#d1d5db') + ';background:' + (on ? '#fb7185' : '#fff') + ';color:' + (on ? '#fff' : '#374151') + ';';
                 b.addEventListener('click', function () {
                     var i = hl.indexOf(nw);
                     if (i !== -1) hl.splice(i, 1); else hl.push(nw);
@@ -1692,10 +1475,10 @@ async function openPosterModal(articleId) {
             });
         }
         var pgEditToggle = document.getElementById('pg-edit-toggle');
-        var pgEditPanel = document.getElementById('pg-edit-panel');
         pgEditToggle.addEventListener('click', function() {
-            var open = pgEditPanel.style.display !== 'none';
-            pgEditPanel.style.display = open ? 'none' : 'block';
+            var p = document.getElementById('pg-edit-panel');
+            var open = p.style.display !== 'none';
+            p.style.display = open ? 'none' : 'block';
             pgEditToggle.textContent = open ? '✏️ Edit Headline & Excerpt (optional)' : '✏️ Hide Text Editor';
             if (!open) pgLoadEditFields();
         });
@@ -1706,7 +1489,7 @@ async function openPosterModal(articleId) {
             _pgOverrides['title_' + lang] = pgEditTitle.value;
             _pgOverrides['excerpt_' + lang] = pgEditExcerpt.value;
             clearTimeout(_pgEditT);
-            _pgEditT = setTimeout(function() { pgRenderPreview(); pgRenderChips(); }, 400);   // debounced live re-render
+            _pgEditT = setTimeout(function() { pgRenderPreview(); pgRenderChips(); }, 400);
         }
         pgEditTitle.addEventListener('input', pgOnEdit);
         pgEditExcerpt.addEventListener('input', pgOnEdit);
@@ -1715,10 +1498,61 @@ async function openPosterModal(articleId) {
             pgLoadEditFields();
             pgRenderPreview();
         });
-        document.getElementById('pg-download').addEventListener('click', pgDownload);
-        document.getElementById('pg-share').addEventListener('click', pgShare);
-        // 🔗 Social share — poster + article link
-        // Inject CSS for social buttons (once)
+
+        // 🔤 FONT PICKER
+        var _pgCustomFonts = [];
+        function pgGetFont() {
+            var lang = document.getElementById('pg-lang').value;
+            if (!_pgOverrides['font_' + lang]) _pgOverrides['font_' + lang] = { head: 'Catamaran', brand: 'Playfair Display' };
+            return _pgOverrides['font_' + lang];
+        }
+        function pgRenderFontPicker() {
+            var lang = document.getElementById('pg-lang').value;
+            var note = document.getElementById('pg-font-lang-note');
+            if (note) note.textContent = 'Fonts for: ' + (lang === 'en' ? 'English version' : 'தமிழ் version');
+            var cur = pgGetFont();
+            [['pg-font-ta', 'ta', 'head'], ['pg-font-en', 'en', 'brand']].forEach(function(cfg) {
+                var box = document.getElementById(cfg[0]);
+                if (!box) return;
+                box.innerHTML = '';
+                POSTER_FONT_LIST.forEach(function (s) {
+                    if (s.tags.indexOf(cfg[1]) === -1) return;
+                    var name = s.name.replace(/\s*\(system\)\s*$/, '');
+                    var b = document.createElement('button');
+                    b.type = 'button';
+                    b.textContent = name + (s.g ? '' : ' ·sys');
+                    var on = cur[cfg[2]] === name;
+                    b.style.cssText = 'padding:5px 12px;border-radius:999px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid ' + (on ? '#dc2626' : '#d1d5db') + ';background:' + (on ? '#dc2626' : '#fff') + ';color:' + (on ? '#fff' : '#374151') + ';';
+                    b.addEventListener('click', function () {
+                        pgGetFont()[cfg[2]] = name;
+                        pgRenderFontPicker();
+                        clearTimeout(_pgEditT);
+                        _pgEditT = setTimeout(pgRenderPreview, 350);
+                    });
+                    box.appendChild(b);
+                });
+            });
+        }
+        var pgFontToggle = document.getElementById('pg-font-toggle');
+        pgFontToggle.addEventListener('click', function() {
+            var p = document.getElementById('pg-font-panel');
+            var open = p.style.display !== 'none';
+            p.style.display = open ? 'none' : 'block';
+            pgFontToggle.textContent = open ? '🔤 Fonts (Tamil & English)' : '🔤 Hide Fonts';
+            if (!open) pgRenderFontPicker();
+        });
+        document.getElementById('pg-font-custom-add').addEventListener('click', function() {
+            var raw = (document.getElementById('pg-font-custom').value || '').trim();
+            if (!raw) return;
+            var name = raw.split(':')[0].trim();
+            if (!name) return;
+            var exists = POSTER_FONT_LIST.some(function(s) { return s.name.replace(/\s*\(system\)\s*$/, '') === name; });
+            if (!exists) POSTER_FONT_LIST.push({ name: name, g: raw.replace(/\s+/g, '+'), tags: 'ta en' });
+            document.getElementById('pg-font-custom').value = '';
+            pgRenderFontPicker();
+        });
+
+        // 🖼️ SOCIAL SHARE — image only, direct app open
         if (!document.getElementById('pg-soc-css')) {
             var st = document.createElement('style');
             st.id = 'pg-soc-css';
@@ -1730,8 +1564,6 @@ async function openPosterModal(articleId) {
             if (!btn || !_pgCanvas) return;
             var platform = btn.dataset.platform;
             var isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-
-            // Mobile: direct app share (no Windows share card)
             if (isMobile && navigator.canShare) {
                 try {
                     var blob = await new Promise(function(res) { _pgCanvas.toBlob(res, 'image/png'); });
@@ -1742,12 +1574,8 @@ async function openPosterModal(articleId) {
                             return;
                         }
                     }
-                } catch (err) {
-                    if (err.name === 'AbortError') return;
-                }
+                } catch (err) { if (err.name === 'AbortError') return; }
             }
-
-            // Windows/Desktop: download poster + open platform directly
             var a = document.createElement('a');
             a.download = 'endless-news-poster.png';
             a.href = _pgCanvas.toDataURL('image/png');
@@ -1761,6 +1589,8 @@ async function openPosterModal(articleId) {
             setTimeout(function() { window.open(urls[platform], '_blank'); }, 400);
             showToast('⬇️ Poster downloaded! Upload to ' + platform.charAt(0).toUpperCase() + platform.slice(1), 'success');
         });
+        document.getElementById('pg-download').addEventListener('click', pgDownload);
+        document.getElementById('pg-share').addEventListener('click', pgShare);
     }
     ov.style.display = 'flex';
     pgRenderPreview();
@@ -1771,21 +1601,20 @@ async function pgRenderPreview() {
     if (!_pgArticle) return;
     var size = document.getElementById('pg-size').value;
     var lang = document.getElementById('pg-lang').value;
+    var mode = (document.getElementById('pg-mode') || { value: 'full' }).value;
+    var quality = (document.getElementById('pg-quality') || { value: 'std' }).value;
     var img = document.getElementById('pg-preview');
     img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACw='; // spinner placeholder
-    // ✏️ Apply user text edits (per language) over the article data
     var o = _pgOverrides;
     var eff = Object.assign({}, _pgArticle, {
         title: o.hasOwnProperty('title_ta') ? o.title_ta : _pgArticle.title,
         title_en: o.hasOwnProperty('title_en') ? o.title_en : _pgArticle.title_en,
         excerpt: o.hasOwnProperty('excerpt_ta') ? o.excerpt_ta : _pgArticle.excerpt,
         excerpt_en: o.hasOwnProperty('excerpt_en') ? o.excerpt_en : _pgArticle.excerpt_en,
-        _hl: o['hl_' + lang] || [],   // 🎨 per-language highlighted words
-        _font: o['font_ta'] || o['font_en'] ? { ta: o['font_ta'] || pgDefaultFont(), en: o['font_en'] || pgDefaultFont() } : null
+        _hl: o['hl_' + lang] || [],
+        _font: (o['font_ta'] || o['font_en']) ? { ta: o['font_ta'] || { head: 'Catamaran', brand: 'Playfair Display' }, en: o['font_en'] || { head: 'Catamaran', brand: 'Playfair Display' } } : null
     });
     try {
-        var mode = (document.getElementById('pg-mode') || { value: 'full' }).value;
-        var quality = (document.getElementById('pg-quality') || { value: 'std' }).value;
         _pgCanvas = await generatePoster(eff, size, lang, mode, quality);
         img.src = _pgCanvas.toDataURL('image/png');
     } catch (e) {
@@ -2735,32 +2564,30 @@ function openNewsModal(isEdit) {
         if (!modal || modal._enterGuard) return;
         modal._enterGuard = true;
         modal.addEventListener('keydown', function(e) {
-            // Only block Enter on NON-input elements (buttons, etc.) — allow in text fields!
-            if (e.key === 'Enter' && e.target && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
+            if (e.key === 'Enter' && e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
                 e.preventDefault();
                 e.stopPropagation();
                 return false;
             }
-        }, true);
+        }, true); // capture phase — stops mobile submit before any handler
     }, 60);
     isEdit = isEdit || false;
-    var modal = document.getElementById('news-modal');
-    var modalTitle = document.getElementById('news-modal-title');
-    var catSelect = document.getElementById('news-category');
-
-    // 📝 Inject FORMAT button next to each copy button (once)
+    // 📝 Inject FORMAT button next to copy buttons
     document.querySelectorAll('.btn-copy').forEach(function(cb) {
         if (cb.parentNode && !cb.parentNode.querySelector('.btn-format')) {
             var fb = document.createElement('button');
             fb.type = 'button';
             fb.className = 'btn-format';
             fb.dataset.lang = cb.dataset.lang;
-            fb.title = 'Format plain text → paragraphs (paste panna content-ku)';
+            fb.title = 'Plain text → paragraphs';
             fb.style.cssText = 'position:absolute;top:5px;right:42px;z-index:10;padding:4px 10px;background:#059669;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;';
             fb.textContent = '📝 Format';
             cb.parentNode.appendChild(fb);
         }
     });
+    var modal = document.getElementById('news-modal');
+    var modalTitle = document.getElementById('news-modal-title');
+    var catSelect = document.getElementById('news-category');
 
     if (modal) modal.classList.add('open');
     if (modalTitle) modalTitle.textContent = isEdit ? 'Edit Article' : 'Add Article';
@@ -4000,7 +3827,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // 📝 FORMAT CONTENT button — plain text-a automatic-a paragraphs + <p> tags-ku maathum
+    // 📝 FORMAT CONTENT — plain text → paragraphs + <br>
     document.querySelectorAll('.btn-format').forEach(function(button) {
         button.addEventListener('click', function() {
             var lang = button.dataset.lang;
@@ -4008,20 +3835,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!textarea) return;
             var raw = textarea.value;
             if (!raw.trim()) { showToast('Content empty!', 'error'); return; }
-            // Already HTML-a irundha skip pannu (idathai maatha vendaam)
-            if (/<p>|<br\s*\/?>/i.test(raw)) {
-                showToast('⚠️ Already formatted (HTML irukku). Direct-a save pannalam!', 'success');
-                return;
-            }
-            // Paragraphs: double newlines OR single newlines (common paste) → separate paragraphs
+            if (/<p>|<br\s*\/?>/i.test(raw)) { showToast('⚠️ Already formatted (HTML)', 'success'); return; }
             var paras = raw.split(/\n\s*\n/).map(function(p) { return p.trim(); }).filter(function(p) { return p; });
             if (!paras.length) paras = [raw.trim()];
-            // Inner single newlines → <br>, wrap in <p>
-            var html = paras.map(function(p) {
+            textarea.value = paras.map(function(p) {
                 return '<p>' + p.replace(/\n/g, '<br>').replace(/\r/g, '') + '</p>';
             }).join('\n');
-            textarea.value = html;
-            showToast('✅ Formatted! ' + paras.length + ' paragraphs ready. Save pannunga.', 'success');
+            showToast('✅ Formatted! ' + paras.length + ' paragraphs ready.', 'success');
         });
     });
     }).catch(function(err) {
@@ -4032,7 +3852,7 @@ document.addEventListener('DOMContentLoaded', function() {
             adminNews = JSON.parse(JSON.stringify(DEFAULT_NEWS));
             saveNews();
         }
-        renderDashboard(); 
+        renderDashboard();
         if (currentPage === 'news') renderNewsTable();
     });
 });
