@@ -971,6 +971,44 @@ async function uploadToCloudinary(file, onProgress) {
 // ═══════════════════════════════════════════════════════════════
 let _pgOverrides = {};
 
+
+// ═══ MISSING HELPERS — poster generator dependencies ═══
+function pgRoundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+}
+
+function pgLoadImg(url) {
+    return new Promise(function(res, rej) {
+        var img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function() { res(img); };
+        img.onerror = rej;
+        img.src = url;
+    });
+}
+
+function pgNormWord(w) {
+    return String(w || '').replace(/^[\s\.,;:!?"'’“”\-–—()\[\]]+|[\s\.,;:!?"'’“”\-–—()\[\]]+$/g, '');
+}
+
+function pgWrapText(ctx, text, maxW) {
+    var words = String(text || '').split(/\s+/), lines = [], line = '';
+    for (var i = 0; i < words.length; i++) {
+        var test = line ? line + ' ' + words[i] : words[i];
+        if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = words[i]; }
+        else line = test;
+    }
+    if (line) lines.push(line);
+    return lines;
+}
+// ═══ END HELPERS ═══
+
 async function generatePoster(article, sizeKey, lang, mode, quality) {
     mode = mode || 'full';
     var q = (quality === 'hd') ? 2 : 1;
