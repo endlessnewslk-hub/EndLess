@@ -772,109 +772,6 @@ if (typeof window.showToast !== 'function') {
     };
 }
 
-// ✈️ TELEGRAM BOT SETUP — Settings page-la inject (simple: token paste → auto chat ID!)
-async function ensureTelegramUI() {
-    var page = document.getElementById('page-settings');
-    if (!page || document.getElementById('tg-setup-panel')) return;
-
-    var panel = document.createElement('div');
-    panel.className = 'panel';
-    panel.id = 'tg-setup-panel';
-    panel.style.marginTop = '1.5rem';
-    panel.innerHTML =
-        '<h3>✈️ Telegram Notifications (New Like/Share alerts)</h3>' +
-        '<p style="color:#6b7280;font-size:0.85rem;margin-bottom:0.75rem;">' +
-        'Like/share aana odane unga Telegram app-ku notification varum! Setup (2 min):' +
-        '<br>1️⃣ Telegram-la <b>@BotFather</b> search → /newbot → name kudunga → <b>Token</b> copy pannunga<br>' +
-        '2️⃣ Token-a keezha paste pannunga → "Find My Chat ID" click pannunga<br>' +
-        '3️⃣ Telegram-la unga bot-ku oru message anuppuunga (e.g., "hi") → approm button click!</p>' +
-        '<div class="form-group"><label>Bot Token</label>' +
-        '<input type="text" id="tg-bot-token" placeholder="123456:ABC-DEF..." style="width:100%;padding:0.6rem 0.875rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;"></div>' +
-        '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">' +
-        '<button class="btn-primary" id="tg-find-chat" type="button">🔍 Find My Chat ID</button>' +
-        '<button class="btn-primary" id="tg-save" type="button">💾 Save</button>' +
-        '<button class="btn-secondary" id="tg-test" type="button">🧪 Test Message</button>' +
-        '</div>' +
-        '<p id="tg-status" style="margin-top:0.75rem;font-size:0.85rem;font-weight:600;color:#6b7280;">Status: —</p>';
-
-    page.appendChild(panel);
-
-    // Load saved config
-    try {
-        if (db) {
-            var doc = await db.collection('settings').doc('telegram_bot').get();
-            if (doc.exists) {
-                var c = doc.data();
-                document.getElementById('tg-bot-token').value = c.botToken || '';
-                document.getElementById('tg-status').textContent = 'Status: ✅ Connected (Chat ID: ' + (c.chatId || '?') + ')';
-                document.getElementById('tg-status').style.color = '#059669';
-            }
-        }
-    } catch (e) {}
-
-    // Find Chat ID — fetches bot updates, finds user's chat
-    document.getElementById('tg-find-chat').addEventListener('click', async function() {
-        var token = document.getElementById('tg-bot-token').value.trim();
-        var status = document.getElementById('tg-status');
-        if (!token) { status.textContent = 'Status: ❌ Token first paste pannunga!'; status.style.color = '#dc2626'; return; }
-
-        status.textContent = 'Status: ⏳ Searching... (unga bot-ku Telegram-la oru message anuppuunga!)';
-        try {
-            var r = await fetch('https://api.telegram.org/bot' + token + '/getUpdates');
-            var j = await r.json();
-            if (j.ok && j.result && j.result.length) {
-                // Latest message-oda chat id
-                var chatId = j.result[j.result.length - 1].message.chat.id;
-                status.textContent = 'Status: ✅ Chat ID found: ' + chatId + ' → Ipo "Save" click pannunga!';
-                status.style.color = '#059669';
-                window._tgChatId = chatId;
-            } else {
-                status.textContent = 'Status: ❌ Messages illa! Bot-ku oru "hi" message anuppu, approm thirumba try pannu.';
-                status.style.color = '#dc2626';
-            }
-        } catch (e) {
-            status.textContent = 'Status: ❌ Error — token sariya check pannu';
-            status.style.color = '#dc2626';
-        }
-    });
-
-    // Save
-    document.getElementById('tg-save').addEventListener('click', async function() {
-        var token = document.getElementById('tg-bot-token').value.trim();
-        var chatId = window._tgChatId;
-        var status = document.getElementById('tg-status');
-        if (!token || !chatId) { status.textContent = 'Status: ❌ Token + Chat ID venum (Find Chat ID click pannu!)'; status.style.color = '#dc2626'; return; }
-        try {
-            await db.collection('settings').doc('telegram_bot').set({
-                botToken: token, chatId: String(chatId), savedAt: new Date().toISOString()
-            });
-            status.textContent = 'Status: ✅ SAVED! Ippo vera browser-la LIKE pannu — Telegram-la varum!';
-            status.style.color = '#059669';
-            showToast('✈️ Telegram connected!', 'success');
-        } catch (e) {
-            status.textContent = 'Status: ❌ Save failed';
-            status.style.color = '#dc2626';
-        }
-    });
-
-    // Test
-    document.getElementById('tg-test').addEventListener('click', async function() {
-        var status = document.getElementById('tg-status');
-        try {
-            var doc = await db.collection('settings').doc('telegram_bot').get();
-            if (!doc.exists || !doc.data().botToken) { status.textContent = 'Status: ❌ First Save pannu!'; return; }
-            var c = doc.data();
-            var r = await fetch('https://api.telegram.org/bot' + c.botToken + '/sendMessage', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: c.chatId, text: '🧪 Test OK! Telegram notifications WORKING! 🎉\n\n👉 endlessnews.lk' })
-            });
-            var j = await r.json();
-            status.textContent = j.ok ? 'Status: ✅ Test sent! Telegram app check pannu!' : 'Status: ❌ Test failed: ' + (j.description || '');
-            status.style.color = j.ok ? '#059669' : '#dc2626';
-        } catch (e) { status.textContent = 'Status: ❌ Error'; }
-    });
-}
 
 // ☁️ CLOUDINARY DIRECT UPLOAD — Device image → auto Cloudinary → URL!
 // Cloudinary account create pannunga → Cloud Name + Unsigned Preset eduthukkunga!
@@ -2045,7 +1942,7 @@ function showPageContinue(page) {
     if (pageTitle) pageTitle.textContent = page.charAt(0).toUpperCase() + page.slice(1);
     
     // CRITICAL FIX: Always render tables when showing page
-    if (page === 'settings') ensureTelegramUI();
+    if (page === 'settings') 
     if (page === 'dashboard') renderDashboard();
     if (page === 'analytics') renderAnalyticsPage();
     if (page === 'news') renderNewsTable();
