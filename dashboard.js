@@ -1087,6 +1087,22 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         ctx.beginPath(); ctx.rect(0, 0, W, imgH); ctx.clip();
         ctx.drawImage(img, (W - iw) / 2, (imgH - ih) / 2, iw, ih);
         ctx.restore();
+
+        // ✨ BEAUTIFUL IMAGE BORDER — professional glow around photo
+        var bW = Math.max(4, Math.round(W * 0.004));
+        var bR = Math.round(W * 0.015);
+        ctx.save();
+        ctx.shadowColor = 'rgba(225,29,72,0.4)';
+        ctx.shadowBlur = Math.round(W * 0.012);
+        ctx.strokeStyle = 'rgba(225,29,72,0.5)';
+        ctx.lineWidth = bW;
+        pgRoundRect(ctx, bW/2, bW/2, W-bW, imgH-bW, bR);
+        ctx.stroke();
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 1;
+        pgRoundRect(ctx, bW+2, bW+2, W-(bW+2)*2, imgH-(bW+2)*2, bR);
+        ctx.stroke();
     } catch (e) {}
 
     var fadeH = Math.round(H * 0.2);
