@@ -1009,6 +1009,43 @@ function pgWrapText(ctx, text, maxW) {
 }
 // ═══ END HELPERS ═══
 
+const POSTER_SIZES = {
+    square: { w: 1080, h: 1080, label: '1:1 · Instagram / FB Post' },
+    p45:    { w: 1080, h: 1350, label: '4:5 · Instagram Portrait' },
+    p34:    { w: 1080, h: 1440, label: '3:4 · Portrait' },
+    p23:    { w: 1080, h: 1620, label: '2:3 · Pinterest / FB' },
+    story:  { w: 1080, h: 1920, label: '9:16 · Story / Status' },
+    wide:   { w: 1200, h: 675,  label: '16:9 · X / FB Link Card' }
+};
+
+const POSTER_FONT_LIST = [
+    { name: 'Catamaran',        g: 'Catamaran:wght@700;800',               tags: 'ta en' },
+    { name: 'Noto Sans Tamil',  g: 'Noto+Sans+Tamil:wght@400;600;700;800', tags: 'ta' },
+    { name: 'Mukta Malar',      g: 'Mukta+Malar:wght@700;800',             tags: 'ta' },
+    { name: 'Nirmala UI',       g: null,                                    tags: 'ta system' },
+    { name: 'Playfair Display', g: 'Playfair+Display:wght@700;800;900',    tags: 'en' },
+    { name: 'Inter',            g: 'Inter:wght@500;600;700',               tags: 'en' },
+    { name: 'Lora',             g: 'Lora:wght@700',                        tags: 'en' }
+];
+
+function pgLoadFont(spec) {
+    if (!spec || !spec.g) return Promise.resolve();
+    var fam = spec.g.split(':')[0].replace(/\+/g, ' ');
+    if (document.fonts.check('700 20px "' + fam + '"')) return Promise.resolve();
+    return document.fonts.load('700 20px "' + fam + '"').catch(function () {});
+}
+
+// 🔤 Poster fonts stylesheet — mobile/PWA-safe
+(function injectPosterFonts() {
+    if (document.getElementById('poster-fonts-css')) return;
+    var link = document.createElement('link');
+    link.id = 'poster-fonts-css';
+    link.rel = 'stylesheet';
+    link.crossOrigin = 'anonymous';
+    link.href = 'https://fonts.googleapis.com/css2?family=Catamaran:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700;800&family=Playfair+Display:wght@700;800;900&family=Inter:wght@500;600;700&family=Arimo:wght@400;700&family=Latha&family=Mukta+Malar:wght@700;800&display=swap';
+    document.head.appendChild(link);
+})();
+
 async function generatePoster(article, sizeKey, lang, mode, quality) {
     mode = mode || 'full';
     var q = (quality === 'hd') ? 2 : 1;
