@@ -1080,6 +1080,11 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     var title = lang === 'en' ? (article.title_en || article.title) : (article.title || article.title_en);
     var excerpt = lang === 'en' ? (article.excerpt_en || article.excerpt) : (article.excerpt || article.excerpt_en);
     var cat = lang === 'en' ? (article.category_en || article.category) : (article.category || article.category_en);
+
+    // 🎯 NUCLEAR FIX: Headline mode = NO excerpt
+    if (mode === 'headline') {
+        excerpt = '';
+    }
     if (mode === 'headline') {
         excerpt = '';
         title = title.toUpperCase();
@@ -1355,6 +1360,11 @@ async function pgRenderPreview() {
     });
     try {
         if (mode === 'headline') { eff.excerpt = ''; eff.excerpt_en = ''; }
+        // 🎯 NUCLEAR: Headline mode = NO EXCERPT, force!
+        if (mode === 'headline') {
+            eff.excerpt = '';
+            eff.excerpt_en = '';
+        }
         _pgCanvas = await generatePoster(eff, size, lang, mode, quality);
         img.src = _pgCanvas.toDataURL('image/png');
     } catch (e) {
