@@ -965,14 +965,63 @@ async function uploadToCloudinary(file, onProgress) {
     }
 }
 
-
 // ═══════════════════════════════════════════════════════════════
-// 🎨 FULL POSTER GENERATOR — all features (sizes, HD, modes, highlights, fonts, CTA, FOLLOW US)
+// 🎨 SOCIAL POSTER GENERATOR — Al Jazeera/BBC style news cards!
+// One click → branded poster (image + headline + excerpt + brand)
+// Sizes: 1:1 (IG/FB), 16:9 (X), 9:16 (Story) · Tamil/English · Download/Share
 // ═══════════════════════════════════════════════════════════════
-let _pgOverrides = {};
+const POSTER_SIZES = {
+    square: { w: 1080, h: 1080, label: '1:1 · Instagram / FB Post' },
+    p45:    { w: 1080, h: 1350, label: '4:5 · Instagram Portrait' },
+    p34:    { w: 1080, h: 1440, label: '3:4 · Portrait' },
+    p23:    { w: 1080, h: 1620, label: '2:3 · Pinterest / FB' },
+    story:  { w: 1080, h: 1920, label: '9:16 · Story / Status' },
+    wide:   { w: 1200, h: 675,  label: '16:9 · X / FB Link Card' }
+};
 
+// 🔤 POSTER FONT PICKER — built-in + custom add
+const POSTER_FONT_LIST = [
+    { name: 'Catamaran',        g: 'Catamaran:wght@700;800',            tags: 'ta en' },
+    { name: 'Noto Sans Tamil',  g: 'Noto+Sans+Tamil:wght@400;600;700;800', tags: 'ta' },
+    { name: 'Mukta Malar',      g: 'Mukta+Malar:wght@700;800',          tags: 'ta' },
+    { name: 'Nirmala UI',       g: null,                                 tags: 'ta system' },
+    { name: 'Playfair Display', g: 'Playfair+Display:wght@700;800;900', tags: 'en' },
+    { name: 'Inter',            g: 'Inter:wght@500;600;700',            tags: 'en' },
+    { name: 'Lora',             g: 'Lora:wght@700',                     tags: 'en' }
+];
+function pgLoadFont(spec) {
+    if (!spec || !spec.g) return Promise.resolve();
+    var fam = spec.g.split(':')[0].replace(/\+/g, ' ');
+    if (document.fonts.check('700 20px "' + fam + '"')) return Promise.resolve();
+    return document.fonts.load('700 20px "' + fam + '"').catch(function () {});
+}
+function pgNormWord(w) {
+    return String(w || '').replace(/^[\s\.,;:!?"'’“”\-–—()\[\]]+|[\s\.,;:!?"'’“”\-–—()\[\]]+$/g, '');
+}
 
-// ═══ MISSING HELPERS — poster generator dependencies ═══
+// 🔤 Poster fonts stylesheet — mobile/PWA-safe (guaranteed @font-face)
+(function injectPosterFonts() {
+    if (document.getElementById('poster-fonts-css')) return;
+    var link = document.createElement('link');
+    link.id = 'poster-fonts-css';
+    link.rel = 'stylesheet';
+    link.crossOrigin = 'anonymous';
+    link.href = 'https://fonts.googleapis.com/css2?family=Catamaran:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700;800&family=Noto+Serif+Tamil:wght@700;800&family=Playfair+Display:wght@700;800;900&family=Inter:wght@500;600;700&family=Arimo:wght@400;700&family=Latha&family=Mukta+Malar:wght@700;800&display=swap';
+    document.head.appendChild(link);
+})();
+
+function pgWrapText(ctx, text, maxW) {
+    var words = String(text || '').split(/\s+/), lines = [], line = '';
+    for (var i = 0; i < words.length; i++) {
+        var test = line ? line + ' ' + words[i] : words[i];
+        if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = words[i]; }
+        else line = test;
+        if (lines.length >= 5) break; // safety cap
+    }
+    if (line) lines.push(line);
+    return lines;
+}
+
 function pgRoundRect(ctx, x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -993,67 +1042,15 @@ function pgLoadImg(url) {
     });
 }
 
-function pgNormWord(w) {
-    return String(w || '').replace(/^[\s\.,;:!?"'’“”\-–—()\[\]]+|[\s\.,;:!?"'’“”\-–—()\[\]]+$/g, '');
-}
-
-function pgWrapText(ctx, text, maxW) {
-    var words = String(text || '').split(/\s+/), lines = [], line = '';
-    for (var i = 0; i < words.length; i++) {
-        var test = line ? line + ' ' + words[i] : words[i];
-        if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = words[i]; }
-        else line = test;
-    }
-    if (line) lines.push(line);
-    return lines;
-}
-// ═══ END HELPERS ═══
-
-const POSTER_SIZES = {
-    square: { w: 1080, h: 1080, label: '1:1 · Instagram / FB Post' },
-    p45:    { w: 1080, h: 1350, label: '4:5 · Instagram Portrait' },
-    p34:    { w: 1080, h: 1440, label: '3:4 · Portrait' },
-    p23:    { w: 1080, h: 1620, label: '2:3 · Pinterest / FB' },
-    story:  { w: 1080, h: 1920, label: '9:16 · Story / Status' },
-    wide:   { w: 1200, h: 675,  label: '16:9 · X / FB Link Card' }
-};
-
-const POSTER_FONT_LIST = [
-    { name: 'Catamaran',        g: 'Catamaran:wght@700;800',               tags: 'ta en' },
-    { name: 'Noto Sans Tamil',  g: 'Noto+Sans+Tamil:wght@400;600;700;800', tags: 'ta' },
-    { name: 'Mukta Malar',      g: 'Mukta+Malar:wght@700;800',             tags: 'ta' },
-    { name: 'Nirmala UI',       g: null,                                    tags: 'ta system' },
-    { name: 'Playfair Display', g: 'Playfair+Display:wght@700;800;900',    tags: 'en' },
-    { name: 'Inter',            g: 'Inter:wght@500;600;700',               tags: 'en' },
-    { name: 'Lora',             g: 'Lora:wght@700',                        tags: 'en' }
-];
-
-function pgLoadFont(spec) {
-    if (!spec || !spec.g) return Promise.resolve();
-    var fam = spec.g.split(':')[0].replace(/\+/g, ' ');
-    if (document.fonts.check('700 20px "' + fam + '"')) return Promise.resolve();
-    return document.fonts.load('700 20px "' + fam + '"').catch(function () {});
-}
-
-// 🔤 Poster fonts stylesheet — mobile/PWA-safe
-(function injectPosterFonts() {
-    if (document.getElementById('poster-fonts-css')) return;
-    var link = document.createElement('link');
-    link.id = 'poster-fonts-css';
-    link.rel = 'stylesheet';
-    link.crossOrigin = 'anonymous';
-    link.href = 'https://fonts.googleapis.com/css2?family=Catamaran:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700;800&family=Playfair+Display:wght@700;800;900&family=Inter:wght@500;600;700&family=Arimo:wght@400;700&family=Latha&family=Mukta+Malar:wght@700;800&display=swap';
-    document.head.appendChild(link);
-})();
-
 async function generatePoster(article, sizeKey, lang, mode, quality) {
     mode = mode || 'full';
-    var q = (quality === 'hd') ? 2 : 1;
+    var q = (quality === 'hd') ? 2 : 1;   // 🖥️ HD = 2x
     var S = POSTER_SIZES[sizeKey] || POSTER_SIZES.square;
     var W = S.w * q, H = S.h * q;
     var isWide = W > H;
     var isStory = sizeKey === 'story';
 
+    // 🔤 Fonts per picker (default Catamaran / Playfair)
     var defaultFont = (article._font && article._font[lang]) || { head: 'Catamaran', brand: 'Playfair Display' };
     var TAMIL_STACK = '"' + (defaultFont.head || 'Catamaran') + '", "Noto Sans Tamil", Arial';
     var BRAND_STACK = '"' + (defaultFont.brand || 'Playfair Display') + '", Georgia, serif';
@@ -1068,7 +1065,10 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
                 Promise.all(chosen.map(pgLoadFont)).then(function () { return document.fonts.ready; }),
                 new Promise(function (res) { setTimeout(res, 5000); })
             ]);
-            var allOk = chosen.every(function (s) { if (!s.g) return true; return document.fonts.check('700 20px "' + s.g.split(':')[0].replace(/\+/g, ' ') + '"'); });
+            var allOk = chosen.every(function (s) {
+                if (!s.g) return true;
+                return document.fonts.check('700 20px "' + s.g.split(':')[0].replace(/\+/g, ' ') + '"');
+            });
             if (allOk) break;
         }
     } catch (e) {}
@@ -1081,27 +1081,28 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     var excerpt = lang === 'en' ? (article.excerpt_en || article.excerpt) : (article.excerpt || article.excerpt_en);
     var cat = lang === 'en' ? (article.category_en || article.category) : (article.category || article.category_en);
 
-    // 🎯 NUCLEAR FIX: Headline mode = NO excerpt
-    if (mode === 'headline') {
-        excerpt = '';
-    }
-    if (mode === 'headline') {
-        excerpt = '';
-        title = title.toUpperCase();
-    }
+    // 💬 Headline-only: excerpt hidden
+    if (mode === 'headline') excerpt = '';
+
+    // 🗺️ Local → இலங்கை / SRI LANKA
     var CAT_POSTER_NAMES = { 'local': { ta: 'இலங்கை', en: 'SRI LANKA' } };
     var catKey = String(article.category_en || article.category || '').trim().toLowerCase();
     if (CAT_POSTER_NAMES[catKey]) cat = lang === 'en' ? CAT_POSTER_NAMES[catKey].en : CAT_POSTER_NAMES[catKey].ta;
 
+    // 📅 Language date
     var d = article.date ? new Date(article.date) : new Date();
     var dateStr = '';
-    try { dateStr = d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'ta-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); } catch (e) { dateStr = d.toDateString(); }
+    try {
+        dateStr = d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'ta-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    } catch (e) { dateStr = d.toDateString(); }
 
     var mX = Math.round(W * 0.045);
     var maxW = W - mX * 2;
     var gap = Math.round(H * 0.016);
     var barH = Math.round(H * (isWide ? 0.12 : 0.082));
     var barY = H - barH - Math.round(H * 0.026);
+
+    // 🎨 Word highlights
     var hlSet = (article._hl || []).map(pgNormWord);
 
     function fullWrap(text, maxWidth) {
@@ -1131,15 +1132,19 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     var minHead = Math.max(20, Math.round(W * 0.022));
     function calcLayout(sc) {
         var hs = Math.max(minHead, Math.round(baseHead * sc)); var lh = Math.round(hs * 1.3);
-        ctx.font = '800 ' + hs + 'px ' + TAMIL_STACK; ctx.textBaseline = 'top';
+        ctx.font = '800 ' + hs + 'px ' + TAMIL_STACK;
+        ctx.textBaseline = 'top';
         var hl = wrapColored(title, maxW);
         var es = Math.max(15, Math.round(hs * 0.52)); var elh = Math.round(es * 1.48);
         ctx.font = '400 ' + es + 'px ' + TAMIL_STACK;
         var el = excerpt ? fullWrap(excerpt, maxW) : [];
-        return { hs: hs, lh: lh, hl: hl, es: es, elh: elh, el: el, need: hl.length * lh + (el.length ? gap + el.length * elh : 0) };
+        var need = hl.length * lh + (el.length ? gap + el.length * elh : 0);
+        return { hs: hs, lh: lh, hl: hl, es: es, elh: elh, el: el, need: need };
     }
 
+    // 💬 CTA pill space reserve (BOTH modes)
     var ctaReserve = Math.round(W * 0.018) * 1.95 + Math.round(H * 0.018) + Math.round(H * 0.026);
+
     var imgH = Math.round(H * (isWide ? 0.48 : (isStory ? 0.42 : 0.45)));
     var minImgH = Math.round(H * 0.20);
     var y, avail, L;
@@ -1164,12 +1169,15 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         imgH = Math.max(minImgH, imgH - (L.need - avail) - Math.round(H * 0.01));
         reflow();
     }
+
+    // 🔄 Verify: measure & draw same font
     (function () {
         ctx.font = '800 ' + L.hs + 'px ' + TAMIL_STACK;
         var recheck = wrapColored(title, maxW);
         if (recheck.length !== L.hl.length) reflow();
     })();
 
+    // ═══ DRAW ═══
     var bg = ctx.createLinearGradient(0, 0, 0, H);
     bg.addColorStop(0, '#13131f'); bg.addColorStop(1, '#0a0a0f');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
@@ -1177,14 +1185,17 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     try {
         var img = await pgLoadImg(article.image);
         var scale = Math.max(W / img.width, imgH / img.height);
+        var iw = img.width * scale, ih = img.height * scale;
         ctx.save();
         ctx.beginPath(); ctx.rect(0, 0, W, imgH); ctx.clip();
-        ctx.drawImage(img, (W - img.width * scale) / 2, (imgH - img.height * scale) / 2, img.width * scale, img.height * scale);
+        ctx.drawImage(img, (W - iw) / 2, (imgH - ih) / 2, iw, ih);
         ctx.restore();
     } catch (e) {}
+
     var fadeH = Math.round(H * 0.2);
     var fade = ctx.createLinearGradient(0, imgH - fadeH, 0, imgH + Math.round(H * 0.04));
-    fade.addColorStop(0, 'rgba(10,10,15,0)'); fade.addColorStop(1, 'rgba(10,10,15,1)');
+    fade.addColorStop(0, 'rgba(10,10,15,0)');
+    fade.addColorStop(1, 'rgba(10,10,15,1)');
     ctx.fillStyle = fade; ctx.fillRect(0, imgH - fadeH, W, fadeH + Math.round(H * 0.05));
 
     if (cat) {
@@ -1205,6 +1216,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     ctx.fillStyle = '#e11d48';
     ctx.fillRect(mX, y - Math.round(H * 0.02) - accH, Math.round(W * 0.12), accH);
 
+    // HEADLINE (per-word pink highlights)
     ctx.font = '800 ' + L.hs + 'px ' + TAMIL_STACK;
     ctx.textBaseline = 'top';
     var spaceW = ctx.measureText(' ').width;
@@ -1223,20 +1235,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         L.el.forEach(function (ln, i) { ctx.fillText(ln, mX, ey + i * L.elh); });
     }
 
-    // 🎨 HEADLINE DRAWING — per-word pink highlights!
-    ctx.font = '800 ' + L.hs + 'px ' + TAMIL_STACK;
-    ctx.textBaseline = 'top';
-    var spaceW = ctx.measureText(' ').width;
-    L.hl.forEach(function (tokens, i) {
-        var wx = mX;
-        tokens.forEach(function (tok) {
-            ctx.fillStyle = tok.hl ? '#fb7185' : '#ffffff';   // ⭐ PINK for highlighted!
-            ctx.fillText(tok.t, wx, y + i * L.lh);
-            wx += ctx.measureText(tok.t).width + spaceW;
-        });
-    });
-
-    // CTA pill
+    // 💬 CTA pill (BOTH modes)
     (function () {
         var cta = lang === 'en' ? 'READ THE FULL NEWS' : '\u0BAE\u0BC1\u0BB4\u0BC1 \u0B9A\u0BC6\u0BAF\u0BCD\u0BA4\u0BBF\u0BAF\u0BC8\u0BAA\u0BCD \u0BAA\u0B9F\u0BBF\u0B95\u0BCD\u0B95';
         var ctaSize = Math.max(15, Math.round(W * 0.018));
@@ -1310,7 +1309,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     ctx.fillStyle = '#fb7185';
     ctx.fillText('endlessnews.lk', textX, barY + barH * 0.72);
 
-    // FOLLOW US
+    // 8b) FOLLOW US — 4 official logos in brand pink
     (function drawSocial() {
         var ico = Math.round(barH * 0.36);
         var icoGap = Math.round(ico * 0.42);
@@ -1354,60 +1353,9 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     return cv;
 }
 
-async function pgRenderPreview() {
-    if (!_pgArticle) return;
-    var size = document.getElementById('pg-size').value;
-    var lang = document.getElementById('pg-lang').value;
-    var mode = (document.getElementById('pg-mode') || { value: 'full' }).value;
-    var quality = (document.getElementById('pg-quality') || { value: 'std' }).value;
-    var img = document.getElementById('pg-preview');
-    img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
-    var o = _pgOverrides;
-    var eff = Object.assign({}, _pgArticle, {
-        title: o.hasOwnProperty('title_ta') ? o.title_ta : _pgArticle.title,
-        title_en: o.hasOwnProperty('title_en') ? o.title_en : _pgArticle.title_en,
-        excerpt: o.hasOwnProperty('excerpt_ta') ? o.excerpt_ta : _pgArticle.excerpt,
-        excerpt_en: o.hasOwnProperty('excerpt_en') ? o.excerpt_en : _pgArticle.excerpt_en,
-        _hl: o['hl_' + lang] || [],
-        _font: (o['font_ta'] || o['font_en']) ? { ta: o['font_ta'] || { head: 'Catamaran', brand: 'Playfair Display' }, en: o['font_en'] || { head: 'Catamaran', brand: 'Playfair Display' } } : null
-    });
-    try {
-        if (mode === 'headline') { eff.excerpt = ''; eff.excerpt_en = ''; }
-        // 🎯 NUCLEAR: Headline mode = NO EXCERPT, force!
-        if (mode === 'headline') {
-            eff.excerpt = '';
-            eff.excerpt_en = '';
-        }
-        _pgCanvas = await generatePoster(eff, size, lang, mode, quality);
-        img.src = _pgCanvas.toDataURL('image/png');
-    } catch (e) {
-        showToast('Poster error: ' + e.message, 'error');
-    }
-}
-
-function pgDownload() {
-    if (!_pgCanvas) return;
-    var a = document.createElement('a');
-    a.download = 'endless-poster-' + (_pgArticle ? _pgArticle.id : 'news') + '.png';
-    a.href = _pgCanvas.toDataURL('image/png');
-    a.click();
-    showToast('⬇️ Poster downloaded!', 'success');
-}
-
-async function pgShare() {
-    if (!_pgCanvas) return;
-    try {
-        _pgCanvas.toBlob(async function(blob) {
-            var file = new File([blob], 'endless-news.png', { type: 'image/png' });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({ files: [file], title: 'EndLess News', text: (_pgArticle.title_en || _pgArticle.title || '') });
-            } else {
-                pgDownload();
-            }
-        }, 'image/png');
-    } catch (e) { pgDownload(); }
-}
-
+// 🎨 POSTER MODAL — size + language + preview + download + share
+let _pgArticle = null;
+let _pgOverrides = {};   // ✏️ user text/highlight/font edits per lang
 async function openPosterModal(articleId) {
     _pgArticle = (typeof adminNews !== 'undefined' ? adminNews : []).find(function(n) { return String(n.id) === String(articleId); });
     if (!_pgArticle) { showToast('Article not found', 'error'); return; }
@@ -1421,94 +1369,82 @@ async function openPosterModal(articleId) {
             '<div style="background:#fff;border-radius:18px;max-width:640px;width:100%;padding:24px;position:relative;max-height:94vh;overflow-y:auto;">' +
             '<button onclick="document.getElementById(\'poster-gen-ov\').style.display=\'none\'" style="position:absolute;top:14px;right:14px;width:36px;height:36px;border:none;border-radius:50%;background:#f3f4f6;cursor:pointer;font-size:16px;">✕</button>' +
             '<h3 style="font-size:1.2rem;font-weight:800;margin-bottom:4px;">🎨 Social Poster Generator</h3>' +
-            '<p style="color:#6b7280;font-size:0.85rem;margin-bottom:16px;">Branded news card — Download & Post!</p>' +
+            '<p style="color:#6b7280;font-size:0.85rem;margin-bottom:16px;">One click → branded news card (Al Jazeera style!) — Download & Post FB/IG/X!</p>' +
             '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' +
                 '<select id="pg-size" style="flex:1;min-width:150px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;">' +
-                    '<option value="square">1:1 · Instagram / FB</option>' +
+                    '<option value="square">1:1 · Instagram / FB Post</option>' +
                     '<option value="p45">4:5 · Instagram Portrait</option>' +
                     '<option value="p34">3:4 · Portrait</option>' +
                     '<option value="p23">2:3 · Pinterest / FB</option>' +
                     '<option value="story">9:16 · Story / Status</option>' +
-                    '<option value="wide">16:9 · X / FB Link</option>' +
+                    '<option value="wide">16:9 · X / FB Link Card</option>' +
                 '</select>' +
                 '<select id="pg-lang" style="flex:1;min-width:120px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;">' +
                     '<option value="ta">தமிழ்</option>' +
                     '<option value="en">English</option>' +
                 '</select>' +
                 '<select id="pg-mode" style="flex:1;min-width:150px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
-                    '<option value="full">🖼️ Full Poster</option>' +
-                    '<option value="headline">💬 Headline Only</option>' +
+                    '<option value="full">🖼️ Full Poster (Headline + Excerpt)</option>' +
+                    '<option value="headline">💬 Headline Only (Big Text)</option>' +
                 '</select>' +
-                '<select id="pg-quality" style="flex:1;min-width:130px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
-                    '<option value="std">📱 Standard</option>' +
-                    '<option value="hd">🖥️ HD (2160px)</option>' +
-                '</select>' +
-                '<select id="pg-mode" style="flex:1;min-width:150px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
-                    '<option value="full">🖼️ Full Poster</option>' +
-                    '<option value="headline">💬 Headline Only</option>' +
-                '</select>' +
-                '<select id="pg-quality" style="flex:1;min-width:130px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
-                    '<option value="std">📱 Standard</option>' +
+                '<select id="pg-quality" title="HD = 2x resolution" style="flex:1;min-width:130px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
+                    '<option value="std">📱 Standard (1080px)</option>' +
                     '<option value="hd">🖥️ HD (2160px)</option>' +
                 '</select>' +
             '</div>' +
-            '<button type="button" id="pg-edit-toggle" style="width:100%;padding:10px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">✏️ Edit Headline & Excerpt</button>' +
+            '<button type="button" id="pg-edit-toggle" style="width:100%;padding:10px 14px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;margin-bottom:8px;">✏️ Edit Headline & Excerpt (optional)</button>' +
             '<div id="pg-edit-panel" style="display:none;margin-bottom:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
                 '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Headline</label>' +
-                '<textarea id="pg-edit-title" rows="2" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-bottom:8px;"></textarea>' +
-                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Highlight words (tap for pink) <span style="color:#fb7185;">■</span></label>' +
+                '<textarea id="pg-edit-title" rows="2" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;font-family:inherit;resize:vertical;margin-bottom:8px;box-sizing:border-box;"></textarea>' +
+                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Highlight words (tap to make pink) <span style="color:#fb7185;">■</span></label>' +
                 '<div id="pg-hl-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
                 '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Excerpt</label>' +
-                '<textarea id="pg-edit-excerpt" rows="3" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;"></textarea>' +
-                '<button type="button" id="pg-edit-reset" style="margin-top:8px;padding:6px 14px;background:#fee2e2;color:#991b1b;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">↺ Reset</button>' +
+                '<textarea id="pg-edit-excerpt" rows="3" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>' +
+                '<button type="button" id="pg-edit-reset" style="margin-top:8px;padding:6px 14px;background:#fee2e2;color:#991b1b;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">↺ Reset to original</button>' +
             '</div>' +
-            '<button type="button" id="pg-font-toggle" style="margin-bottom:8px;width:100%;padding:10px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">🔤 Fonts</button>' +
+            '<button type="button" id="pg-font-toggle" style="margin-bottom:8px;width:100%;padding:10px 14px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;">🔤 Fonts (Tamil & English)</button>' +
             '<div id="pg-font-panel" style="display:none;margin-bottom:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
-                '<div id="pg-font-ta" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
-                '<div id="pg-font-en" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
-                '<input type="text" id="pg-font-custom" placeholder="Custom Google Font" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">' +
-                '<button type="button" id="pg-font-custom-add" style="margin-top:6px;padding:6px 14px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">Add Font</button>' +
-            '</div>' +
-            '<button type="button" id="pg-edit-toggle" style="width:100%;padding:10px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">✏️ Edit Headline & Excerpt</button>' +
-            '<div id="pg-edit-panel" style="display:none;margin-bottom:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
-                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Headline</label>' +
-                '<textarea id="pg-edit-title" rows="2" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-bottom:8px;"></textarea>' +
-                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Highlight words (tap for pink) <span style="color:#fb7185;">■</span></label>' +
-                '<div id="pg-hl-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
-                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Excerpt</label>' +
-                '<textarea id="pg-edit-excerpt" rows="3" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;"></textarea>' +
-                '<button type="button" id="pg-edit-reset" style="margin-top:8px;padding:6px 14px;background:#fee2e2;color:#991b1b;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">↺ Reset</button>' +
-            '</div>' +
-            '<button type="button" id="pg-font-toggle" style="margin-bottom:8px;width:100%;padding:10px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">🔤 Fonts (Tamil & English)</button>' +
-            '<div id="pg-font-panel" style="display:none;margin-bottom:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
-                '<div id="pg-font-ta" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
-                '<div id="pg-font-en" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
-                '<input type="text" id="pg-font-custom" placeholder="Custom Google Font" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">' +
-                '<button type="button" id="pg-font-custom-add" style="margin-top:6px;padding:6px 14px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">Add Font</button>' +
+                '<p id="pg-font-lang-note" style="margin:0 0 8px;font-size:0.72rem;color:#6b7280;font-weight:700;"></p>' +
+                '<label style="display:block;font-size:0.72rem;font-weight:700;color:#374151;margin-bottom:4px;">Tamil (headline/text) font</label>' +
+                '<div id="pg-font-ta" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>' +
+                '<label style="display:block;font-size:0.72rem;font-weight:700;color:#374151;margin-bottom:4px;">English (brand) font</label>' +
+                '<div id="pg-font-en" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>' +
+                '<details><summary style="cursor:pointer;font-size:0.78rem;font-weight:700;color:#374151;">＋ Add custom font (Google Fonts)</summary>' +
+                '<input type="text" id="pg-font-custom" placeholder="e.g. Baloo 2" style="margin-top:6px;width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">' +
+                '<button type="button" id="pg-font-custom-add" style="margin-top:6px;padding:6px 14px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">Add font</button></details>' +
             '</div>' +
             '<div style="background:#0a0a0f;border-radius:12px;padding:12px;display:flex;justify-content:center;margin-bottom:14px;max-height:46vh;overflow:auto;">' +
-                '<img id="pg-preview" style="max-width:100%;max-height:44vh;border-radius:8px;" alt="Preview">' +
+                '<img id="pg-preview" style="max-width:100%;max-height:44vh;border-radius:8px;" alt="Poster preview">' +
             '</div>' +
-            '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
+                        '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
                 '<button class="btn-primary" id="pg-download" style="flex:1;min-width:140px;">⬇️ Download PNG</button>' +
                 '<button class="btn-secondary" id="pg-share" style="flex:1;min-width:140px;">📤 Share</button>' +
             '</div></div>';
         document.body.appendChild(ov);
         ov.addEventListener('click', function(e) { if (e.target === ov) ov.style.display = 'none'; });
-
+        // Wire Download/Share AFTER modal is fully in DOM
+        setTimeout(function() {
+            var _pgDl = document.getElementById('pg-download');
+            var _pgSh = document.getElementById('pg-share');
+            if (_pgDl) _pgDl.addEventListener('click', function() { pgDownload(); });
+            if (_pgSh) _pgSh.addEventListener('click', function() { pgShare(); });
+        }, 50);
         document.getElementById('pg-size').addEventListener('change', pgRenderPreview);
         document.getElementById('pg-lang').addEventListener('change', function() { pgLoadEditFields(); pgRenderFontPicker(); pgRenderPreview(); });
         document.getElementById('pg-mode').addEventListener('change', pgRenderPreview);
         document.getElementById('pg-quality').addEventListener('change', pgRenderPreview);
 
+        // ✏️ EDIT TEXT PANEL
         var _pgEditT = null;
         function pgLoadEditFields() {
             var lang = document.getElementById('pg-lang').value;
             var t = document.getElementById('pg-edit-title');
             var x = document.getElementById('pg-edit-excerpt');
             if (!t || !x || !_pgArticle) return;
-            t.value = _pgOverrides.hasOwnProperty('title_' + lang) ? _pgOverrides['title_' + lang] : (lang === 'en' ? (_pgArticle.title_en || _pgArticle.title || '') : (_pgArticle.title || _pgArticle.title_en || ''));
-            x.value = _pgOverrides.hasOwnProperty('excerpt_' + lang) ? _pgOverrides['excerpt_' + lang] : (lang === 'en' ? (_pgArticle.excerpt_en || _pgArticle.excerpt || '') : (_pgArticle.excerpt || _pgArticle.excerpt_en || ''));
+            t.value = _pgOverrides.hasOwnProperty('title_' + lang) ? _pgOverrides['title_' + lang]
+                : (lang === 'en' ? (_pgArticle.title_en || _pgArticle.title || '') : (_pgArticle.title || _pgArticle.title_en || ''));
+            x.value = _pgOverrides.hasOwnProperty('excerpt_' + lang) ? _pgOverrides['excerpt_' + lang]
+                : (lang === 'en' ? (_pgArticle.excerpt_en || _pgArticle.excerpt || '') : (_pgArticle.excerpt || _pgArticle.excerpt_en || ''));
             pgRenderChips();
         }
         function pgRenderChips() {
@@ -1542,7 +1478,7 @@ async function openPosterModal(articleId) {
             var p = document.getElementById('pg-edit-panel');
             var open = p.style.display !== 'none';
             p.style.display = open ? 'none' : 'block';
-            pgEditToggle.textContent = open ? '✏️ Edit Headline & Excerpt' : '✏️ Hide Editor';
+            pgEditToggle.textContent = open ? '✏️ Edit Headline & Excerpt (optional)' : '✏️ Hide Text Editor';
             if (!open) pgLoadEditFields();
         });
         var pgEditTitle = document.getElementById('pg-edit-title');
@@ -1562,12 +1498,17 @@ async function openPosterModal(articleId) {
             pgRenderPreview();
         });
 
+        // 🔤 FONT PICKER
+        var _pgCustomFonts = [];
         function pgGetFont() {
             var lang = document.getElementById('pg-lang').value;
             if (!_pgOverrides['font_' + lang]) _pgOverrides['font_' + lang] = { head: 'Catamaran', brand: 'Playfair Display' };
             return _pgOverrides['font_' + lang];
         }
         function pgRenderFontPicker() {
+            var lang = document.getElementById('pg-lang').value;
+            var note = document.getElementById('pg-font-lang-note');
+            if (note) note.textContent = 'Fonts for: ' + (lang === 'en' ? 'English version' : 'தமிழ் version');
             var cur = pgGetFont();
             [['pg-font-ta', 'ta', 'head'], ['pg-font-en', 'en', 'brand']].forEach(function(cfg) {
                 var box = document.getElementById(cfg[0]);
@@ -1578,198 +1519,7 @@ async function openPosterModal(articleId) {
                     var name = s.name.replace(/\s*\(system\)\s*$/, '');
                     var b = document.createElement('button');
                     b.type = 'button';
-                    b.textContent = name;
-                    var on = cur[cfg[2]] === name;
-                    b.style.cssText = 'padding:5px 12px;border-radius:999px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid ' + (on ? '#dc2626' : '#d1d5db') + ';background:' + (on ? '#dc2626' : '#fff') + ';color:' + (on ? '#fff' : '#374151') + ';';
-                    b.addEventListener('click', function () {
-                        pgGetFont()[cfg[2]] = name;
-                        pgRenderFontPicker();
-                        clearTimeout(_pgEditT);
-                        _pgEditT = setTimeout(pgRenderPreview, 350);
-                    });
-                    box.appendChild(b);
-                });
-            });
-        }
-        var pgFontToggle = document.getElementById('pg-font-toggle');
-        pgFontToggle.addEventListener('click', function() {
-            var p = document.getElementById('pg-font-panel');
-            var open = p.style.display !== 'none';
-            p.style.display = open ? 'none' : 'block';
-            pgFontToggle.textContent = open ? '🔤 Fonts' : '🔤 Hide Fonts';
-            if (!open) pgRenderFontPicker();
-        });
-        document.getElementById('pg-font-custom-add').addEventListener('click', function() {
-            var raw = (document.getElementById('pg-font-custom').value || '').trim();
-            if (!raw) return;
-            var name = raw.split(':')[0].trim();
-            if (!name) return;
-            if (!POSTER_FONT_LIST.some(function(s) { return s.name === name; })) POSTER_FONT_LIST.push({ name: name, g: raw.replace(/\s+/g, '+'), tags: 'ta en' });
-            document.getElementById('pg-font-custom').value = '';
-            pgRenderFontPicker();
-        });
-
-        // Download/Share (wire after DOM ready)
-        setTimeout(function() {
-            var dl = document.getElementById('pg-download');
-            var sh = document.getElementById('pg-share');
-            if (dl) dl.addEventListener('click', function() { pgDownload(); });
-            if (sh) sh.addEventListener('click', function() { pgShare(); });
-        }, 50);
-    }
-    ov.style.display = 'flex';
-    pgRenderPreview();
-}
-
-
-
-// 🎨 POSTER MODAL — size + language + preview + download + share
-let _pgArticle = null;
-async function openPosterModal(articleId) {
-    _pgArticle = (typeof adminNews !== 'undefined' ? adminNews : []).find(function(n) { return String(n.id) === String(articleId); });
-    if (!_pgArticle) { showToast('Article not found', 'error'); return; }
-
-    var ov = document.getElementById('poster-gen-ov');
-    if (!ov) {
-        ov = document.createElement('div');
-        ov.id = 'poster-gen-ov';
-        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9500;display:none;align-items:center;justify-content:center;padding:16px;overflow-y:auto;';
-        ov.innerHTML =
-            '<div style="background:#fff;border-radius:18px;max-width:640px;width:100%;padding:24px;position:relative;max-height:94vh;overflow-y:auto;">' +
-            '<button onclick="document.getElementById(\'poster-gen-ov\').style.display=\'none\'" style="position:absolute;top:14px;right:14px;width:36px;height:36px;border:none;border-radius:50%;background:#f3f4f6;cursor:pointer;font-size:16px;">✕</button>' +
-            '<h3 style="font-size:1.2rem;font-weight:800;margin-bottom:4px;">🎨 Social Poster Generator</h3>' +
-            '<p style="color:#6b7280;font-size:0.85rem;margin-bottom:16px;">One click → branded news card (Al Jazeera style!) — Download & Post FB/IG/X!</p>' +
-            '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' +
-                '<select id="pg-size" style="flex:1;min-width:150px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;">' +
-                    '<option value="square">1:1 · Instagram / FB</option>' +
-                    '<option value="p45">4:5 · Instagram Portrait</option>' +
-                    '<option value="p34">3:4 · Portrait</option>' +
-                    '<option value="p23">2:3 · Pinterest / FB</option>' +
-                    '<option value="story">9:16 · Story / Status</option>' +
-                    '<option value="wide">16:9 · X / FB Link</option>' +
-                '</select>' +
-                '<select id="pg-lang" style="flex:1;min-width:120px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;">' +
-                    '<option value="ta">தமிழ்</option>' +
-                    '<option value="en">English</option>' +
-                '</select>' +
-                '<select id="pg-mode" style="flex:1;min-width:150px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
-                    '<option value="full">🖼️ Full Poster</option>' +
-                    '<option value="headline">💬 Headline Only</option>' +
-                '</select>' +
-                '<select id="pg-quality" style="flex:1;min-width:130px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
-                    '<option value="std">📱 Standard</option>' +
-                    '<option value="hd">🖥️ HD (2160px)</option>' +
-                '</select>' +
-            '</div>' +
-            '<button type="button" id="pg-edit-toggle" style="width:100%;padding:10px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">✏️ Edit Headline & Excerpt</button>' +
-            '<div id="pg-edit-panel" style="display:none;margin-bottom:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
-                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Headline</label>' +
-                '<textarea id="pg-edit-title" rows="2" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-bottom:8px;"></textarea>' +
-                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Highlight words (tap for pink) <span style="color:#fb7185;">■</span></label>' +
-                '<div id="pg-hl-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
-                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Excerpt</label>' +
-                '<textarea id="pg-edit-excerpt" rows="3" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;"></textarea>' +
-                '<button type="button" id="pg-edit-reset" style="margin-top:8px;padding:6px 14px;background:#fee2e2;color:#991b1b;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">↺ Reset</button>' +
-            '</div>' +
-            '<button type="button" id="pg-font-toggle" style="margin-bottom:8px;width:100%;padding:10px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">🔤 Fonts (Tamil & English)</button>' +
-            '<div id="pg-font-panel" style="display:none;margin-bottom:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
-                '<div id="pg-font-ta" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
-                '<div id="pg-font-en" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
-                '<input type="text" id="pg-font-custom" placeholder="Custom Google Font" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">' +
-                '<button type="button" id="pg-font-custom-add" style="margin-top:6px;padding:6px 14px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">Add Font</button>' +
-            '</div>' +
-            '<div style="background:#0a0a0f;border-radius:12px;padding:12px;display:flex;justify-content:center;margin-bottom:14px;max-height:46vh;overflow:auto;">' +
-                '<img id="pg-preview" style="max-width:100%;max-height:44vh;border-radius:8px;" alt="Poster preview">' +
-            '</div>' +
-            '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
-                '<button class="btn-primary" id="pg-download" style="flex:1;min-width:140px;">⬇️ Download PNG</button>' +
-                '<button class="btn-secondary" id="pg-share" style="flex:1;min-width:140px;">📤 Share</button>' +
-            '</div></div>';
-        document.body.appendChild(ov);
-        ov.addEventListener('click', function(e) { if (e.target === ov) ov.style.display = 'none'; });
-        document.getElementById('pg-size').addEventListener('change', pgRenderPreview);
-        document.getElementById('pg-lang').addEventListener('change', function() { pgLoadEditFields(); pgRenderFontPicker(); pgRenderPreview(); });
-        document.getElementById('pg-mode').addEventListener('change', pgRenderPreview);
-        document.getElementById('pg-quality').addEventListener('change', pgRenderPreview);
-
-        // ✏️ Edit panel
-        var _pgEditT = null;
-        function pgLoadEditFields() {
-            var lang = document.getElementById('pg-lang').value;
-            var t = document.getElementById('pg-edit-title');
-            var x = document.getElementById('pg-edit-excerpt');
-            if (!t || !x || !_pgArticle) return;
-            t.value = _pgOverrides.hasOwnProperty('title_' + lang) ? _pgOverrides['title_' + lang] : (lang === 'en' ? (_pgArticle.title_en || _pgArticle.title || '') : (_pgArticle.title || _pgArticle.title_en || ''));
-            x.value = _pgOverrides.hasOwnProperty('excerpt_' + lang) ? _pgOverrides['excerpt_' + lang] : (lang === 'en' ? (_pgArticle.excerpt_en || _pgArticle.excerpt || '') : (_pgArticle.excerpt || _pgArticle.excerpt_en || ''));
-            pgRenderChips();
-        }
-        function pgRenderChips() {
-            var box = document.getElementById('pg-hl-chips');
-            if (!box) return;
-            var lang = document.getElementById('pg-lang').value;
-            var title = (document.getElementById('pg-edit-title') || { value: '' }).value;
-            var hl = _pgOverrides['hl_' + lang] || (_pgOverrides['hl_' + lang] = []);
-            box.innerHTML = '';
-            String(title).split(/\s+/).forEach(function (w) {
-                if (!w) return;
-                var nw = pgNormWord(w);
-                if (!nw) return;
-                var b = document.createElement('button');
-                b.type = 'button'; b.textContent = w;
-                var on = hl.indexOf(nw) !== -1;
-                b.style.cssText = 'padding:4px 10px;border-radius:999px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid ' + (on ? '#fb7185' : '#d1d5db') + ';background:' + (on ? '#fb7185' : '#fff') + ';color:' + (on ? '#fff' : '#374151') + ';';
-                b.addEventListener('click', function () {
-                    var i = hl.indexOf(nw);
-                    if (i !== -1) hl.splice(i, 1); else hl.push(nw);
-                    pgRenderChips();
-                    clearTimeout(_pgEditT);
-                    _pgEditT = setTimeout(pgRenderPreview, 250);
-                });
-                box.appendChild(b);
-            });
-        }
-        var pgEditToggle = document.getElementById('pg-edit-toggle');
-        pgEditToggle.addEventListener('click', function() {
-            var p = document.getElementById('pg-edit-panel');
-            var open = p.style.display !== 'none';
-            p.style.display = open ? 'none' : 'block';
-            pgEditToggle.textContent = open ? '✏️ Edit Headline & Excerpt' : '✏️ Hide Editor';
-            if (!open) pgLoadEditFields();
-        });
-        var pgEditTitle = document.getElementById('pg-edit-title');
-        var pgEditExcerpt = document.getElementById('pg-edit-excerpt');
-        function pgOnEdit() {
-            var lang = document.getElementById('pg-lang').value;
-            _pgOverrides['title_' + lang] = pgEditTitle.value;
-            _pgOverrides['excerpt_' + lang] = pgEditExcerpt.value;
-            clearTimeout(_pgEditT);
-            _pgEditT = setTimeout(function() { pgRenderPreview(); pgRenderChips(); }, 400);
-        }
-        pgEditTitle.addEventListener('input', pgOnEdit);
-        pgEditExcerpt.addEventListener('input', pgOnEdit);
-        document.getElementById('pg-edit-reset').addEventListener('click', function() {
-            _pgOverrides = {};
-            pgLoadEditFields();
-            pgRenderPreview();
-        });
-
-        // 🔤 Font picker
-        function pgGetFont() {
-            var lang = document.getElementById('pg-lang').value;
-            if (!_pgOverrides['font_' + lang]) _pgOverrides['font_' + lang] = { head: 'Catamaran', brand: 'Playfair Display' };
-            return _pgOverrides['font_' + lang];
-        }
-        function pgRenderFontPicker() {
-            var cur = pgGetFont();
-            [['pg-font-ta', 'ta', 'head'], ['pg-font-en', 'en', 'brand']].forEach(function(cfg) {
-                var box = document.getElementById(cfg[0]);
-                if (!box) return;
-                box.innerHTML = '';
-                POSTER_FONT_LIST.forEach(function (s) {
-                    if (s.tags.indexOf(cfg[1]) === -1) return;
-                    var name = s.name.replace(/\s*\(system\)\s*$/, '');
-                    var b = document.createElement('button');
-                    b.type = 'button'; b.textContent = name;
+                    b.textContent = name + (s.g ? '' : ' ·sys');
                     var on = cur[cfg[2]] === name;
                     b.style.cssText = 'padding:5px 12px;border-radius:999px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid ' + (on ? '#dc2626' : '#d1d5db') + ';background:' + (on ? '#dc2626' : '#fff') + ';color:' + (on ? '#fff' : '#374151') + ';';
                     b.addEventListener('click', function () {
@@ -1795,12 +1545,44 @@ async function openPosterModal(articleId) {
             if (!raw) return;
             var name = raw.split(':')[0].trim();
             if (!name) return;
-            if (!POSTER_FONT_LIST.some(function(s) { return s.name === name; })) POSTER_FONT_LIST.push({ name: name, g: raw.replace(/\s+/g, '+'), tags: 'ta en' });
+            var exists = POSTER_FONT_LIST.some(function(s) { return s.name.replace(/\s*\(system\)\s*$/, '') === name; });
+            if (!exists) POSTER_FONT_LIST.push({ name: name, g: raw.replace(/\s+/g, '+'), tags: 'ta en' });
             document.getElementById('pg-font-custom').value = '';
             pgRenderFontPicker();
         });
-        document.getElementById('pg-download').addEventListener('click', pgDownload);
-        document.getElementById('pg-share').addEventListener('click', pgShare);
+
+
+            var hdCanvas;
+            try {
+                showToast('🖥️ Generating HD poster...', 'success');
+                hdCanvas = await generatePoster(eff, size, lang, mode, 'hd');
+            } catch (err) {
+                hdCanvas = _pgCanvas;   // fallback: current preview
+            }
+            if (isMobile && navigator.canShare) {
+                try {
+                    var blob = await new Promise(function(res) { hdCanvas.toBlob(res, 'image/png'); });
+                    if (blob) {
+                        var file = new File([blob], 'endless-news-poster-hd.png', { type: 'image/png' });
+                        if (navigator.canShare({ files: [file] })) {
+                            await navigator.share({ files: [file], title: 'EndLess News Poster', text: '' });
+                            return;
+                        }
+                    }
+                } catch (err) { if (err.name === 'AbortError') return; }
+            }
+            var a = document.createElement('a');
+            a.download = 'endless-news-poster-hd.png';
+            a.href = hdCanvas.toDataURL('image/png');
+            a.click();
+            var urls = {
+                whatsapp: 'https://wa.me/?text=' + encodeURIComponent('https://endlessnews.lk/?article=' + _pgArticle.id),
+                facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent('https://endlessnews.lk/?article=' + _pgArticle.id),
+                x: 'https://twitter.com/intent/tweet?url=' + encodeURIComponent('https://endlessnews.lk/?article=' + _pgArticle.id),
+                instagram: 'https://www.instagram.com/'
+            };
+
+
     }
     ov.style.display = 'flex';
     pgRenderPreview();
@@ -1811,10 +1593,21 @@ async function pgRenderPreview() {
     if (!_pgArticle) return;
     var size = document.getElementById('pg-size').value;
     var lang = document.getElementById('pg-lang').value;
+    var mode = (document.getElementById('pg-mode') || { value: 'full' }).value;
+    var quality = (document.getElementById('pg-quality') || { value: 'std' }).value;
     var img = document.getElementById('pg-preview');
     img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACw='; // spinner placeholder
+    var o = _pgOverrides;
+    var eff = Object.assign({}, _pgArticle, {
+        title: o.hasOwnProperty('title_ta') ? o.title_ta : _pgArticle.title,
+        title_en: o.hasOwnProperty('title_en') ? o.title_en : _pgArticle.title_en,
+        excerpt: o.hasOwnProperty('excerpt_ta') ? o.excerpt_ta : _pgArticle.excerpt,
+        excerpt_en: o.hasOwnProperty('excerpt_en') ? o.excerpt_en : _pgArticle.excerpt_en,
+        _hl: o['hl_' + lang] || [],
+        _font: (o['font_ta'] || o['font_en']) ? { ta: o['font_ta'] || { head: 'Catamaran', brand: 'Playfair Display' }, en: o['font_en'] || { head: 'Catamaran', brand: 'Playfair Display' } } : null
+    });
     try {
-        _pgCanvas = await generatePoster(_pgArticle, size, lang);
+        _pgCanvas = await generatePoster(eff, size, lang, mode, quality);
         img.src = _pgCanvas.toDataURL('image/png');
     } catch (e) {
         showToast('Poster error: ' + e.message, 'error');
@@ -2771,6 +2564,7 @@ function openNewsModal(isEdit) {
         }, true); // capture phase — stops mobile submit before any handler
     }, 60);
     isEdit = isEdit || false;
+    // 📝 Inject FORMAT button next to copy buttons
     document.querySelectorAll('.btn-copy').forEach(function(cb) {
         if (cb.parentNode && !cb.parentNode.querySelector('.btn-format')) {
             var fb = document.createElement('button');
@@ -4012,24 +3806,6 @@ document.addEventListener('DOMContentLoaded', function() {
         renderNewsTable();
     }
 
-    // 📝 FORMAT CONTENT — plain text → paragraphs
-    document.querySelectorAll('.btn-format').forEach(function(button) {
-        button.addEventListener('click', function() {
-            var lang = button.dataset.lang;
-            var textarea = document.getElementById('news-content-' + lang);
-            if (!textarea) return;
-            var raw = textarea.value;
-            if (!raw.trim()) { showToast('Content empty!', 'error'); return; }
-            if (/<p>|<br\s*\/?>/i.test(raw)) { showToast('Already formatted (HTML)', 'success'); return; }
-            var paras = raw.split(/\n\s*\n/).map(function(p) { return p.trim(); }).filter(function(p) { return p; });
-            if (!paras.length) paras = [raw.trim()];
-            textarea.value = paras.map(function(p) {
-                return '<p>' + p.replace(/\n/g, '<br>').replace(/\r/g, '') + '</p>';
-            }).join('\n');
-            showToast('✅ Formatted! ' + paras.length + ' paragraphs ready.', 'success');
-        });
-    });
-
     // Add event listeners for copy buttons
     document.querySelectorAll('.btn-copy').forEach(button => {
         button.addEventListener('click', () => {
@@ -4040,6 +3816,24 @@ document.addEventListener('DOMContentLoaded', function() {
             }, () => {
                 showToast('Failed to copy content.', 'error');
             });
+        });
+    });
+
+    // 📝 FORMAT CONTENT — plain text → paragraphs + <br>
+    document.querySelectorAll('.btn-format').forEach(function(button) {
+        button.addEventListener('click', function() {
+            var lang = button.dataset.lang;
+            var textarea = document.getElementById('news-content-' + lang);
+            if (!textarea) return;
+            var raw = textarea.value;
+            if (!raw.trim()) { showToast('Content empty!', 'error'); return; }
+            if (/<p>|<br\s*\/?>/i.test(raw)) { showToast('⚠️ Already formatted (HTML)', 'success'); return; }
+            var paras = raw.split(/\n\s*\n/).map(function(p) { return p.trim(); }).filter(function(p) { return p; });
+            if (!paras.length) paras = [raw.trim()];
+            textarea.value = paras.map(function(p) {
+                return '<p>' + p.replace(/\n/g, '<br>').replace(/\r/g, '') + '</p>';
+            }).join('\n');
+            showToast('✅ Formatted! ' + paras.length + ' paragraphs ready.', 'success');
         });
     });
     }).catch(function(err) {
