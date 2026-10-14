@@ -1223,6 +1223,19 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         L.el.forEach(function (ln, i) { ctx.fillText(ln, mX, ey + i * L.elh); });
     }
 
+    // 🎨 HEADLINE DRAWING — per-word pink highlights!
+    ctx.font = '800 ' + L.hs + 'px ' + TAMIL_STACK;
+    ctx.textBaseline = 'top';
+    var spaceW = ctx.measureText(' ').width;
+    L.hl.forEach(function (tokens, i) {
+        var wx = mX;
+        tokens.forEach(function (tok) {
+            ctx.fillStyle = tok.hl ? '#fb7185' : '#ffffff';   // ⭐ PINK for highlighted!
+            ctx.fillText(tok.t, wx, y + i * L.lh);
+            wx += ctx.measureText(tok.t).width + spaceW;
+        });
+    });
+
     // CTA pill
     (function () {
         var cta = lang === 'en' ? 'READ THE FULL NEWS' : '\u0BAE\u0BC1\u0BB4\u0BC1 \u0B9A\u0BC6\u0BAF\u0BCD\u0BA4\u0BBF\u0BAF\u0BC8\u0BAA\u0BCD \u0BAA\u0B9F\u0BBF\u0B95\u0BCD\u0B95';
