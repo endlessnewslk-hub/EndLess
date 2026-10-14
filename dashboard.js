@@ -1117,13 +1117,22 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     ctx.font = '800 ' + L.hs + 'px ' + TAMIL_STACK;
     ctx.textBaseline = 'top';
     var spaceW = ctx.measureText(' ').width;
+    var bigSet = (article._big || []).map(pgNormWord);
+    var fbigSet = (article._fbig || []).map(pgNormWord);
     L.hl.forEach(function (tokens, i) {
         var wx = mX;
         tokens.forEach(function (tok) {
-            ctx.fillStyle = tok.hl ? '#fb7185' : '#ffffff';
+            var nw = pgNormWord(tok.t);
+            var isPink = tok.hl || fbigSet.indexOf(nw) !== -1;
+            var isBig = bigSet.indexOf(nw) !== -1 || fbigSet.indexOf(nw) !== -1;
+            var firstBig = (i === 0 && tokens.indexOf(tok) === 0);
+            var fsize = (firstBig && isBig) ? Math.round(L.hs * 1.4) : (isBig ? Math.round(L.hs * 1.25) : L.hs);
+            ctx.font = '800 ' + fsize + 'px ' + TAMIL_STACK;
+            ctx.fillStyle = isPink ? '#fb7185' : '#ffffff';
             ctx.fillText(tok.t, wx, y + i * L.lh);
             wx += ctx.measureText(tok.t).width + spaceW;
         });
+        ctx.font = '800 ' + L.hs + 'px ' + TAMIL_STACK;
     });
     var ey = y + L.hl.length * L.lh + (L.el.length ? gap : 0);
     if (L.el.length) {
@@ -1293,7 +1302,7 @@ async function openPosterModal(articleId) {
             '<div id="pg-edit-panel" style="display:none;margin-bottom:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
                 '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Headline</label>' +
                 '<textarea id="pg-edit-title" rows="2" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;font-family:inherit;resize:vertical;margin-bottom:8px;box-sizing:border-box;"></textarea>' +
-                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Highlight words (tap to make pink) <span style="color:#fb7185;">■</span></label>' +
+                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Tap word = <span style="color:#fb7185;">Pink</span> · Double-tap = <span style="color:#f59e0b;">BIG</span></label>' +
                 '<div id="pg-hl-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
                 '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Excerpt</label>' +
                 '<textarea id="pg-edit-excerpt" rows="3" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>' +
@@ -1357,15 +1366,39 @@ async function openPosterModal(articleId) {
                 if (!nw) return;
                 var b = document.createElement('button');
                 b.type = 'button';
-                b.textContent = w;
-                var on = hl.indexOf(nw) !== -1;
-                b.style.cssText = 'padding:4px 10px;border-radius:999px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid ' + (on ? '#fb7185' : '#d1d5db') + ';background:' + (on ? '#fb7185' : '#fff') + ';color:' + (on ? '#fff' : '#374151') + ';';
+                var _bigMap = (_pgOverrides['big_' + lang] || []);
+                var _fbigMap = (_pgOverrides['fbig_' + lang] || []);
+                var _isPink = hl.indexOf(nw) !== -1;
+                var _isBig = _bigMap.indexOf(nw) !== -1;
+                var _isFBig = _fbigMap.indexOf(nw) !== -1;
+                var _label = w, _bg = '#fff', _col = '#374151', _brd = '#d1d5db', _fsz = '0.78rem';
+                if (_isFBig) { _label = w.toUpperCase(); _bg = '#dc2626'; _col = '#fff'; _brd = '#dc2626'; _fsz = '0.95rem'; }
+                else if (_isBig) { _label = w.toUpperCase(); _bg = '#fbbf24'; _col = '#78350f'; _brd = '#f59e0b'; _fsz = '0.95rem'; }
+                else if (_isPink) { _bg = '#fb7185'; _col = '#fff'; _brd = '#fb7185'; }
+                b.textContent = _label;
+                b.style.cssText = 'padding:4px 10px;border-radius:999px;font-size:' + _fsz + ';font-weight:800;cursor:pointer;font-family:inherit;border:2px solid ' + _brd + ';background:' + _bg + ';color:' + _col + ';';
+                // 🎨 ORIGINAL: Single tap = PINK highlight (as you wanted!)
                 b.addEventListener('click', function () {
-                    var i = hl.indexOf(nw);
-                    if (i !== -1) hl.splice(i, 1); else hl.push(nw);
+                    var hlMap = _pgOverrides['hl_' + lang] || (_pgOverrides['hl_' + lang] = []);
+                    var i = hlMap.indexOf(nw);
+                    if (i !== -1) { hlMap.splice(i, 1); } else { hlMap.push(nw); }
                     pgRenderChips();
                     clearTimeout(_pgEditT);
                     _pgEditT = setTimeout(pgRenderPreview, 250);
+                });
+                // Bonus: Double-click = BIG (optional feature)
+                var dblTimer = null;
+                b.addEventListener('dblclick', function (e) {
+                    e.preventDefault();
+                    clearTimeout(dblTimer);
+                    dblTimer = setTimeout(function() {
+                        var bigMap = _pgOverrides['big_' + lang] || (_pgOverrides['big_' + lang] = []);
+                        var i = bigMap.indexOf(nw);
+                        if (i !== -1) { bigMap.splice(i, 1); } else { bigMap.push(nw); }
+                        pgRenderChips();
+                        clearTimeout(_pgEditT);
+                        _pgEditT = setTimeout(pgRenderPreview, 250);
+                    }, 50);
                 });
                 box.appendChild(b);
             });
@@ -1501,6 +1534,8 @@ async function pgRenderPreview() {
         excerpt: o.hasOwnProperty('excerpt_ta') ? o.excerpt_ta : _pgArticle.excerpt,
         excerpt_en: o.hasOwnProperty('excerpt_en') ? o.excerpt_en : _pgArticle.excerpt_en,
         _hl: o['hl_' + lang] || [],
+        _big: o['big_' + lang] || [],
+        _fbig: o['fbig_' + lang] || [],
         _font: (o['font_ta'] || o['font_en']) ? { ta: o['font_ta'] || { head: 'Catamaran', brand: 'Playfair Display' }, en: o['font_en'] || { head: 'Catamaran', brand: 'Playfair Display' } } : null
     });
     try {
