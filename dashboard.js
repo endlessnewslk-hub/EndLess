@@ -1080,7 +1080,10 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     var title = lang === 'en' ? (article.title_en || article.title) : (article.title || article.title_en);
     var excerpt = lang === 'en' ? (article.excerpt_en || article.excerpt) : (article.excerpt || article.excerpt_en);
     var cat = lang === 'en' ? (article.category_en || article.category) : (article.category || article.category_en);
-    if (mode === 'headline') excerpt = '';
+    if (mode === 'headline') {
+        excerpt = '';
+        title = title.toUpperCase();
+    }
     var CAT_POSTER_NAMES = { 'local': { ta: 'இலங்கை', en: 'SRI LANKA' } };
     var catKey = String(article.category_en || article.category || '').trim().toLowerCase();
     if (CAT_POSTER_NAMES[catKey]) cat = lang === 'en' ? CAT_POSTER_NAMES[catKey].en : CAT_POSTER_NAMES[catKey].ta;
@@ -1351,6 +1354,7 @@ async function pgRenderPreview() {
         _font: (o['font_ta'] || o['font_en']) ? { ta: o['font_ta'] || { head: 'Catamaran', brand: 'Playfair Display' }, en: o['font_en'] || { head: 'Catamaran', brand: 'Playfair Display' } } : null
     });
     try {
+        if (mode === 'headline') { eff.excerpt = ''; eff.excerpt_en = ''; }
         _pgCanvas = await generatePoster(eff, size, lang, mode, quality);
         img.src = _pgCanvas.toDataURL('image/png');
     } catch (e) {
