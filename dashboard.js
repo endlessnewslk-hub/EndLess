@@ -1416,6 +1416,14 @@ async function openPosterModal(articleId) {
                     '<option value="std">📱 Standard</option>' +
                     '<option value="hd">🖥️ HD (2160px)</option>' +
                 '</select>' +
+                '<select id="pg-mode" style="flex:1;min-width:150px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
+                    '<option value="full">🖼️ Full Poster</option>' +
+                    '<option value="headline">💬 Headline Only</option>' +
+                '</select>' +
+                '<select id="pg-quality" style="flex:1;min-width:130px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
+                    '<option value="std">📱 Standard</option>' +
+                    '<option value="hd">🖥️ HD (2160px)</option>' +
+                '</select>' +
             '</div>' +
             '<button type="button" id="pg-edit-toggle" style="width:100%;padding:10px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">✏️ Edit Headline & Excerpt</button>' +
             '<div id="pg-edit-panel" style="display:none;margin-bottom:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
@@ -1428,6 +1436,23 @@ async function openPosterModal(articleId) {
                 '<button type="button" id="pg-edit-reset" style="margin-top:8px;padding:6px 14px;background:#fee2e2;color:#991b1b;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">↺ Reset</button>' +
             '</div>' +
             '<button type="button" id="pg-font-toggle" style="margin-bottom:8px;width:100%;padding:10px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">🔤 Fonts</button>' +
+            '<div id="pg-font-panel" style="display:none;margin-bottom:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
+                '<div id="pg-font-ta" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
+                '<div id="pg-font-en" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
+                '<input type="text" id="pg-font-custom" placeholder="Custom Google Font" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">' +
+                '<button type="button" id="pg-font-custom-add" style="margin-top:6px;padding:6px 14px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">Add Font</button>' +
+            '</div>' +
+            '<button type="button" id="pg-edit-toggle" style="width:100%;padding:10px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">✏️ Edit Headline & Excerpt</button>' +
+            '<div id="pg-edit-panel" style="display:none;margin-bottom:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
+                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Headline</label>' +
+                '<textarea id="pg-edit-title" rows="2" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-bottom:8px;"></textarea>' +
+                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Highlight words (tap for pink) <span style="color:#fb7185;">■</span></label>' +
+                '<div id="pg-hl-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
+                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Excerpt</label>' +
+                '<textarea id="pg-edit-excerpt" rows="3" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;"></textarea>' +
+                '<button type="button" id="pg-edit-reset" style="margin-top:8px;padding:6px 14px;background:#fee2e2;color:#991b1b;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">↺ Reset</button>' +
+            '</div>' +
+            '<button type="button" id="pg-font-toggle" style="margin-bottom:8px;width:100%;padding:10px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">🔤 Fonts (Tamil & English)</button>' +
             '<div id="pg-font-panel" style="display:none;margin-bottom:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
                 '<div id="pg-font-ta" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
                 '<div id="pg-font-en" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
@@ -1589,14 +1614,42 @@ async function openPosterModal(articleId) {
             '<p style="color:#6b7280;font-size:0.85rem;margin-bottom:16px;">One click → branded news card (Al Jazeera style!) — Download & Post FB/IG/X!</p>' +
             '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' +
                 '<select id="pg-size" style="flex:1;min-width:150px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;">' +
-                    '<option value="square">1:1 · Instagram / FB Post</option>' +
-                    '<option value="wide">16:9 · X / FB Link Card</option>' +
+                    '<option value="square">1:1 · Instagram / FB</option>' +
+                    '<option value="p45">4:5 · Instagram Portrait</option>' +
+                    '<option value="p34">3:4 · Portrait</option>' +
+                    '<option value="p23">2:3 · Pinterest / FB</option>' +
                     '<option value="story">9:16 · Story / Status</option>' +
+                    '<option value="wide">16:9 · X / FB Link</option>' +
                 '</select>' +
                 '<select id="pg-lang" style="flex:1;min-width:120px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;">' +
                     '<option value="ta">தமிழ்</option>' +
                     '<option value="en">English</option>' +
                 '</select>' +
+                '<select id="pg-mode" style="flex:1;min-width:150px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
+                    '<option value="full">🖼️ Full Poster</option>' +
+                    '<option value="headline">💬 Headline Only</option>' +
+                '</select>' +
+                '<select id="pg-quality" style="flex:1;min-width:130px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;font-family:inherit;">' +
+                    '<option value="std">📱 Standard</option>' +
+                    '<option value="hd">🖥️ HD (2160px)</option>' +
+                '</select>' +
+            '</div>' +
+            '<button type="button" id="pg-edit-toggle" style="width:100%;padding:10px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">✏️ Edit Headline & Excerpt</button>' +
+            '<div id="pg-edit-panel" style="display:none;margin-bottom:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
+                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Headline</label>' +
+                '<textarea id="pg-edit-title" rows="2" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-bottom:8px;"></textarea>' +
+                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Highlight words (tap for pink) <span style="color:#fb7185;">■</span></label>' +
+                '<div id="pg-hl-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
+                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Excerpt</label>' +
+                '<textarea id="pg-edit-excerpt" rows="3" style="width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;"></textarea>' +
+                '<button type="button" id="pg-edit-reset" style="margin-top:8px;padding:6px 14px;background:#fee2e2;color:#991b1b;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">↺ Reset</button>' +
+            '</div>' +
+            '<button type="button" id="pg-font-toggle" style="margin-bottom:8px;width:100%;padding:10px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">🔤 Fonts (Tamil & English)</button>' +
+            '<div id="pg-font-panel" style="display:none;margin-bottom:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">' +
+                '<div id="pg-font-ta" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
+                '<div id="pg-font-en" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
+                '<input type="text" id="pg-font-custom" placeholder="Custom Google Font" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;box-sizing:border-box;">' +
+                '<button type="button" id="pg-font-custom-add" style="margin-top:6px;padding:6px 14px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">Add Font</button>' +
             '</div>' +
             '<div style="background:#0a0a0f;border-radius:12px;padding:12px;display:flex;justify-content:center;margin-bottom:14px;max-height:46vh;overflow:auto;">' +
                 '<img id="pg-preview" style="max-width:100%;max-height:44vh;border-radius:8px;" alt="Poster preview">' +
@@ -1608,7 +1661,117 @@ async function openPosterModal(articleId) {
         document.body.appendChild(ov);
         ov.addEventListener('click', function(e) { if (e.target === ov) ov.style.display = 'none'; });
         document.getElementById('pg-size').addEventListener('change', pgRenderPreview);
-        document.getElementById('pg-lang').addEventListener('change', pgRenderPreview);
+        document.getElementById('pg-lang').addEventListener('change', function() { pgLoadEditFields(); pgRenderFontPicker(); pgRenderPreview(); });
+        document.getElementById('pg-mode').addEventListener('change', pgRenderPreview);
+        document.getElementById('pg-quality').addEventListener('change', pgRenderPreview);
+
+        // ✏️ Edit panel
+        var _pgEditT = null;
+        function pgLoadEditFields() {
+            var lang = document.getElementById('pg-lang').value;
+            var t = document.getElementById('pg-edit-title');
+            var x = document.getElementById('pg-edit-excerpt');
+            if (!t || !x || !_pgArticle) return;
+            t.value = _pgOverrides.hasOwnProperty('title_' + lang) ? _pgOverrides['title_' + lang] : (lang === 'en' ? (_pgArticle.title_en || _pgArticle.title || '') : (_pgArticle.title || _pgArticle.title_en || ''));
+            x.value = _pgOverrides.hasOwnProperty('excerpt_' + lang) ? _pgOverrides['excerpt_' + lang] : (lang === 'en' ? (_pgArticle.excerpt_en || _pgArticle.excerpt || '') : (_pgArticle.excerpt || _pgArticle.excerpt_en || ''));
+            pgRenderChips();
+        }
+        function pgRenderChips() {
+            var box = document.getElementById('pg-hl-chips');
+            if (!box) return;
+            var lang = document.getElementById('pg-lang').value;
+            var title = (document.getElementById('pg-edit-title') || { value: '' }).value;
+            var hl = _pgOverrides['hl_' + lang] || (_pgOverrides['hl_' + lang] = []);
+            box.innerHTML = '';
+            String(title).split(/\s+/).forEach(function (w) {
+                if (!w) return;
+                var nw = pgNormWord(w);
+                if (!nw) return;
+                var b = document.createElement('button');
+                b.type = 'button'; b.textContent = w;
+                var on = hl.indexOf(nw) !== -1;
+                b.style.cssText = 'padding:4px 10px;border-radius:999px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid ' + (on ? '#fb7185' : '#d1d5db') + ';background:' + (on ? '#fb7185' : '#fff') + ';color:' + (on ? '#fff' : '#374151') + ';';
+                b.addEventListener('click', function () {
+                    var i = hl.indexOf(nw);
+                    if (i !== -1) hl.splice(i, 1); else hl.push(nw);
+                    pgRenderChips();
+                    clearTimeout(_pgEditT);
+                    _pgEditT = setTimeout(pgRenderPreview, 250);
+                });
+                box.appendChild(b);
+            });
+        }
+        var pgEditToggle = document.getElementById('pg-edit-toggle');
+        pgEditToggle.addEventListener('click', function() {
+            var p = document.getElementById('pg-edit-panel');
+            var open = p.style.display !== 'none';
+            p.style.display = open ? 'none' : 'block';
+            pgEditToggle.textContent = open ? '✏️ Edit Headline & Excerpt' : '✏️ Hide Editor';
+            if (!open) pgLoadEditFields();
+        });
+        var pgEditTitle = document.getElementById('pg-edit-title');
+        var pgEditExcerpt = document.getElementById('pg-edit-excerpt');
+        function pgOnEdit() {
+            var lang = document.getElementById('pg-lang').value;
+            _pgOverrides['title_' + lang] = pgEditTitle.value;
+            _pgOverrides['excerpt_' + lang] = pgEditExcerpt.value;
+            clearTimeout(_pgEditT);
+            _pgEditT = setTimeout(function() { pgRenderPreview(); pgRenderChips(); }, 400);
+        }
+        pgEditTitle.addEventListener('input', pgOnEdit);
+        pgEditExcerpt.addEventListener('input', pgOnEdit);
+        document.getElementById('pg-edit-reset').addEventListener('click', function() {
+            _pgOverrides = {};
+            pgLoadEditFields();
+            pgRenderPreview();
+        });
+
+        // 🔤 Font picker
+        function pgGetFont() {
+            var lang = document.getElementById('pg-lang').value;
+            if (!_pgOverrides['font_' + lang]) _pgOverrides['font_' + lang] = { head: 'Catamaran', brand: 'Playfair Display' };
+            return _pgOverrides['font_' + lang];
+        }
+        function pgRenderFontPicker() {
+            var cur = pgGetFont();
+            [['pg-font-ta', 'ta', 'head'], ['pg-font-en', 'en', 'brand']].forEach(function(cfg) {
+                var box = document.getElementById(cfg[0]);
+                if (!box) return;
+                box.innerHTML = '';
+                POSTER_FONT_LIST.forEach(function (s) {
+                    if (s.tags.indexOf(cfg[1]) === -1) return;
+                    var name = s.name.replace(/\s*\(system\)\s*$/, '');
+                    var b = document.createElement('button');
+                    b.type = 'button'; b.textContent = name;
+                    var on = cur[cfg[2]] === name;
+                    b.style.cssText = 'padding:5px 12px;border-radius:999px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid ' + (on ? '#dc2626' : '#d1d5db') + ';background:' + (on ? '#dc2626' : '#fff') + ';color:' + (on ? '#fff' : '#374151') + ';';
+                    b.addEventListener('click', function () {
+                        pgGetFont()[cfg[2]] = name;
+                        pgRenderFontPicker();
+                        clearTimeout(_pgEditT);
+                        _pgEditT = setTimeout(pgRenderPreview, 350);
+                    });
+                    box.appendChild(b);
+                });
+            });
+        }
+        var pgFontToggle = document.getElementById('pg-font-toggle');
+        pgFontToggle.addEventListener('click', function() {
+            var p = document.getElementById('pg-font-panel');
+            var open = p.style.display !== 'none';
+            p.style.display = open ? 'none' : 'block';
+            pgFontToggle.textContent = open ? '🔤 Fonts (Tamil & English)' : '🔤 Hide Fonts';
+            if (!open) pgRenderFontPicker();
+        });
+        document.getElementById('pg-font-custom-add').addEventListener('click', function() {
+            var raw = (document.getElementById('pg-font-custom').value || '').trim();
+            if (!raw) return;
+            var name = raw.split(':')[0].trim();
+            if (!name) return;
+            if (!POSTER_FONT_LIST.some(function(s) { return s.name === name; })) POSTER_FONT_LIST.push({ name: name, g: raw.replace(/\s+/g, '+'), tags: 'ta en' });
+            document.getElementById('pg-font-custom').value = '';
+            pgRenderFontPicker();
+        });
         document.getElementById('pg-download').addEventListener('click', pgDownload);
         document.getElementById('pg-share').addEventListener('click', pgShare);
     }
