@@ -332,7 +332,7 @@ function ensureReportersUI() {
     if (nav && !nav.querySelector('[data-page="reporters"]')) {
         var b = document.createElement('button');
         b.className = 'nav-item'; b.dataset.page = 'reporters';
-        b.innerHTML = '<span>' + IC.users + '</span> Reporters';
+        b.innerHTML = '<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.1em;height:1.1em;vertical-align:-0.15em;display:inline-block;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Reporters';
         nav.insertBefore(b, nav.querySelector('[data-page="newsletter"]') || null);
         b.addEventListener('click', function() { showPage('reporters'); setTimeout(renderReportersPage, 100); });
     }
@@ -342,7 +342,7 @@ function ensureReportersUI() {
     page.id = 'page-reporters'; page.className = 'page-content hidden';
     page.innerHTML =
         '<div class="stats-grid">' +
-        '  <div class="stat-card"><div class="stat-icon">' + IC.users + '</div><div class="stat-info"><h3 id="rep-count">0</h3><p>Total Reporters</p></div></div>' +
+        '  <div class="stat-card"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.5em;height:1.5em;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div class="stat-info"><h3 id="rep-count">0</h3><p>Total Reporters</p></div></div>' +
         '  <div class="stat-card"><div class="stat-icon">📝</div><div class="stat-info"><h3 id="rep-active">0</h3><p>Active</p></div></div>' +
         '  <div class="stat-card"><div class="stat-icon">🚫</div><div class="stat-info"><h3 id="rep-blocked">0</h3><p>Blocked</p></div></div>' +
         '</div>' +
@@ -428,8 +428,6 @@ async function toggleReporterBlock(username, block) {
     } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
 function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
-ensureReportersUI();
-
 // 📬 NEWSLETTER ADMIN — subscribers, auto-briefing, one-click send
 function ensureNewsletterUI() {
     if (document.getElementById('page-newsletter')) return;
@@ -449,7 +447,7 @@ function ensureNewsletterUI() {
     page.id = 'page-newsletter'; page.className = 'page-content hidden';
     page.innerHTML =
         '<div class="stats-grid">' +
-        '  <div class="stat-card"><div class="stat-icon">' + IC.users + '</div><div class="stat-info"><h3 id="nl-count">…</h3><p>Subscribers</p></div></div>' +
+        '  <div class="stat-card"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.5em;height:1.5em;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div class="stat-info"><h3 id="nl-count">…</h3><p>Subscribers</p></div></div>' +
         '  <div class="stat-card"><div class="stat-icon">' + IC.mail + '</div><div class="stat-info"><h3 id="nl-sent">…</h3><p>Total Sent</p></div></div>' +
         '</div>' +
         '<div class="panel">' +
@@ -702,6 +700,9 @@ function sweepAllEmojis() {
     // Auto-stop after 8 sweeps — static content done, renders handle the rest
     if (_sweepCount >= 8 && _sweepMO) { _sweepMO.disconnect(); _sweepMO = null; }
 }
+
+// 👥 Reporters UI — init AFTER icons ready
+setTimeout(function() { ensureReportersUI(); }, 800);
 
 // Run on init (few times to catch late content) — NO permanent observer (freeze fix)
 setTimeout(sweepAllEmojis, 700);
