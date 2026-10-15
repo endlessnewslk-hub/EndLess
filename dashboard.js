@@ -332,7 +332,7 @@ function ensureReportersUI() {
     if (nav && !nav.querySelector('[data-page="reporters"]')) {
         var b = document.createElement('button');
         b.className = 'nav-item'; b.dataset.page = 'reporters';
-        b.innerHTML = '<span>👥</span> Reporters';
+        b.innerHTML = '<span>' + IC.users + '</span> Reporters';
         nav.insertBefore(b, nav.querySelector('[data-page="newsletter"]') || null);
         b.addEventListener('click', function() { showPage('reporters'); setTimeout(renderReportersPage, 100); });
     }
@@ -342,7 +342,7 @@ function ensureReportersUI() {
     page.id = 'page-reporters'; page.className = 'page-content hidden';
     page.innerHTML =
         '<div class="stats-grid">' +
-        '  <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-info"><h3 id="rep-count">0</h3><p>Total Reporters</p></div></div>' +
+        '  <div class="stat-card"><div class="stat-icon">' + IC.users + '</div><div class="stat-info"><h3 id="rep-count">0</h3><p>Total Reporters</p></div></div>' +
         '  <div class="stat-card"><div class="stat-icon">📝</div><div class="stat-info"><h3 id="rep-active">0</h3><p>Active</p></div></div>' +
         '  <div class="stat-card"><div class="stat-icon">🚫</div><div class="stat-info"><h3 id="rep-blocked">0</h3><p>Blocked</p></div></div>' +
         '</div>' +
