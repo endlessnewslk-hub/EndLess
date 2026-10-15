@@ -2504,12 +2504,13 @@ function openNewsModal(isEdit) {
         if (!modal || modal._enterGuard) return;
         modal._enterGuard = true;
         modal.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+            // Only block Enter on NON-input elements (buttons, links) — allow in text fields!
+            if (e.key === 'Enter' && e.target && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
                 e.preventDefault();
                 e.stopPropagation();
                 return false;
             }
-        }, true); // capture phase — stops mobile submit before any handler
+        }, true);
     }, 60);
     isEdit = isEdit || false;
     // 📝 Inject FORMAT button next to copy buttons
