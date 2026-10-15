@@ -1095,15 +1095,7 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         var bR = Math.round(W * 0.02);   // rounded corner
         var fx = m, fy = m, fw = W - m * 2, fh = imgH - m * 2;
 
-        // Soft outer glow (pink brand)
-        ctx.save();
-        ctx.shadowColor = 'rgba(225,29,72,0.25)';
-        ctx.shadowBlur = Math.round(W * 0.015);
-        ctx.shadowOffsetY = 2;
-        ctx.fillStyle = 'rgba(225,29,72,0.08)';
-        pgRoundRect(ctx, fx - bW, fy - bW, fw + bW * 2, fh + bW * 2, bR + bW);
-        ctx.fill();
-        ctx.restore();
+        // Clean margin gap only (no inner glow)
 
         // ⭐ Gradient border line (modern pink → subtle)
         var grad = ctx.createLinearGradient(fx, fy, fx + fw, fy + fh);
