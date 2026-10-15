@@ -1924,9 +1924,20 @@ function fsRender() {
     if (img) {
         var spin = document.getElementById('fs-img-spin');
         img.style.opacity = '0';
-        img.onload = function () { img.style.opacity = '1'; if (spin) spin.style.display = 'none'; };
-        img.onerror = function () { img.style.opacity = '1'; if (spin) spin.style.display = 'none'; };
-        img.src = _fsImgs[_fsIdx];   // src AFTER onload wired → first tap-la kooda correct
+        img.style.transition = 'opacity 0.2s ease';
+        if (spin) spin.style.display = 'block';
+        // Preload for instant display
+        var pre = new Image();
+        pre.onload = function() {
+            img.src = _fsImgs[_fsIdx];
+            img.onload = function () { img.style.opacity = '1'; if (spin) spin.style.display = 'none'; };
+        };
+        pre.onerror = function() {
+            img.src = _fsImgs[_fsIdx];
+            img.style.opacity = '1';
+            if (spin) spin.style.display = 'none';
+        };
+        pre.src = _fsImgs[_fsIdx];
     }
     var meta = document.getElementById('fs-img-meta');
     if (meta) meta.textContent = (_fsIdx + 1) + ' / ' + _fsImgs.length;
