@@ -1414,14 +1414,17 @@ function videoBlockHtml(article) {
 // GoldAPI.io free tier — real-time XAU/XAG/ounce prices
 // ═══════════════════════════════════════════════════════════════
 (function initGoldPrices() {
-    // Free public API (no key needed for basic rates)
-    var API_URL = 'https://api.gold-api.com/price/XAU';  // Gold ounce USD
-    var API_URL_SILVER = 'https://api.gold-api.com/price/XAG';  // Silver ounce USD
+    // 🔄 CORS FIX: Use proxy + multiple fallback APIs
+    var PROXY = 'https://api.allorigins.win/raw?url=';
+    var API_GOLD = PROXY + encodeURIComponent('https://api.gold-api.com/price/XAU');
+    var API_SILVER = PROXY + encodeURIComponent('https://api.gold-api.com/price/XAG');
+    // Fallback: metals.live (also CORS-friendly)
+    var API_FALLBACK = PROXY + encodeURIComponent('https://api.metals.live/v1/spot');
     var LKR_RATE = 320;  // Approx USD to LKR (auto-updates via API)
 
     // Fetch USD/LKR rate (free)
     function fetchLKRRate() {
-        fetch('https://api.exchangerate-api.com/v4/latest/USD')
+        fetch(PROXY + encodeURIComponent('https://api.exchangerate-api.com/v4/latest/USD'))
             .then(function(r) { return r.json(); })
             .then(function(d) {
                 if (d && d.rates && d.rates.LKR) {
@@ -1436,17 +1439,20 @@ function videoBlockHtml(article) {
     function fetchPrices() {
         var gold = null, silver = null;
 
-        fetch(API_URL)
+        fetch(API_GOLD)
             .then(function(r) { return r.json(); })
-            .then(function(d) { gold = d.price; return fetch(API_URL_SILVER); })
+            .then(function(d) { gold = d.price || d.rate || d; return fetch(API_SILVER); })
             .then(function(r) { return r.json(); })
             .then(function(d) {
-                silver = d.price;
-                updateTicker(gold, silver);
+                silver = d.price || d.rate || d;
+                if (gold && silver) {
+                    updateTicker(gold, silver);
+                } else {
+                    fetchFallback();
+                }
             })
             .catch(function() {
-                // Fallback: static display if API fails
-                showStaticTicker();
+                fetchFallback();
             });
     }
 
@@ -1464,6 +1470,27 @@ function videoBlockHtml(article) {
             '<span style="color:#cbd5e1;">🥈 Silver: Rs.' + silverLKR + '/g</span>' +
             '<span style="margin:0 12px;color:#94a3b8;">|</span>' +
             '<span style="color:#cd7f32;">🥉 Ounce: $' + (goldUSD || 0).toFixed(0) + '</span>';
+    }
+
+    // Fallback: metals.live API (different format)
+    function fetchFallback() {
+        fetch(API_FALLBACK)
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (Array.isArray(d) && d.length > 0) {
+                    var gold = null, silver = null;
+                    d.forEach(function(m) {
+                        if (m.gold) gold = m.gold;
+                        if (m.silver) silver = m.silver;
+                    });
+                    if (gold || silver) {
+                        updateTicker(gold, silver);
+                        return;
+                    }
+                }
+                showStaticTicker();
+            })
+            .catch(function() { showStaticTicker(); });
     }
 
     function showStaticTicker() {
