@@ -1089,20 +1089,39 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         ctx.drawImage(img, (W - iw) / 2, (imgH - ih) / 2, iw, ih);
         ctx.restore();
 
-        // ✨ BEAUTIFUL IMAGE BORDER — professional glow around photo
-        var bW = Math.max(4, Math.round(W * 0.004));
-        var bR = Math.round(W * 0.015);
+        // ✨ MODERN IMAGE FRAME — margin + gradient border + soft shadow
+        var m = Math.round(W * 0.018);   // ⭐ margin/gap around image
+        var bW = Math.max(3, Math.round(W * 0.003));
+        var bR = Math.round(W * 0.02);   // rounded corner
+        var fx = m, fy = m, fw = W - m * 2, fh = imgH - m * 2;
+
+        // Soft outer glow (pink brand)
         ctx.save();
-        ctx.shadowColor = 'rgba(225,29,72,0.4)';
-        ctx.shadowBlur = Math.round(W * 0.012);
-        ctx.strokeStyle = 'rgba(225,29,72,0.5)';
+        ctx.shadowColor = 'rgba(225,29,72,0.25)';
+        ctx.shadowBlur = Math.round(W * 0.015);
+        ctx.shadowOffsetY = 2;
+        ctx.fillStyle = 'rgba(225,29,72,0.08)';
+        pgRoundRect(ctx, fx - bW, fy - bW, fw + bW * 2, fh + bW * 2, bR + bW);
+        ctx.fill();
+        ctx.restore();
+
+        // ⭐ Gradient border line (modern pink → subtle)
+        var grad = ctx.createLinearGradient(fx, fy, fx + fw, fy + fh);
+        grad.addColorStop(0, 'rgba(225,29,72,0.7)');
+        grad.addColorStop(0.5, 'rgba(251,113,133,0.4)');
+        grad.addColorStop(1, 'rgba(225,29,72,0.7)');
+        ctx.save();
+        ctx.strokeStyle = grad;
         ctx.lineWidth = bW;
-        pgRoundRect(ctx, bW/2, bW/2, W-bW, imgH-bW, bR);
+        ctx.lineCap = 'round';
+        pgRoundRect(ctx, fx - bW/2, fy - bW/2, fw + bW, fh + bW, bR);
         ctx.stroke();
         ctx.restore();
-        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-        ctx.lineWidth = 1;
-        pgRoundRect(ctx, bW+2, bW+2, W-(bW+2)*2, imgH-(bW+2)*2, bR);
+
+        // Inner subtle white line (crisp definition)
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.lineWidth = Math.max(1, Math.round(W * 0.0008));
+        pgRoundRect(ctx, fx + 1, fy + 1, fw - 2, fh - 2, bR - 1);
         ctx.stroke();
     } catch (e) {}
 
