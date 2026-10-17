@@ -1576,8 +1576,19 @@ function getDeviceId() {
     var id = null;
     try { id = localStorage.getItem(DEVICE_ID_KEY); } catch (e) {}
     if (!id) {
-        // Fingerprint: screen + timezone + language + random (high entropy)
-        var fp = [screen.width, screen.height, screen.colorDepth, new Date().getTimezoneOffset(), navigator.language, Math.random().toString(36).slice(2, 12)].join('_');
+        // 🔒 TRUE per-device: fingerprint + install timestamp + high entropy random
+        // Ithu same Google account sync aana kooda DIFFERENT ID (different browser/device)
+        var fp = [
+            screen.width, screen.height, screen.colorDepth,
+            screen.availWidth, screen.availHeight,
+            new Date().getTimezoneOffset(),
+            navigator.language,
+            navigator.hardwareConcurrency || 'na',
+            navigator.platform || 'na',
+            Date.now().toString(36),  // timestamp — different per device
+            Math.random().toString(36).slice(2, 16),  // high entropy
+            Math.random().toString(36).slice(2, 16)   // extra entropy
+        ].join('_');
         id = 'dev_' + fp;
         try { localStorage.setItem(DEVICE_ID_KEY, id); } catch (e) {}
     }
