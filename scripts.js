@@ -1635,8 +1635,13 @@ function getLikeCount(articleId, cb) {
 // Uses existing `db` object (Firestore SDK) — works even with strict security rules.
 // 1) Ensure doc exists (set zeros if missing)
 // 2) Atomic increment/decrement via FieldValue
+var _reactionInFlight = {};
 function submitReaction(articleId, emoji, prevEmoji, onDone) {
     if (!db || !db.collection) { if (onDone) onDone(false); return; }
+    // 🛡️ Prevent double-submit (rapid clicks)
+    var key = articleId + '_' + emoji;
+    if (_reactionInFlight[key]) { if (onDone) onDone(true); return; }
+    _reactionInFlight[key] = true;
     var ref = db.collection('likes').doc(String(articleId));
     var zeros = { like: 0, love: 0, haha: 0, wow: 0, sad: 0, angry: 0 };
     var updates = {};
@@ -1647,10 +1652,11 @@ function submitReaction(articleId, emoji, prevEmoji, onDone) {
         updates[emoji] = firebase.firestore.FieldValue.increment(1);
     }
     if (!Object.keys(updates).length) { if (onDone) onDone(true); return; }
-    ref.set(zeros, { merge: true })   // ensure doc exists (create if missing)
+    ref.set(zeros, { merge: true })
         .then(function () { return ref.update(updates); })
-        .then(function () { if (onDone) onDone(true); })
+        .then(function () { delete _reactionInFlight[key]; if (onDone) onDone(true); })
         .catch(function (err) {
+            delete _reactionInFlight[key];
             console.warn('Like write failed:', err);
             if (onDone) onDone(false);
         });
@@ -1659,6 +1665,13 @@ function submitReaction(articleId, emoji, prevEmoji, onDone) {
 // Like button UI + long-press emoji panel (Facebook style)
 let _reactArticleId = null;
 function buildReactionUI(container, articleId) {
+    // 🛡️ Prevent duplicate listeners — remove old if exists
+    if (container._reactionBuilt) {
+        container.innerHTML = '';
+        container._reactionBuilt = false;
+    }
+    container._reactionBuilt = true;
+
     var liked = getLikedMap();
     var myReaction = liked[articleId] || null;
     container.innerHTML =
@@ -1736,6 +1749,7 @@ function pickReaction(articleId, emojiKey, isQuick) {
     var delta = 0;
     if (prev && prev !== next) delta--;
     if (next && next !== prev) delta++;
+    // 🛡️ Ensure single operation (no double-count)
     if (next) { liked[articleId] = next; } else { delete liked[articleId]; }
     setLikedMap(liked);   // 🔑 Per-device isolated save
 
