@@ -1616,7 +1616,7 @@ function fmtCount(n) {
 }
 
 function getLikeCount(articleId, cb) {
-    // Firestore SDK read — consistent with write path, zero-safe
+    // 🎯 SERVER TRUTH ONLY — Firestore SDK read (consistent with writes)
     if (!db || !db.collection) { cb(0, {}); return; }
     db.collection('likes').doc(String(articleId)).get()
         .then(function(doc) {
@@ -1759,10 +1759,8 @@ function pickReaction(articleId, emojiKey, isQuick) {
         if (panel) panel.style.display = 'none';
         var eb = container.querySelector('#react-emoji');
         if (eb) eb.innerHTML = (next && REACTIONS[next]) ? REACTIONS[next] : REACTIONS.like;
-        var c = container.querySelector('#react-count');
-        var cur = parseInt(c && c.dataset.total || '0', 10);
-        var optimistic = Math.max(0, cur + delta);
-        if (c) { c.textContent = optimistic > 0 ? fmtCount(optimistic) : ''; c.dataset.total = optimistic; }
+        // ⛔ NO optimistic update — wait for server real-time listener to update count!
+        // This ensures: Device A like → Device B sees +1 instantly (via onSnapshot)
     }
 
     // 🚀 Server write (with device ID for audit) → sync real total + auto-correct
@@ -2098,6 +2096,7 @@ function openArticle(id) {
     try {
         if (window._likeUnsub) window._likeUnsub(); // previous article listener off
         if (db) {
+            // 🎯 REAL-TIME for ALL devices — new visitor sees existing likes immediately!
             window._likeUnsub = db.collection('likes').doc(String(id)).onSnapshot(function(doc) {
                 var wrap = document.getElementById('reaction-wrap');
                 if (!wrap) return;
