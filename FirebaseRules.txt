@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ═══════════════════════════════════════════════════════════════
+    // 🔓 PUBLIC (website anonymous users)
+    // ═══════════════════════════════════════════════════════════════
+    match /likes/{articleId} { allow read, write: if true; }
+    match /analytics/{docId} { allow read, write: if true; }
+    match /ad_analytics/{docId} { allow read, write: if true; }
+    match /push_triggers/{docId} { allow read: if isAdmin(); allow write: if true; }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 👥 REPORTERS (authenticated)
+    // ═══════════════════════════════════════════════════════════════
+    match /reporters/{username} {
+      allow read: if isOwnerOrAdmin(username);
+      allow create: if isAdmin();
+      allow update: if isOwnerOrAdmin(username);
+      allow delete: if isAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 📝 NEWS (reporters create own, admin all)
+    // ═══════════════════════════════════════════════════════════════
+    match /news/{articleId} {
+      allow read: if true;  // Public website
+      allow create: if isAdmin() || isReporter();
+      allow update: if isAdmin() || isOwnArticle();
+      allow delete: if isAdmin();  // Reporters cannot delete
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 🔒 ADMIN-ONLY
+    // ═══════════════════════════════════════════════════════════════
+    match /ads/{docId} { allow read: if true; allow write: if isAdmin(); }
+    match /categories/{docId} { allow read: if true; allow write: if isAdmin(); }
+    match /settings/{docId} { allow read, write: if isAdmin(); }
+    match /subscribers/{email} { allow read: if isAdmin(); allow create: if true; allow update, delete: if isAdmin(); }
+    match /newsletter_log/{docId} { allow read, write: if isAdmin(); }
+    match /admin_panel/{docId} { allow read, write: if isAdmin(); }
+    match /mail/{docId} { allow read, write: if isAdmin(); }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 🛡️ HELPERS + DEFAULT DENY
+    // ═══════════════════════════════════════════════════════════════
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == 'endlessnewslk@gmail.com';
+    }
+    function isReporter() {
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/reporters/$(request.auth.token.email.split('@')[0]));
+    }
+    function isOwnArticle() {
+      return request.auth != null && 
+        resource.data.reporterId == request.auth.token.email.split('@')[0];
+    }
+    function isOwnerOrAdmin(username) {
+      return isAdmin() || 
+        (request.auth != null && request.auth.token.email.split('@')[0] == username);
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}
