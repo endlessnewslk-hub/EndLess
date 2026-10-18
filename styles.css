@@ -1355,13 +1355,20 @@ input, textarea, select {
 /* Drop cap — smaller on mobile */
 .modal-article .article-text p:first-of-type::first-letter {
     font-family: var(--font-heading);
-    font-size: 2rem;
+    font-size: 2.8rem;   /* ⭐ Bigger for mobile visibility */
     float: left;
-    line-height: 1;
-    padding-right: 0.4rem;
-    padding-top: 0.15rem;
+    line-height: 0.85;   /* Tight line height */
+    padding-right: 0.5rem;
+    padding-top: 0.2rem;
     color: var(--primary);
     font-weight: 700;
+}
+/* Desktop-la even bigger */
+@media (min-width: 640px) {
+    .modal-article .article-text p:first-of-type::first-letter {
+        font-size: 3.5rem;
+        padding-right: 0.6rem;
+    }
 }
 
 /* ─── FOOTER ─── */
