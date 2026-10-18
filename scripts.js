@@ -1652,7 +1652,15 @@ function submitReaction(articleId, emoji, prevEmoji, onDone) {
     if (emoji && emoji !== prevEmoji) {
         updates[emoji] = firebase.firestore.FieldValue.increment(1);
     }
-    if (!Object.keys(updates).length) { if (onDone) onDone(true); return; }
+    if (!Object.keys(updates).length) {
+        // No updates (same emoji re-click) — treat as UNLIKE
+        if (prevEmoji) {
+            updates[prevEmoji] = firebase.firestore.FieldValue.increment(-1);
+        } else {
+            if (onDone) onDone(true);
+            return;
+        }
+    }
     ref.set(zeros, { merge: true })
         .then(function () { return ref.update(updates); })
         .then(function () { delete _reactionInFlight[key]; if (onDone) onDone(true); })
@@ -1736,8 +1744,13 @@ function buildReactionUI(container, articleId) {
 function quickLike(articleId) {
     var liked = getLikedMap();
     var my = liked[articleId] || null;
-    var next = my === 'like' ? null : 'like'; // toggle = unlike
-    pickReaction(articleId, next || undefined, true);
+    if (my === 'like') {
+        // Already liked → UNLIKE
+        pickReaction(articleId, null, true);
+    } else {
+        // Not liked → LIKE
+        pickReaction(articleId, 'like', true);
+    }
 }
 
 function pickReaction(articleId, emojiKey, isQuick) {
