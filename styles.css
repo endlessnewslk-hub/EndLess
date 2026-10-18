@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Catamaran:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Catamaran:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&display=swap&family=Lora:wght@400;500;600;700');
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@300;400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+Tamil:wght@400;500;600;700;800;900&display=swap');
 
@@ -27,7 +27,7 @@
     /* TAMIL FONTS */
     --font-tamil-sans: 'Catamaran', 'Noto Sans Tamil', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-tamil-serif: 'Catamaran', 'Noto Sans Tamil', Georgia, 'Times New Roman', serif;
-    --font-heading: Georgia, 'Times New Roman', serif;
+    --font-heading: Georgia, 'Lora', 'Times New Roman', serif;   /* PC=Georgia | Mobile=Lora */
     --font-body: 'Noto Sans Tamil', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
