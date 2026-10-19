@@ -1261,9 +1261,15 @@ input, textarea, select {
 
 .modal-article > img:first-child { 
     width: 100%; 
-    height: auto;
-    object-fit: cover;
+    height: 300px;          /* ⭐ Fixed height — perfect fit */
+    object-fit: cover;      /* ⭐ Cover — fills completely */
+    object-position: center;/* ⭐ Center focus */
     border-radius: var(--radius-xl) var(--radius-xl) 0 0; 
+}
+@media (min-width: 640px) {
+    .modal-article > img:first-child {
+        height: 400px;      /* ⭐ Desktop: bigger */
+    }
 }
 .modal-article .art-img img {  /* ⭐ Inside article images — limited */
     max-height: 350px;      /* Not too big */
