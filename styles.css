@@ -1259,11 +1259,18 @@ input, textarea, select {
     padding: 0;
 }
 
-.modal-article img { 
+.modal-article > img:first-child { 
     width: 100%; 
-    height: 220px; 
-    object-fit: cover; 
+    height: auto;
+    object-fit: cover;
     border-radius: var(--radius-xl) var(--radius-xl) 0 0; 
+}
+.modal-article .art-img img {  /* ⭐ Inside article images — limited */
+    max-height: 350px;      /* Not too big */
+    object-fit: contain;    /* Full image visible */
+    width: 100%;
+    height: auto;
+    border-radius: 12px;
 }
 
 .modal-article .modal-body { 
