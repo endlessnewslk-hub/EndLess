@@ -1259,24 +1259,28 @@ input, textarea, select {
     padding: 0;
 }
 
-.modal-article > img:first-child { 
+.modal-article img { 
     width: 100%; 
-    height: 300px;          /* ⭐ Fixed height — perfect fit */
-    object-fit: cover;      /* ⭐ Cover — fills completely */
-    object-position: center;/* ⭐ Center focus */
+    height: 220px; 
+    object-fit: cover; 
     border-radius: var(--radius-xl) var(--radius-xl) 0 0; 
 }
 @media (min-width: 640px) {
-    .modal-article > img:first-child {
-        height: 400px;      /* ⭐ Desktop: bigger */
+    .modal-article img {
+        height: 300px;
     }
 }
 .modal-article .art-img img {  /* ⭐ Inside article images — limited */
-    max-height: 350px;      /* Not too big */
+    max-height: 300px;      /* Not too big */
     object-fit: contain;    /* Full image visible */
     width: 100%;
     height: auto;
     border-radius: 12px;
+}
+@media (min-width: 640px) {
+    .modal-article .art-img img {
+        max-height: 350px;
+    }
 }
 
 .modal-article .modal-body { 
