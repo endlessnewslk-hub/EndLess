@@ -1643,7 +1643,11 @@ function submitReaction(articleId, emoji, prevEmoji, onDone) {
 }
 
 function buildReactionUI(container, articleId) {
-    if (container._built) { container.innerHTML = ''; container._built = false; }
+    // 🛡️ NUCLEAR: Remove ALL old listeners by replacing element
+    if (container._built) { 
+        container.innerHTML = ''; 
+        container._built = false;
+    }
     container._built = true;
 
     var liked = getLikedMap();
@@ -1673,7 +1677,10 @@ function buildReactionUI(container, articleId) {
     });
 
     container.querySelector('#react-btn').addEventListener('click', function() {
-        pickReaction(articleId, myReaction === 'like' ? null : 'like', true);
+        // 🛡️ FRESH read from localStorage — not stale closure!
+        var fresh = getLikedMap();
+        var current = fresh[articleId] || null;
+        pickReaction(articleId, current === 'like' ? null : 'like', true);
     });
 
     var timer = null;
