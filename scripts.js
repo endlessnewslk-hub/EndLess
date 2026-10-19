@@ -1551,13 +1551,28 @@ async function sendPushTrigger(type, articleId, articleTitle) {
     } catch (e) { /* silent */ }
 }
 
-// ❤️ LIKE + REACTIONS — Facebook-style. Viewers: like/unlike + 6-emoji reactions.
-// Counts public; admin panel-la full breakdown kaatum.
-// 🔑 PER-DEVICE liked storage: {deviceId: {articleId: emoji}} — TRUE isolation
-const LIKED_KEY = 'endless_liked_v2';
+// ❤️ BULLETPROOF LIKE SYSTEM — Per-device, server-truth, real-time
+const LIKED_KEY = 'endless_liked_v3';
+const DEVICE_ID_KEY = 'endless_device_v3';
+
+function getDeviceId() {
+    var id = null;
+    try { id = localStorage.getItem(DEVICE_ID_KEY); } catch (e) {}
+    if (!id) {
+        id = 'dev_' + [
+            screen.width, screen.height, screen.colorDepth,
+            new Date().getTimezoneOffset(), navigator.language,
+            navigator.hardwareConcurrency || 'na', navigator.platform || 'na',
+            Date.now().toString(36), Math.random().toString(36).slice(2, 16)
+        ].join('_');
+        try { localStorage.setItem(DEVICE_ID_KEY, id); } catch (e) {}
+    }
+    return id;
+}
+
 function getLikedMap() {
     try {
-        var all = JSON.parse(localStorage.getItem(LIKED_KEY)) || {};
+        var all = JSON.parse(localStorage.getItem('endless_liked_all') || '{}');
         var devId = getDeviceId();
         if (!all[devId]) all[devId] = {};
         return all[devId];
@@ -1565,51 +1580,21 @@ function getLikedMap() {
 }
 function setLikedMap(map) {
     try {
-        var all = JSON.parse(localStorage.getItem(LIKED_KEY)) || {};
+        var all = JSON.parse(localStorage.getItem('endless_liked_all') || '{}');
         all[getDeviceId()] = map;
-        localStorage.setItem(LIKED_KEY, JSON.stringify(all));
+        localStorage.setItem('endless_liked_all', JSON.stringify(all));
     } catch (e) {}
 }
-// 🆔 TRUE PER-DEVICE ID: Fingerprint + random — survives cache, unique per device
-// Same browser profile-la kooda different tabs/windows = different IDs
-const DEVICE_ID_KEY = 'endless_device_id_v2';
-function getDeviceId() {
-    var id = null;
-    try { id = localStorage.getItem(DEVICE_ID_KEY); } catch (e) {}
-    if (!id) {
-        // 🔒 TRUE per-device: fingerprint + install timestamp + high entropy random
-        // Ithu same Google account sync aana kooda DIFFERENT ID (different browser/device)
-        var fp = [
-            screen.width, screen.height, screen.colorDepth,
-            screen.availWidth, screen.availHeight,
-            new Date().getTimezoneOffset(),
-            navigator.language,
-            navigator.hardwareConcurrency || 'na',
-            navigator.platform || 'na',
-            Date.now().toString(36),  // timestamp — different per device
-            Math.random().toString(36).slice(2, 16),  // high entropy
-            Math.random().toString(36).slice(2, 16)   // extra entropy
-        ].join('_');
-        id = 'dev_' + fp;
-        try { localStorage.setItem(DEVICE_ID_KEY, id); } catch (e) {}
-    }
-    return id;
-}
-// 👍 Emoji reactions — Facebook-style (consistent across all articles)
-// 🎨 SVG REACTIONS — consistent premium icons (no emoji mix)
-const REACTIONS = {
-    like: '<svg viewBox="0 0 24 24" fill="none" stroke="#1877F2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>',
-    love: '<svg viewBox="0 0 24 24" fill="#F33E58" stroke="#F33E58" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
-    haha: '<svg viewBox="0 0 24 24" fill="none" stroke="#F7B125" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>',
-    wow: '<svg viewBox="0 0 24 24" fill="none" stroke="#F7B125" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="8" x2="12" y2="4"/></svg>',
-    sad: '<svg viewBox="0 0 24 24" fill="none" stroke="#F7B125" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"/><path d="M8 16s1.5-2 4-2 4 2 4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>',
-    angry: '<svg viewBox="0 0 24 24" fill="none" stroke="#E9710F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"/><line x1="8" y1="8" x2="12" y2="11"/><line x1="16" y1="8" x2="12" y2="11"/><path d="M8 16s1.5-1.5 4-1.5 4 1.5 4 1.5"/></svg>'
-};
-// 🔑 PER-DEVICE liked map: { articleId: emoji } — independent per device/browser
-// Device A like pannalum, Device B like pannalum — rendu valid, Firebase total sum
-function getLikedMap() { try { return JSON.parse(localStorage.getItem(LIKED_KEY)) || {}; } catch (e) { return {}; } }
 
-// 🔢 FB-STYLE COMPACT NUMBER — 1000 → 1K, 2500 → 2.5K, 1000000 → 1M
+const REACTIONS = {
+    like: '<svg viewBox="0 0 24 24" fill="none" stroke="#1877F2" stroke-width="2.5" style="width:24px;height:24px;"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>',
+    love: '<svg viewBox="0 0 24 24" fill="#F33E58" stroke="#F33E58" stroke-width="2" style="width:24px;height:24px;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+    haha: '<svg viewBox="0 0 24 24" fill="none" stroke="#F7B125" stroke-width="2" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>',
+    wow: '<svg viewBox="0 0 24 24" fill="none" stroke="#F7B125" stroke-width="2" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3.5"/><line x1="12" y1="8" x2="12" y2="4"/></svg>',
+    sad: '<svg viewBox="0 0 24 24" fill="none" stroke="#F7B125" stroke-width="2" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"/><path d="M8 16s1.5-2 4-2 4 2 4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>',
+    angry: '<svg viewBox="0 0 24 24" fill="none" stroke="#E9710F" stroke-width="2" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"/><line x1="8" y1="8" x2="12" y2="11"/><line x1="16" y1="8" x2="12" y2="11"/><path d="M8 16s1.5-1.5 4-1.5 4 1.5 4 1.5"/></svg>'
+};
+
 function fmtCount(n) {
     if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
     if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
@@ -1617,14 +1602,13 @@ function fmtCount(n) {
 }
 
 function getLikeCount(articleId, cb) {
-    // 🎯 SERVER TRUTH ONLY — Firestore SDK read (consistent with writes)
     if (!db || !db.collection) { cb(0, {}); return; }
     db.collection('likes').doc(String(articleId)).get()
         .then(function(doc) {
             var total = 0, breakdown = {};
             var f = doc.exists ? doc.data() : {};
             Object.keys(REACTIONS).forEach(function(k) {
-                var v = Math.max(0, parseInt(f[k]) || 0);   // 🔒 Never negative
+                var v = Math.max(0, parseInt(f[k]) || 0);
                 breakdown[k] = v; total += v;
             });
             cb(total, breakdown);
@@ -1632,112 +1616,114 @@ function getLikeCount(articleId, cb) {
         .catch(function() { cb(0, {}); });
 }
 
-// 🔒 FACEBOOK-STYLE RELIABLE WRITE — Firestore SDK (bypasses REST rules issues).
-// Uses existing `db` object (Firestore SDK) — works even with strict security rules.
-// 1) Ensure doc exists (set zeros if missing)
-// 2) Atomic increment/decrement via FieldValue
-var _reactionInFlight = {};
+var _reactionBusy = {};
 function submitReaction(articleId, emoji, prevEmoji, onDone) {
     if (!db || !db.collection) { if (onDone) onDone(false); return; }
-    // 🛡️ Prevent double-submit (rapid clicks)
-    var key = articleId + '_' + emoji;
-    if (_reactionInFlight[key]) { if (onDone) onDone(true); return; }
-    _reactionInFlight[key] = true;
+    var key = articleId;
+    if (_reactionBusy[key]) { if (onDone) onDone(true); return; }
+    _reactionBusy[key] = true;
+
     var ref = db.collection('likes').doc(String(articleId));
     var zeros = { like: 0, love: 0, haha: 0, wow: 0, sad: 0, angry: 0 };
     var updates = {};
-    if (prevEmoji && prevEmoji !== emoji) {
+
+    if (prevEmoji && prevEmoji === emoji) {
         updates[prevEmoji] = firebase.firestore.FieldValue.increment(-1);
+    } else {
+        if (prevEmoji) updates[prevEmoji] = firebase.firestore.FieldValue.increment(-1);
+        if (emoji) updates[emoji] = firebase.firestore.FieldValue.increment(1);
     }
-    if (emoji && emoji !== prevEmoji) {
-        updates[emoji] = firebase.firestore.FieldValue.increment(1);
-    }
-    if (!Object.keys(updates).length) {
-        // No updates (same emoji re-click) — treat as UNLIKE
-        if (prevEmoji) {
-            updates[prevEmoji] = firebase.firestore.FieldValue.increment(-1);
-        } else {
-            if (onDone) onDone(true);
-            return;
-        }
-    }
+
+    if (!Object.keys(updates).length) { delete _reactionBusy[key]; if (onDone) onDone(true); return; }
+
     ref.set(zeros, { merge: true })
-        .then(function () { return ref.update(updates); })
-        .then(function () { delete _reactionInFlight[key]; if (onDone) onDone(true); })
-        .catch(function (err) {
-            delete _reactionInFlight[key];
-            console.warn('Like write failed:', err);
-            if (onDone) onDone(false);
-        });
+        .then(function() { return ref.update(updates); })
+        .then(function() { delete _reactionBusy[key]; if (onDone) onDone(true); })
+        .catch(function(err) { delete _reactionBusy[key]; console.warn('Like failed:', err); if (onDone) onDone(false); });
 }
 
-// Like button UI + long-press emoji panel (Facebook style)
-let _reactArticleId = null;
 function buildReactionUI(container, articleId) {
-    // 🛡️ Prevent duplicate listeners — remove old if exists
-    if (container._reactionBuilt) {
-        container.innerHTML = '';
-        container._reactionBuilt = false;
-    }
-    container._reactionBuilt = true;
+    if (container._built) { container.innerHTML = ''; container._built = false; }
+    container._built = true;
 
     var liked = getLikedMap();
     var myReaction = liked[articleId] || null;
-    container.innerHTML =
-        '<button type="button" id="react-btn" style="display:inline-flex;align-items:center;gap:7px;padding:9px 20px;border-radius:999px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;transition:all .2s ease;box-shadow:0 2px 8px rgba(0,0,0,0.06);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-weight:600;">' +
+
+    container.innerHTML = 
+        '<button type="button" id="react-btn" style="display:inline-flex;align-items:center;gap:7px;padding:9px 20px;border-radius:999px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;cursor:pointer;transition:all .2s;font-weight:600;">' +
         '<span id="react-emoji" style="display:inline-flex;width:22px;height:22px;">' + (myReaction && REACTIONS[myReaction] ? REACTIONS[myReaction] : REACTIONS.like) + '</span>' +
-        '<span id="react-count" style="font-weight:700;font-size:0.9rem;"></span></button>' +
-        '<div id="react-panel" style="display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:10px 14px;box-shadow:0 12px 32px rgba(0,0,0,0.35);z-index:99999;align-items:center;gap:6px;white-space:nowrap;"></div>';
+        '<span id="react-count" style="font-weight:700;font-size:0.9rem;"></span></button>';
+
     container.style.position = 'relative';
 
-    var panel = container.querySelector('#react-panel');
-    Object.keys(REACTIONS).forEach(function(k) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.style.cssText = 'background:none;border:none;width:40px;height:40px;cursor:pointer;padding:4px;transition:transform .15s;display:inline-flex;align-items:center;justify-content:center;color:inherit;border-radius:50%;';
-        b.innerHTML = REACTIONS[k]; // SVG icons need innerHTML, not textContent!
-        b.dataset.reaction = k;
-        b.addEventListener('mouseenter', function() { this.style.transform = 'scale(1.35)'; });
-        b.addEventListener('mouseleave', function() { this.style.transform = 'scale(1)'; });
-        b.addEventListener('click', function(ev) { ev.stopPropagation(); pickReaction(articleId, k); });
-        panel.appendChild(b);
+    getLikeCount(articleId, function(total) {
+        var c = container.querySelector('#react-count');
+        if (c) { c.textContent = total > 0 ? fmtCount(total) : ''; c.dataset.total = total; }
     });
 
-    var btn = container.querySelector('#react-btn');
-    // Long-press (touch + mouse) → emoji panel; quick tap → like/unlike
-    var timer = null;
-    function startPress(ev) {
-        ev.preventDefault();
-        timer = setTimeout(function() {
-            timer = null;
-            var r = btn.getBoundingClientRect();
-            panel.style.left = Math.max(8, Math.min(r.left - 80, window.innerWidth - 260)) + 'px';
-            panel.style.top = Math.max(8, r.top - 58) + 'px';
-            panel.style.display = 'flex';
-        }, 450);
-    }
-    function endPress(ev) {
-        if (timer) {
-            clearTimeout(timer);
-            timer = null;
-            quickLike(articleId); // Short tap = like toggle
+    if (window._likeUnsub) window._likeUnsub();
+    window._likeUnsub = db.collection('likes').doc(String(articleId)).onSnapshot(function(doc) {
+        var total = 0;
+        if (doc.exists) {
+            var f = doc.data();
+            Object.keys(REACTIONS).forEach(function(k) { total += Math.max(0, parseInt(f[k]) || 0); });
         }
-        // Long-press: timer=null already, panel open — do nothing (emoji click handles)
+        var c = container.querySelector('#react-count');
+        if (c) { c.textContent = total > 0 ? fmtCount(total) : ''; c.dataset.total = total; }
+    });
+
+    container.querySelector('#react-btn').addEventListener('click', function() {
+        pickReaction(articleId, myReaction === 'like' ? null : 'like', true);
+    });
+
+    var timer = null;
+    var btn = container.querySelector('#react-btn');
+    function startPress(e) {
+        e.preventDefault();
+        timer = setTimeout(function() { showEmojiPanel(container, articleId); }, 450);
     }
+    function endPress() { if (timer) { clearTimeout(timer); timer = null; } }
     btn.addEventListener('touchstart', startPress, { passive: false });
     btn.addEventListener('touchend', endPress);
     btn.addEventListener('mousedown', startPress);
     btn.addEventListener('mouseup', endPress);
-    btn.addEventListener('mouseleave', function() { if (timer) { clearTimeout(timer); timer = null; } });
+    btn.addEventListener('mouseleave', endPress);
+}
 
-    document.addEventListener('click', function hideP(ev) {
-        if (!container.contains(ev.target)) panel.style.display = 'none';
-    });
+function showEmojiPanel(container, articleId) {
+    var liked = getLikedMap();
+    var current = liked[articleId] || null;
+    var keys = Object.keys(REACTIONS);
+    var next = current ? keys[(keys.indexOf(current) + 1) % keys.length] : 'like';
+    pickReaction(articleId, next, false);
+}
 
-    // Initial count — store numeric total for optimistic updates (React-style instant feel)
-    getLikeCount(articleId, function(total) {
-        var c = container.querySelector('#react-count');
-        if (c) { c.textContent = total > 0 ? fmtCount(total) : ''; c.dataset.total = total; }
+function pickReaction(articleId, emojiKey, isQuick) {
+    var liked = getLikedMap();
+    var prev = liked[articleId] || null;
+    var next = emojiKey || null;
+
+    if (next) liked[articleId] = next;
+    else delete liked[articleId];
+    setLikedMap(liked);
+
+    var container = document.getElementById('reaction-wrap');
+    if (container) {
+        var eb = container.querySelector('#react-emoji');
+        if (eb) eb.innerHTML = (next && REACTIONS[next]) ? REACTIONS[next] : REACTIONS.like;
+    }
+
+    submitReaction(articleId, next, prev, function(ok) {
+        if (!ok) {
+            if (next) delete liked[articleId];
+            else if (prev) liked[articleId] = prev;
+            setLikedMap(liked);
+            if (container) {
+                var eb2 = container.querySelector('#react-emoji');
+                if (eb2) eb2.innerHTML = (prev && REACTIONS[prev]) ? REACTIONS[prev] : REACTIONS.like;
+            }
+            showToast('Network error — try again', 'error');
+        }
     });
 }
 
@@ -1745,80 +1731,10 @@ function quickLike(articleId) {
     var liked = getLikedMap();
     var my = liked[articleId] || null;
     if (my === 'like') {
-        // Already liked → UNLIKE
         pickReaction(articleId, null, true);
     } else {
-        // Not liked → LIKE
         pickReaction(articleId, 'like', true);
     }
-}
-
-function pickReaction(articleId, emojiKey, isQuick) {
-    var liked = getLikedMap();
-    var prev = liked[articleId] || null;
-    var next = emojiKey || null;
-    if (prev === next) next = null; // same emoji = unlike (Facebook toggle)
-
-    // ⭐ OPTIMISTIC UI: instant update (React feel) — but server is truth
-    var delta = 0;
-    if (prev && prev !== next) delta--;
-    if (next && next !== prev) delta++;
-    // 🛡️ Ensure single operation (no double-count)
-    if (next) { liked[articleId] = next; } else { delete liked[articleId]; }
-    setLikedMap(liked);   // 🔑 Per-device isolated save
-
-    var container = document.getElementById('reaction-wrap');
-    if (container) {
-        var panel = container.querySelector('#react-panel');
-        if (panel) panel.style.display = 'none';
-        var eb = container.querySelector('#react-emoji');
-        if (eb) eb.innerHTML = (next && REACTIONS[next]) ? REACTIONS[next] : REACTIONS.like;
-        // ⛔ NO optimistic update — wait for server real-time listener to update count!
-        // This ensures: Device A like → Device B sees +1 instantly (via onSnapshot)
-    }
-
-    // 🚀 Server write (with device ID for audit) → sync real total + auto-correct
-    submitReaction(articleId, next, prev, function (ok) {
-        if (!ok) {
-            // Revert optimistic + restore local state
-            if (next) delete liked[articleId]; else if (prev) liked[articleId] = prev;
-            setLikedMap(liked);
-            if (container) {
-                var c2 = container.querySelector('#react-count');
-                var cur2 = parseInt(c2 && c2.dataset.total || '0', 10);
-                var reverted = Math.max(0, cur2 - delta);
-                if (c2) { c2.textContent = reverted > 0 ? fmtCount(reverted) : ''; c2.dataset.total = reverted; }
-                var eb2 = container.querySelector('#react-emoji');
-                if (eb2) eb2.innerHTML = (prev && REACTIONS[prev]) ? REACTIONS[prev] : REACTIONS.like;
-            }
-            try { if (typeof showToast === 'function') showToast('Network issue — like not saved', 'error'); } catch (e) {}
-            return;
-        }
-        // Success: sync real total after 400ms (eventual consistency)
-        setTimeout(function () {
-            getLikeCount(articleId, function (total) {
-                if (!container) return;
-                var c3 = container.querySelector('#react-count');
-                if (c3) { c3.textContent = total > 0 ? fmtCount(total) : ''; c3.dataset.total = total; }
-            });
-        }, 400);
-        // 🔔 Push/Telegram notify on NEW like only (not unlike)
-        if (next && !prev) {
-            var _art = (typeof findArticleById === 'function') ? findArticleById(articleId) : null;
-            var _t = _art ? (getLocalized(_art, 'title') || _art.title) : 'Article';
-            sendPushTrigger('like', articleId, _t);
-            sendTelegramNotify('👍 <b>New Like!</b>\n\n📰 ' + _t + '\n\n👉 endlessnews.lk');
-            try { analyticsLike(articleId); } catch (e) {}
-        }
-        // 🔔 LIKE aana odane push trigger + Telegram (unlike-ku illa)
-        if (next && !prev) {
-            var _art = (typeof findArticleById === 'function') ? findArticleById(articleId) : null;
-            var _t = _art ? (getLocalized(_art, 'title') || _art.title) : 'Article';
-            sendPushTrigger('like', articleId, _t);
-            sendTelegramNotify('👍 <b>New Like!</b>\n\n📰 ' + _t + '\n\n👉 endlessnews.lk');
-            try { analyticsLike(articleId); } catch (e) {}
-        }
-    });
 }
 
 // 🔗 RELATED ARTICLES — same category, exclude current, top 3
