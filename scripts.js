@@ -2757,6 +2757,16 @@ setTimeout(function() { if (window._hideSplash) window._hideSplash(); }, 6000);
     else place();
 })();
 
+// 📢 AdSense ads — auto-init
+function initAdSenseSlots() {
+    document.querySelectorAll('.adsbygoogle').forEach(function(el) {
+        if (!el.getAttribute('data-ad-status')) {
+            (adsbygoogle = window.adsbygoogle || []).push({});
+        }
+    });
+}
+setTimeout(initAdSenseSlots, 2000);
+
 addEventListener('DOMContentLoaded', async () => {
     // 🚀 PHASE 0.5 — Defer non-critical heavy engines until browser is IDLE.
     // Ads/analytics/sw-update must never delay the first interactive paint.
