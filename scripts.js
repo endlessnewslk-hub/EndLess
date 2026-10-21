@@ -2992,6 +2992,30 @@ addEventListener('DOMContentLoaded', async () => {
         }
     } catch (e) {}
 
+    // 🔖 BOOKMARK BUTTON — PC + Mobile (homepage header, theme toggle pakkam)
+    function injectBookmarkButton() {
+        if (document.getElementById('bookmark-header-btn')) return;
+
+        var themeBtn = document.getElementById('theme-toggle');
+        if (!themeBtn) return;
+
+        var bookmarkBtn = document.createElement('button');
+        bookmarkBtn.id = 'bookmark-header-btn';
+        bookmarkBtn.className = 'icon-btn';
+        bookmarkBtn.title = 'Saved Articles';
+        bookmarkBtn.setAttribute('aria-label', 'Saved articles');
+        bookmarkBtn.style.cssText = 'margin-right:8px;';
+        bookmarkBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>';
+        bookmarkBtn.onclick = function() { openSavedPage(); };
+
+        // ⭐ PC ONLY — hide on mobile (mobile users use hamburger menu)
+        if (window.innerWidth >= 1024) {
+            themeBtn.parentNode.insertBefore(bookmarkBtn, themeBtn);
+        }
+    }
+    injectBookmarkButton();
+    setTimeout(injectBookmarkButton, 1000);  // Retry after DOM ready
+
     // 🔖 Mobile menu-la "My Saved" link inject (index.html touch pannama)
     try {
         var mnav = document.getElementById('mobile-nav');
