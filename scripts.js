@@ -1995,10 +1995,7 @@ function openArticle(id) {
                 <div class="article-text">
                     ${processedContent}
                 </div>
-                <!-- ❤️ REACTION BAR — clean professional (no text, button only) -->
-                <div style="margin-top:2rem;padding-top:1.25rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
-                    <span id="reaction-wrap" style="display:inline-flex;"></span>
-                </div>
+                <!-- ❤️ REACTION BAR — HIDDEN (like button disabled for now) -->
 
                 ${(() => {
                     const rel = getRelatedArticles(article, 3);
@@ -2021,16 +2018,12 @@ function openArticle(id) {
     // 📊 Track article view
     analyticsTrack('view', id);
 
-    // ❤️ Reaction UI (like + long-press emoji panel)
-    setTimeout(function() {
-        var wrap = document.getElementById('reaction-wrap');
-        if (wrap) buildReactionUI(wrap, String(id));
-    }, 60);
+    // ❤️ Reaction UI — DISABLED (hidden)
 
     // 🖼️ Set gallery images for fullscreen viewer
     window._gal = { imgs: [article.image].concat(Array.isArray(article.images) ? article.images.filter(function(u) { return u && u !== article.image; }) : []) };
 
-    // ⚡ REAL-TIME LIKE LISTENER — FB-style live count (auto-update all devices!)
+    // ⚡ REAL-TIME LIKE LISTENER — DISABLED
     try {
         if (window._likeUnsub) window._likeUnsub(); // previous article listener off
         if (db) {
