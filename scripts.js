@@ -335,6 +335,11 @@ function wireNewsletterBox() {
         el.style.opacity = '0';
         setTimeout(function() { el.remove(); }, 520);
     };
+    // 🚨 EMERGENCY: Force hide splash after 8 seconds no matter what
+    setTimeout(function() {
+        var el = document.getElementById('endless-splash');
+        if (el) { el.style.opacity = '0'; setTimeout(function() { el.remove(); }, 500); }
+    }, 8000);
 })();
 
 // 🚨 EMERGENCY ERROR BANNER — any JS crash shows ON THE PAGE itself
@@ -2779,7 +2784,9 @@ if (document.readyState === 'complete') {
     window.addEventListener('load', function() { setTimeout(initAdSenseSlots, 3000); });
 }
 
+// Safe DOMContentLoaded with error handling
 addEventListener('DOMContentLoaded', async () => {
+    try {
     // 🚀 PHASE 0.5 — Defer non-critical heavy engines until browser is IDLE.
     // Ads/analytics/sw-update must never delay the first interactive paint.
     var _defer = (window.requestIdleCallback || function(cb) { setTimeout(cb, 1200); });
@@ -3095,5 +3102,6 @@ addEventListener('DOMContentLoaded', async () => {
 
     initLazyLoading();
     initTicker();
+    } catch(e) { console.error("Init error:", e); window._hideSplash && window._hideSplash(); }
 });
 }
