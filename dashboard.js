@@ -2189,9 +2189,11 @@ function renderNewsTable() {
                 '<td class="likes-cell" data-aid="' + escapeHtml(String(n.id)) + '" style="white-space:nowrap;">…</td>' +
                 '<td>' + langs.join('') + '</td>' +
                 '<td><span class="badge ' + (n.status === 'published' ? 'badge-green' : 'badge-gray') + '">' + (n.status || 'draft') + '</span></td>' +
-                '<td><button class="btn-icon btn-edit" style="' + btnEditStyle + '" onmouseover="' + btnEditHover + '" onmouseout="' + btnEditOut + '" onclick="editNews(' + n.id + ')" title="Edit">&#9999;&#65039;</button>' +
+                '<td><div style="display:flex;align-items:center;gap:8px;white-space:nowrap;">' +
+                '<button class="btn-icon btn-edit" style="' + btnEditStyle + '" onmouseover="' + btnEditHover + '" onmouseout="' + btnEditOut + '" onclick="editNews(' + n.id + ')" title="Edit">&#9999;&#65039;</button>' +
                 '<button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onclick="deleteNews(' + n.id + ')" title="Delete">&#128465;&#65039;</button>' +
-                '<button onclick="openPosterModal(' + n.id + ')" title="🎨 Social Poster" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;cursor:pointer;font-size:16px;margin-left:6px;">🎨</button></td></tr>';
+                '<button onclick="openPosterModal(' + n.id + ')" title="🎨 Social Poster" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;cursor:pointer;font-size:16px;">🎨</button>' +
+                '</div></td></tr>';
         }).join('');
     }
 
