@@ -8,7 +8,7 @@ function renderAnalyticsPage() {
         '<div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">' +
             '<div class="stat-card"><div class="stat-icon">' + IC.eye + '</div><div class="stat-info"><h3 id="an-views">—</h3><p>Total Views</p></div></div>' +
             '<div class="stat-card"><div class="stat-icon">' + IC.heart + '</div><div class="stat-info"><h3 id="an-likes">—</h3><p>Total Likes</p></div></div>' +
-            '<div class="stat-card"><div class="stat-icon">' + IC.share + '</div><div class="stat-info"><h3 id="an-shares">—</h3><p>Shares</p></div></div>' +
+            '<div class="stat-card"><div class="stat-icon">' + (IC.share || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:1.5em;height:1.5em;"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>') + '</div><div class="stat-info"><h3 id="an-shares">—</h3><p>Shares</p></div></div>' +
             '<div class="stat-card"><div class="stat-icon">' + IC.phone + '</div><div class="stat-info"><h3 id="an-mobile">—</h3><p>Mobile %</p></div></div>' +
             '<div class="stat-card"><div class="stat-icon" style="background:#fef3c7;">⚡</div><div class="stat-info"><h3 id="an-engage">—</h3><p>Engagement</p></div></div>' +
             '<div class="stat-card"><div class="stat-icon" style="background:#dbeafe;">' + IC.globe + '</div><div class="stat-info"><h3 id="an-countries">—</h3><p>Countries</p></div></div>' +
