@@ -656,6 +656,7 @@ function renderDate() {
 function setLanguage(lang) {
     currentLang = lang;
     localStorage.setItem('gd_language', lang);
+    setTimeout(function() { if (typeof updateFBBannerText === 'function') updateFBBannerText(); }, 100);
     // Ticker text length changes per language — re-measure speed after render
     setTimeout(initTicker, 100);
     renderDate(); // 📅 date-um language-ku eatha maariyum
@@ -891,7 +892,16 @@ function renderTrending() {
     }
 
     // 📘 PREMIUM FB FOLLOW BANNER — sidebar-la trending-ku keezha inject
-    (function injectFBBanner() {
+    function updateFBBannerText() {
+        var t = document.querySelector('#fb-follow-banner .fb-title');
+        var s = document.querySelector('#fb-follow-banner .fb-sub');
+        var b = document.querySelector('#fb-follow-banner .fb-btn');
+        if (t) t.textContent = currentLang === 'ta' ? 'எங்களை Facebook-ல் பின்தொடருங்கள்' : 'Follow Us on Facebook';
+        if (s) s.textContent = currentLang === 'ta' ? 'அன்றாட முக்கிய செய்திகள் உடனுக்குடன்!' : 'Daily breaking news in your feed!';
+        if (b) b.innerHTML = (currentLang === 'ta' ? 'பின்தொடர்' : 'Follow') + ' →';
+    }
+
+    function injectFBBanner() {
         var list = document.getElementById('trending-list');
         if (!list) return;
         if (document.getElementById('fb-follow-banner')) return;
@@ -913,7 +923,6 @@ function renderTrending() {
             }
         });
         list.parentNode.appendChild(banner);
-    })();
 
     list.innerHTML = trending.map((item, i) => `
         <div class="trending-item" onclick="openArticle('${item.id}')">
@@ -3025,6 +3034,23 @@ addEventListener('DOMContentLoaded', async () => {
     injectBookmarkButton();
     setTimeout(injectBookmarkButton, 1000);  // Retry after DOM ready
 
+    // 🔖 BOOKMARK BUTTON — PC only
+    function injectBookmarkButton() {
+        if (document.getElementById('bookmark-header-btn')) return;
+        var themeBtn = document.getElementById('theme-toggle');
+        if (!themeBtn || window.innerWidth < 1024) return;
+        var b = document.createElement('button');
+        b.id = 'bookmark-header-btn';
+        b.className = 'icon-btn';
+        b.title = 'Saved Articles';
+        b.style.cssText = 'margin-right:8px;';
+        b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>';
+        b.onclick = function() { openSavedPage(); };
+        themeBtn.parentNode.insertBefore(b, themeBtn);
+    }
+    injectBookmarkButton();
+    setTimeout(injectBookmarkButton, 1000);
+
     // 🔖 Mobile menu-la "My Saved" link inject (index.html touch pannama)
     try {
         var mnav = document.getElementById('mobile-nav');
@@ -3070,3 +3096,4 @@ addEventListener('DOMContentLoaded', async () => {
     initLazyLoading();
     initTicker();
 });
+}
