@@ -2751,15 +2751,24 @@ setTimeout(function() { if (window._hideSplash) window._hideSplash(); }, 6000);
     else place();
 })();
 
-// 📢 AdSense ads — auto-init
+// 📢 AdSense ads — auto-init (prevent double-push)
+var _adsInitialized = false;
 function initAdSenseSlots() {
+    if (_adsInitialized) return;  // 🛡️ Run only once!
     document.querySelectorAll('.adsbygoogle').forEach(function(el) {
-        if (!el.getAttribute('data-ad-status')) {
+        // Check if already has ad (data-ad-status attribute)
+        if (!el.getAttribute('data-ad-status') && !el.getAttribute('data-ad-client')) {
             (adsbygoogle = window.adsbygoogle || []).push({});
         }
     });
+    _adsInitialized = true;
 }
-setTimeout(initAdSenseSlots, 2000);
+// Run only after DOM fully ready + delay
+if (document.readyState === 'complete') {
+    setTimeout(initAdSenseSlots, 3000);
+} else {
+    window.addEventListener('load', function() { setTimeout(initAdSenseSlots, 3000); });
+}
 
 addEventListener('DOMContentLoaded', async () => {
     // 🚀 PHASE 0.5 — Defer non-critical heavy engines until browser is IDLE.
