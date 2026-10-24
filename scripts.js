@@ -1028,19 +1028,6 @@ function renderAds() {
 // ── AdSense placeholders removed: admin panel / Firebase is the ONLY ad source ──
 // ── AdSense placeholders removed: admin panel / Firebase is the ONLY ad source ──
 // ── Initialize AdSense Slots (called after AdSense approve) ──
-function initAdSenseSlots() {
-    // Replace placeholder divs with actual AdSense code
-    // Call this after Google AdSense approval + code paste
-    const slots = ['ad-slot-header', 'ad-slot-sidebar', 'ad-slot-inline', 'ad-slot-modal'];
-    slots.forEach(id => {
-        const el = document.getElementById(id);
-        if (el && el.querySelector('.ad-slot-placeholder')) {
-            // Slot is empty (no direct ad) → ready for AdSense
-            el.classList.add('adsense-ready');
-        }
-    });
-}
-
 function renderTicker() {
     const breaking = newsData.filter(n => (n.status !== 'draft') && !isGarbagePost(n)).slice(0, 8);
     const ticker = document.getElementById('ticker-content');
