@@ -367,7 +367,7 @@ const TRANSLATIONS = {
         nav_home: "முகப்பு", nav_world: "உலகம்", nav_tech: "தொழில்நுட்பம்",
         nav_business: "வணிகம்", nav_science: "அறிவியல்", nav_sports: "விளையாட்டு",
         nav_health: "சுகாதாரம்", placeholder_search: "செய்திகளைத் தேடு...",
-        latest_news: "சமீபத்திய செய்திகள்", load_more: "மேலும் கட்டுரைகள் ↓",
+        latest_news: "சமீபத்திய செய்திகள்", load_more: "மேலும் செய்திகள் ↓",
         trending: "பிரபலமானவை", categories: "பிரிவுகள்",
         newsletter: "தினசரி சுருக்கம்",
         newsletter_desc: "முக்கியமான செய்திகளை உங்கள் மின்னஞ்சலுக்கு அனுப்புங்கள்.",
@@ -883,6 +883,13 @@ function renderFeed() {
 
     const loadMoreWrap = document.getElementById('load-more-wrap');
     const loadMoreBtn = document.getElementById('load-more-btn');
+    // 🛡️ MOBILE FIX: Force-set textContent every render — nothing can clear it!
+    if (loadMoreBtn) {
+        var _forceTxt = currentLang === 'ta' ? 'மேலும் செய்திகள் ↓' : 'Load More Articles ↓';
+        if (loadMoreBtn.textContent.trim() === '' || loadMoreBtn.textContent !== _forceTxt) {
+            loadMoreBtn.textContent = _forceTxt;
+        }
+    }
     if (loadMoreWrap && loadMoreBtn) {
         if (filtered.length > displayedCount) {
             // ⭐ More articles available — show active button
@@ -890,7 +897,9 @@ function renderFeed() {
             loadMoreBtn.disabled = false;
             loadMoreBtn.style.opacity = '1';
             loadMoreBtn.style.cursor = 'pointer';
-            loadMoreBtn.textContent = currentLang === 'ta' ? 'மேலும் கட்டுரைகள் ↓' : 'Load More Articles ↓';
+            var moreTxt = currentLang === 'ta' ? 'மேலும் செய்திகள் ↓' : 'Load More Articles ↓';
+            loadMoreBtn.textContent = moreTxt;
+            loadMoreBtn.setAttribute('data-key', 'load_more');   // keep translation key synced
         } else {
             // ⭐ ALL articles loaded — show "done" state (not hidden!)
             loadMoreWrap.style.display = 'block';
