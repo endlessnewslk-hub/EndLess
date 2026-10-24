@@ -2860,16 +2860,16 @@ addEventListener('DOMContentLoaded', async () => {
     
     // Debounced search function
 
-    const loadMoreBtn = document.getElementById('load-more-btn');
-    if (loadMoreBtn) {
-        // 🛡️ Guard — duplicate listener avoid pannum (mobile double-fire fix)
-        if (!loadMoreBtn._wired) {
-            loadMoreBtn._wired = true;
-            loadMoreBtn.addEventListener('click', function() {
+    // 🛡️ EVENT DELEGATION — static parent-la listener (button replace aana kooda work aagum!)
+    var loadMoreWrap = document.getElementById('load-more-wrap');
+    if (loadMoreWrap && !loadMoreWrap._wired) {
+        loadMoreWrap._wired = true;
+        loadMoreWrap.addEventListener('click', function(e) {
+            if (e.target.closest('#load-more-btn')) {
                 displayedCount += isMobile ? 4 : 6;
                 renderFeed();
-            });
-        }
+            }
+        });
     }
 
     const modalClose = document.getElementById('modal-close');
