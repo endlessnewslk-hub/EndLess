@@ -831,8 +831,8 @@ function renderFeed() {
                 <p style="color:var(--text-muted); font-size:0.95rem;">${TRANSLATIONS[currentLang].no_articles_yet}</p>
             </div>
         `;
-        const loadMoreWrap = document.getElementById('load-more-wrap');
-        if (loadMoreWrap) loadMoreWrap.style.display = 'none';
+        const lmWrap = document.getElementById('load-more-wrap');
+        if (lmWrap) lmWrap.style.display = 'none';
         return;
     }
 
@@ -882,7 +882,24 @@ function renderFeed() {
     })();
 
     const loadMoreWrap = document.getElementById('load-more-wrap');
-    if (loadMoreWrap) loadMoreWrap.style.display = filtered.length > displayedCount ? 'block' : 'none';
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    if (loadMoreWrap && loadMoreBtn) {
+        if (filtered.length > displayedCount) {
+            // ⭐ More articles available — show active button
+            loadMoreWrap.style.display = 'block';
+            loadMoreBtn.disabled = false;
+            loadMoreBtn.style.opacity = '1';
+            loadMoreBtn.style.cursor = 'pointer';
+            loadMoreBtn.textContent = currentLang === 'ta' ? 'மேலும் கட்டுரைகள் ↓' : 'Load More Articles ↓';
+        } else {
+            // ⭐ ALL articles loaded — show "done" state (not hidden!)
+            loadMoreWrap.style.display = 'block';
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.style.opacity = '0.6';
+            loadMoreBtn.style.cursor = 'default';
+            loadMoreBtn.textContent = currentLang === 'ta' ? '✅ அனைத்தும் ஏற்றப்பட்டது' : '✅ All Articles Loaded';
+        }
+    }
 }
 
 function renderTrending() {
