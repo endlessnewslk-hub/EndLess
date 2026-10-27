@@ -1683,6 +1683,8 @@ async function openPosterModal(articleId) {
         }
         pgEditTitle.addEventListener('input', pgOnEdit);
         pgEditExcerpt.addEventListener('input', pgOnEdit);
+        var catInput = document.getElementById('pg-edit-category');
+        if (catInput) catInput.addEventListener('input', pgOnEdit);   // ⭐ Category input listener!
         document.getElementById('pg-edit-reset').addEventListener('click', function() {
             _pgOverrides = {};
             pgLoadEditFields();
