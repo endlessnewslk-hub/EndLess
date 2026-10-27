@@ -111,7 +111,9 @@
                     </div>
                     <img id="rep-img-preview" src="" alt="" style="max-width:100%;max-height:150px;border-radius:8px;display:none;margin:0 auto;">
                 </div>
-                <input type="file" id="rep-img-file" accept="image/*" style="display:none;" onchange="repUploadImage(this.files[0])">
+                <input type="file" id="rep-img-file" accept="image/*" multiple style="display:none;" onchange="repUploadImages(this.files)">
+                <div id="rep-img-gallery" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;"></div>
+                <small style="color:#059669;font-size:0.75rem;display:block;margin-top:4px;">💡 Tip: <strong>1st image = Head image</strong> (hero). Other images = article gallery below.</small>
                 <input type="hidden" id="rep-image">
                 <input type="text" id="rep-image-url" placeholder="...or paste image URL" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:0.5rem;font-size:0.85rem;">
                 <label>👤 Author (auto-filled)</label>
@@ -302,15 +304,16 @@
                 const articleData = {
                     title_ta: document.getElementById('rep-title-ta').value.trim(),
                     title_en: document.getElementById('rep-title-en').value.trim() || document.getElementById('rep-title-ta').value.trim(),
-                    excerpt: document.getElementById('rep-excerpt').value.trim(),
-                    excerpt_en: document.getElementById('rep-excerpt').value.trim(),
-                    content: document.getElementById('rep-content').value.trim(),
-                    content_en: document.getElementById('rep-content').value.trim(),
+                    excerpt: document.getElementById('rep-excerpt-ta').value.trim(),
+                    excerpt_en: document.getElementById('rep-excerpt-en').value.trim() || document.getElementById('rep-excerpt-ta').value.trim(),
+                    content: document.getElementById('rep-content-ta').value.trim(),
+                    content_en: document.getElementById('rep-content-en').value.trim() || document.getElementById('rep-content-ta').value.trim(),
                     category: document.getElementById('rep-category').value,
                     category_en: document.getElementById('rep-category').value,
                     author: document.getElementById('rep-author').value.trim(),
                     author_en: document.getElementById('rep-author').value.trim(),
                     image: document.getElementById('rep-image').value.trim() || 'https://via.placeholder.com/800x400?text=EndLess+News',
+                    images: _repImages.length > 1 ? _repImages.slice(1) : [],   // ⭐ Gallery (skip head)
                     date: new Date().toISOString(),
                     status: 'published',
                     reporterId: currentReporter.username,
@@ -383,19 +386,71 @@
         }
 
         // 📸 Image upload
+        // 📸 Multi-image upload — 1st = Head, others = Gallery
+        let _repImages = [];
+
+        async function repUploadImages(files) {
+            if (!files || !files.length) return;
+            var filesArr = Array.from(files);
+
+            alert('☁️ Uploading ' + filesArr.length + ' image(s) to Cloudinary...');
+
+            for (var i = 0; i < filesArr.length; i++) {
+                var url = await uploadToCloudinary(filesArr[i]);
+                if (url) {
+                    _repImages.push(url);
+                }
+            }
+
+            repRefreshImageUI();
+            alert('✅ ' + _repImages.length + ' image(s) uploaded! 1st = Head image.');
+        }
+
+        function repRefreshImageUI() {
+            var hidden = document.getElementById('rep-image');
+            var gallery = document.getElementById('rep-img-gallery');
+            var placeholder = document.getElementById('rep-img-placeholder');
+            var preview = document.getElementById('rep-img-preview');
+
+            if (!hidden || !gallery) return;
+
+            // Set head image (1st)
+            if (_repImages.length > 0) {
+                hidden.value = _repImages[0];
+                document.getElementById('rep-image-url').value = _repImages[0];
+                placeholder.style.display = 'none';
+                preview.src = _repImages[0];
+                preview.style.display = 'block';
+            } else {
+                hidden.value = '';
+                document.getElementById('rep-image-url').value = '';
+                placeholder.style.display = 'block';
+                preview.style.display = 'none';
+            }
+
+            // Render gallery (all images)
+            gallery.innerHTML = '';
+            _repImages.forEach(function(url, idx) {
+                var isHead = idx === 0;
+                var div = document.createElement('div');
+                div.style.cssText = 'position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;border:3px solid ' + (isHead ? '#e11d48' : '#e2e8f0') + ';';
+                div.innerHTML = 
+                    '<img src="' + url + '" style="width:100%;height:100%;object-fit:cover;">' +
+                    (isHead ? '<span style="position:absolute;top:2px;left:2px;background:#e11d48;color:#fff;font-size:0.6rem;font-weight:800;padding:1px 6px;border-radius:4px;">HEAD</span>' : '') +
+                    '<button type="button" onclick="repRemoveImage(' + idx + ')" style="position:absolute;top:2px;right:2px;width:20px;height:20px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;font-size:12px;cursor:pointer;line-height:1;">×</button>';
+                gallery.appendChild(div);
+            });
+        }
+
+        function repRemoveImage(idx) {
+            _repImages.splice(idx, 1);
+            repRefreshImageUI();
+        }
+
+        // Backward compatibility (single file)
         async function repUploadImage(file) {
             if (!file) return;
-            alert('☁️ Uploading to Cloudinary...');
-            var url = await uploadToCloudinary(file);
-            if (url) {
-                document.getElementById('rep-image').value = url;
-                document.getElementById('rep-image-url').value = url;
-                document.getElementById('rep-img-placeholder').style.display = 'none';
-                var prev = document.getElementById('rep-img-preview');
-                prev.src = url;
-                prev.style.display = 'block';
-                alert('✅ Image uploaded!');
-            }
+            await repUploadImages([file]);
         }
         document.getElementById('rep-image-url').addEventListener('input', function() {
             var url = this.value.trim();
@@ -409,6 +464,8 @@
         });
 
         document.getElementById('rep-cancel-edit').addEventListener('click', () => {
+            _repImages = [];
+            repRefreshImageUI();
             document.getElementById('rep-article-form').reset();
             document.getElementById('rep-edit-id').value = '';
             document.getElementById('rep-publish-btn').textContent = '🚀 Publish Article';
