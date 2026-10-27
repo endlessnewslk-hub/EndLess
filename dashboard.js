@@ -360,6 +360,7 @@ function ensureCreatePosterUI() {
         '          <small style="color:#9ca3af;">or drag & drop here — auto Cloudinary upload!</small>' +
         '        </div>' +
         '        <img id="cp-img-preview" src="" alt="" style="max-width:100%;max-height:200px;border-radius:8px;display:none;margin:0 auto;">' +
+        '        <button id="cp-img-remove" type="button" title="Remove image" style="display:none;margin-top:8px;padding:6px 14px;background:#fee2e2;color:#991b1b;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.8rem;">🗑️ Remove Image</button>' +
         '      </div>' +
         '      <input type="file" id="cp-img-file" accept="image/*" style="display:none;">' +
         '      <small style="color:#9ca3af;font-size:0.75rem;display:block;margin-top:4px;">💡 Or paste image URL: <input type="text" id="cp-img-url" placeholder="https://..." style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;font-size:0.85rem;"></small>' +
@@ -448,6 +449,20 @@ function wireCreatePoster() {
         if (url.indexOf('http') === 0) { _cpImage = url; cpShowPreview(url); }
     });
 
+    // 🗑️ Remove image button
+    var removeBtn = document.getElementById('cp-img-remove');
+    if (removeBtn) {
+        removeBtn.addEventListener('click', function(e) {
+            e.stopPropagation();  // Don't trigger zone click
+            _cpImage = '';
+            document.getElementById('cp-img-url').value = '';
+            document.getElementById('cp-img-preview').style.display = 'none';
+            document.getElementById('cp-img-remove').style.display = 'none';
+            document.getElementById('cp-img-placeholder').style.display = 'block';
+            showToast('🗑️ Image removed', 'success');
+        });
+    }
+
     // Generate button
     document.getElementById('cp-generate').addEventListener('click', cpGeneratePoster);
 }
@@ -478,9 +493,11 @@ function cpUploadImage(file) {
 function cpShowPreview(url) {
     var ph = document.getElementById('cp-img-placeholder');
     var prev = document.getElementById('cp-img-preview');
+    var rm = document.getElementById('cp-img-remove');
     ph.style.display = 'none';
     prev.src = url;
     prev.style.display = 'block';
+    if (rm) rm.style.display = 'inline-block';
 }
 
 function cpGeneratePoster() {
