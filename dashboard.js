@@ -594,17 +594,43 @@ async function addReporter() {
     if (!/^[a-z0-9_]{3,20}$/.test(username)) { showToast('Username: 3-20 chars lowercase/numbers/_', 'error'); return; }
     if (password.length < 6) { showToast('Password min 6 chars', 'error'); return; }
     if (!db) { showToast('No Firebase', 'error'); return; }
+
+    var btn = document.getElementById('btn-add-reporter');
+    var origText = btn ? btn.textContent : 'Create Reporter Account';
+    if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
+
     try {
         var em = email || (username + '@reporters.endlessnews.lk');
-        await firebase.auth().createUserWithEmailAndPassword(em, password);
+
+        // 🛡️ CRITICAL FIX: Use SECONDARY Firebase app — admin session SAFE!
+        var secondaryApp = null;
+        try {
+            secondaryApp = firebase.app('reporter-creation');
+        } catch (e) {
+            secondaryApp = firebase.initializeApp(firebase.app().options, 'reporter-creation');
+        }
+        var secondaryAuth = secondaryApp.auth();
+
+        // Create user in secondary app (doesn't affect main admin session!)
+        await secondaryAuth.createUserWithEmailAndPassword(em, password);
+
+        // Save to Firestore
         await db.collection('reporters').doc(username).set({
             name: name, username: username, email: em, bio: bio,
             blocked: false, createdAt: new Date().toISOString(), articleCount: 0
         });
+
+        // Clean up secondary app
+        try { await secondaryAuth.signOut(); await secondaryApp.delete(); } catch (e2) {}
+
         showToast('✅ Reporter "' + name + '" created!', 'success');
         ['rep-name','rep-username','rep-password','rep-email','rep-bio'].forEach(function(id) { document.getElementById(id).value = ''; });
         renderReportersPage();
-    } catch (e) { showToast('Error: ' + (e.message || e), 'error'); }
+    } catch (e) {
+        showToast('Error: ' + (e.message || e), 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = origText; }
+    }
 }
 
 async function renderReportersPage() {
