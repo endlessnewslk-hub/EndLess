@@ -1525,6 +1525,10 @@ async function openPosterModal(articleId) {
             '<button onclick="document.getElementById(\'poster-gen-ov\').style.display=\'none\'" style="position:absolute;top:14px;right:14px;width:36px;height:36px;border:none;border-radius:50%;background:#f3f4f6;cursor:pointer;font-size:16px;">✕</button>' +
             '<h3 style="font-size:1.2rem;font-weight:800;margin-bottom:4px;">🎨 Social Poster Generator</h3>' +
             '<p style="color:#6b7280;font-size:0.85rem;margin-bottom:16px;">One click → branded news card (Al Jazeera style!) — Download & Post FB/IG/X!</p>' +
+            '<label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:10px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;color:#374151;">' +
+                '<input type="checkbox" id="pg-cat-show" checked style="width:18px;height:18px;cursor:pointer;">' +
+                '<span>🏷️ Show Category chip</span>' +
+            '</label>' +
             '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' +
                 '<select id="pg-size" style="flex:1;min-width:150px;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-weight:600;">' +
                     '<option value="square">1:1 · Instagram / FB Post</option>' +
@@ -1585,6 +1589,8 @@ async function openPosterModal(articleId) {
             if (_pgSh) _pgSh.addEventListener('click', function() { pgShare(); });
         }, 50);
         document.getElementById('pg-size').addEventListener('change', pgRenderPreview);
+        var _catShow = document.getElementById('pg-cat-show');
+        if (_catShow) _catShow.addEventListener('change', pgRenderPreview);
         document.getElementById('pg-lang').addEventListener('change', function() { pgLoadEditFields(); pgRenderFontPicker(); pgRenderPreview(); });
         document.getElementById('pg-mode').addEventListener('change', pgRenderPreview);
         document.getElementById('pg-quality').addEventListener('change', pgRenderPreview);
@@ -1777,11 +1783,15 @@ async function pgRenderPreview() {
     var img = document.getElementById('pg-preview');
     img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACw='; // spinner placeholder
     var o = _pgOverrides;
+    var _catChk = document.getElementById('pg-cat-show');
+    var _catOn = _catChk ? _catChk.checked : true;
     var eff = Object.assign({}, _pgArticle, {
         title: o.hasOwnProperty('title_ta') ? o.title_ta : _pgArticle.title,
         title_en: o.hasOwnProperty('title_en') ? o.title_en : _pgArticle.title_en,
         excerpt: o.hasOwnProperty('excerpt_ta') ? o.excerpt_ta : _pgArticle.excerpt,
         excerpt_en: o.hasOwnProperty('excerpt_en') ? o.excerpt_en : _pgArticle.excerpt_en,
+        category: _catOn ? _pgArticle.category : '',
+        category_en: _catOn ? _pgArticle.category_en : '',
         _hl: o['hl_' + lang] || [],
         _big: o['big_' + lang] || [],
         _fbig: o['fbig_' + lang] || [],
