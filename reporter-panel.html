@@ -26,14 +26,14 @@
     </script>
     <style>
         :root { --rep-primary: #e11d48; }
-        .rep-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #13131f; border-bottom: 1px solid #1e293b; }
-        .rep-brand { display: flex; align-items: center; gap: 0.5rem; font-family: Georgia, serif; font-weight: 700; font-size: 1.2rem; color: #f1f5f9; }
+        .rep-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #ffffff; border-bottom: 2px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .rep-brand { display: flex; align-items: center; gap: 0.6rem; font-family: 'Playfair Display', Georgia, serif; font-weight: 800; font-size: 1.35rem; color: #0f172a; }
         .rep-brand span { color: var(--rep-primary); }
         .rep-user { color: #94a3b8; font-size: 0.9rem; }
         .rep-main { max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem; }
-        .rep-card { background: #13131f; border: 1px solid #1e293b; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .rep-card { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
         .rep-card h3 { margin: 0 0 1rem 0; color: #f1f5f9; font-size: 1.1rem; }
-        .rep-form input, .rep-form textarea, .rep-form select { width: 100%; padding: 0.75rem; margin-bottom: 0.75rem; background: #0f0f1a; border: 1px solid #334155; border-radius: 8px; color: #f1f5f9; font-family: inherit; font-size: 1rem; }
+        .rep-form input, .rep-form textarea, .rep-form select { width: 100%; padding: 0.75rem; margin-bottom: 0.75rem; background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 8px; color: #0f172a; font-family: inherit; font-size: 1rem; }
         .rep-form textarea { min-height: 120px; resize: vertical; }
         .rep-form label { display: block; margin-bottom: 0.3rem; color: #94a3b8; font-size: 0.9rem; font-weight: 600; }
         .rep-btn { padding: 0.75rem 1.5rem; background: linear-gradient(135deg, var(--rep-primary), #be123c); color: #fff; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 1rem; }
@@ -53,7 +53,7 @@
 </head>
 <body>
     <div class="rep-header">
-        <div class="rep-brand"><span style="width:32px;height:32px;background:linear-gradient(135deg,#e11d48,#be123c);border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:1rem;">E</span> End<span>Less</span> Reporter</div>
+        <div class="rep-brand"><span style="width:38px;height:38px;background:linear-gradient(135deg,#e11d48,#be123c);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-family:'Playfair Display',Georgia,serif;font-weight:900;color:#fff;font-size:1.25rem;box-shadow:0 4px 12px rgba(225,29,72,0.3);margin-right:2px;">E</span> <span style="letter-spacing:-0.02em;">End</span><span style="color:#e11d48;letter-spacing:-0.02em;">Less</span> <span style="font-weight:600;font-size:0.9rem;color:#64748b;margin-left:4px;">Reporter</span></div>
         <div class="rep-user" id="rep-user-info">Loading...</div>
     </div>
 
@@ -87,10 +87,6 @@
                     <label>Full Content (English)</label>
                     <textarea id="rep-content-en" placeholder="English article..." style="min-height:180px;"></textarea>
                 </div>
-                <label>Excerpt / Summary *</label>
-                <textarea id="rep-excerpt" placeholder="Short summary..." required></textarea>
-                <label>Full Content *</label>
-                <textarea id="rep-content" placeholder="Full news article..." required style="min-height:200px;"></textarea>
                 <label>Category *</label>
                 <select id="rep-category" required>
                     <option value="">Select category</option>
