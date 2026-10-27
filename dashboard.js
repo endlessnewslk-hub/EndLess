@@ -325,6 +325,204 @@ try {
     document.head.appendChild(st);
 })();
 
+// 🎨 CREATE POSTER — Manual poster creator (Dashboard section)
+// Neenga own image + own text-la custom poster create pannalam!
+function ensureCreatePosterUI() {
+    if (document.getElementById('page-create-poster')) return;
+
+    // Sidebar nav item
+    var nav = document.querySelector('.sidebar-nav');
+    if (nav && !nav.querySelector('[data-page="create-poster"]')) {
+        var b = document.createElement('button');
+        b.className = 'nav-item'; b.dataset.page = 'create-poster';
+        b.innerHTML = '<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:1.1em;height:1.1em;vertical-align:-0.15em;display:inline-block;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span> Create Poster';
+        nav.insertBefore(b, nav.querySelector('[data-page="newsletter"]') || null);
+        b.addEventListener('click', function() { showPage('create-poster'); });
+    }
+
+    // Page content
+    var anchor = document.getElementById('page-reporters') || document.getElementById('page-newsletter');
+    if (!anchor || !anchor.parentNode) return;
+    var page = document.createElement('div');
+    page.id = 'page-create-poster'; page.className = 'page-content hidden';
+    page.innerHTML =
+        '<div class="panel">' +
+        '  <h3>🎨 Create Custom Poster</h3>' +
+        '  <p style="color:#6b7280;font-size:0.85rem;margin-bottom:1rem;">News article venaam! Neenga own image + own text-la beautiful branded poster create pannunga. Cloudinary-la auto-upload!</p>' +
+
+        '  <div class="form-row">' +
+        '    <div class="form-group">' +
+        '      <label>📸 Poster Image *</label>' +
+        '      <div class="upload-area" id="cp-drop-zone" style="border:2px dashed #d1d5db;border-radius:12px;padding:2rem;text-align:center;background:#f9fafb;cursor:pointer;">' +
+        '        <div id="cp-img-placeholder">' +
+        '          <span style="font-size:2rem;">📷</span>' +
+        '          <p style="font-weight:600;margin:0.5rem 0 0.25rem;color:#374151;">Click to upload image</p>' +
+        '          <small style="color:#9ca3af;">or drag & drop here — auto Cloudinary upload!</small>' +
+        '        </div>' +
+        '        <img id="cp-img-preview" src="" alt="" style="max-width:100%;max-height:200px;border-radius:8px;display:none;margin:0 auto;">' +
+        '      </div>' +
+        '      <input type="file" id="cp-img-file" accept="image/*" style="display:none;">' +
+        '      <small style="color:#9ca3af;font-size:0.75rem;display:block;margin-top:4px;">💡 Or paste image URL: <input type="text" id="cp-img-url" placeholder="https://..." style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;font-size:0.85rem;"></small>' +
+        '    </div>' +
+        '    <div class="form-group">' +
+        '      <label>🏷️ Category (optional)</label>' +
+        '      <input type="text" id="cp-category" placeholder="e.g. இலங்கை / SRI LANKA">' +
+        '      <label style="margin-top:0.75rem;">👤 Author (optional)</label>' +
+        '      <input type="text" id="cp-author" placeholder="EndLess News">' +
+        '      <label style="margin-top:0.75rem;">📅 Date (optional — default: today)</label>' +
+        '      <input type="datetime-local" id="cp-date" style="width:100%;padding:0.6rem;border:1px solid #d1d5db;border-radius:6px;">' +
+        '    </div>' +
+        '  </div>' +
+
+        '  <div class="lang-tabs" style="display:flex;gap:0.5rem;margin-bottom:0.75rem;">' +
+        '    <button type="button" class="lang-tab active" data-lang="ta" onclick="cpSwitchLang(&quot;ta&quot;)">தமிழ்</button>' +
+        '    <button type="button" class="lang-tab" data-lang="en" onclick="cpSwitchLang(&quot;en&quot;)">English</button>' +
+        '  </div>' +
+
+        '  <div class="form-group">' +
+        '    <label>📰 Headline *</label>' +
+        '    <input type="text" id="cp-title-ta" class="cp-lang-in" placeholder="தலைப்பை உள்ளிடவும்..." style="display:block;">' +
+        '    <input type="text" id="cp-title-en" class="cp-lang-in" placeholder="Enter headline..." style="display:none;">' +
+        '  </div>' +
+        '  <div class="form-group">' +
+        '    <label>📝 Excerpt / Summary (optional)</label>' +
+        '    <textarea id="cp-excerpt-ta" class="cp-lang-in" rows="2" placeholder="சுருக்கம்..." style="display:block;width:100%;padding:0.65rem;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;"></textarea>' +
+        '    <textarea id="cp-excerpt-en" class="cp-lang-in" rows="2" placeholder="Summary..." style="display:none;width:100%;padding:0.65rem;border:1px solid #d1d5db;border-radius:6px;font-family:inherit;"></textarea>' +
+        '  </div>' +
+
+        '  <button class="btn-primary" id="cp-generate" type="button" style="width:100%;padding:0.85rem;font-size:1rem;">🚀 Generate Poster</button>' +
+        '</div>';
+
+    anchor.parentNode.insertBefore(page, anchor);
+
+    // Wire events
+    wireCreatePoster();
+}
+
+var _cpLang = 'ta';
+var _cpImage = '';
+
+function cpSwitchLang(lang) {
+    _cpLang = lang;
+    document.querySelectorAll('#page-create-poster .lang-tab').forEach(function(t) {
+        t.classList.toggle('active', t.dataset.lang === lang);
+    });
+    document.getElementById('cp-title-ta').style.display = lang === 'ta' ? 'block' : 'none';
+    document.getElementById('cp-title-en').style.display = lang === 'en' ? 'block' : 'none';
+    document.getElementById('cp-excerpt-ta').style.display = lang === 'ta' ? 'block' : 'none';
+    document.getElementById('cp-excerpt-en').style.display = lang === 'en' ? 'block' : 'none';
+}
+
+function wireCreatePoster() {
+    var zone = document.getElementById('cp-drop-zone');
+    var fileInput = document.getElementById('cp-img-file');
+    var urlInput = document.getElementById('cp-img-url');
+
+    if (!zone || zone._wired) return;
+    zone._wired = true;
+
+    // Click → file select
+    zone.addEventListener('click', function(e) {
+        if (e.target !== urlInput) fileInput.click();
+    });
+
+    // Drag & drop
+    ['dragover','dragenter'].forEach(function(ev) {
+        zone.addEventListener(ev, function(e) { e.preventDefault(); zone.style.borderColor = '#e11d48'; zone.style.background = '#fef2f2'; });
+    });
+    ['dragleave','drop'].forEach(function(ev) {
+        zone.addEventListener(ev, function(e) { e.preventDefault(); zone.style.borderColor = ''; zone.style.background = ''; });
+    });
+    zone.addEventListener('drop', function(e) {
+        if (e.dataTransfer.files.length) cpUploadImage(e.dataTransfer.files[0]);
+    });
+
+    // File select
+    fileInput.addEventListener('change', function() {
+        if (fileInput.files[0]) cpUploadImage(fileInput.files[0]);
+    });
+
+    // URL paste
+    urlInput.addEventListener('input', function() {
+        var url = urlInput.value.trim();
+        if (url.indexOf('http') === 0) { _cpImage = url; cpShowPreview(url); }
+    });
+
+    // Generate button
+    document.getElementById('cp-generate').addEventListener('click', cpGeneratePoster);
+}
+
+function cpUploadImage(file) {
+    if (typeof uploadToCloudinary === 'function') {
+        showToast('☁️ Uploading to Cloudinary...', 'success');
+        uploadToCloudinary(file).then(function(url) {
+            if (url) {
+                _cpImage = url;
+                document.getElementById('cp-img-url').value = url;
+                cpShowPreview(url);
+                showToast('✅ Image uploaded!', 'success');
+            }
+        });
+    } else {
+        // Fallback: FileReader
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            _cpImage = e.target.result;
+            cpShowPreview(_cpImage);
+            showToast('✅ Image ready!', 'success');
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function cpShowPreview(url) {
+    var ph = document.getElementById('cp-img-placeholder');
+    var prev = document.getElementById('cp-img-preview');
+    ph.style.display = 'none';
+    prev.src = url;
+    prev.style.display = 'block';
+}
+
+function cpGeneratePoster() {
+    var title_ta = document.getElementById('cp-title-ta').value.trim();
+    var title_en = document.getElementById('cp-title-en').value.trim() || title_ta;
+    var exc_ta = document.getElementById('cp-excerpt-ta').value.trim();
+    var exc_en = document.getElementById('cp-excerpt-en').value.trim() || exc_ta;
+    var category = document.getElementById('cp-category').value.trim();
+    var author = document.getElementById('cp-author').value.trim() || 'EndLess News';
+    var dateInput = document.getElementById('cp-date').value;
+
+    if (!_cpImage) { showToast('Please upload an image first!', 'error'); return; }
+    if (!title_ta && !title_en) { showToast('Please enter a headline!', 'error'); return; }
+
+    // Build article object → reuse existing poster generator!
+    var fakeArticle = {
+        id: 'custom_' + Date.now(),
+        title: title_ta || title_en,
+        title_en: title_en,
+        excerpt: exc_ta || exc_en,
+        excerpt_en: exc_en,
+        category: category || 'NEWS',
+        category_en: category || 'NEWS',
+        author: author,
+        author_en: author,
+        date: dateInput ? new Date(dateInput).toISOString() : new Date().toISOString(),
+        image: _cpImage,
+        status: 'published'
+    };
+
+    // Add to adminNews temporarily so openPosterModal finds it
+    if (typeof adminNews !== 'undefined') {
+        adminNews.unshift(fakeArticle);
+    }
+
+    // Open existing poster modal with this article
+    openPosterModal(fakeArticle.id);
+    showToast('🎨 Poster generator opened! Customize & download.', 'success');
+}
+
+ensureCreatePosterUI();
+
 // 👥 REPORTERS MANAGER — admin add/block reporters
 function ensureReportersUI() {
     if (document.getElementById('page-reporters')) return;
