@@ -374,8 +374,15 @@
                 document.getElementById('rep-edit-id').value = id;
                 document.getElementById('rep-title-ta').value = a.title_ta || '';
                 document.getElementById('rep-title-en').value = a.title_en || '';
-                document.getElementById('rep-excerpt').value = a.excerpt || '';
-                document.getElementById('rep-content').value = a.content || '';
+                document.getElementById('rep-excerpt-ta').value = a.excerpt || '';
+                document.getElementById('rep-excerpt-en').value = a.excerpt_en || '';
+                document.getElementById('rep-content-ta').value = a.content || '';
+                document.getElementById('rep-content-en').value = a.content_en || '';
+                // ⭐ Load gallery images
+                _repImages = [];
+                if (a.image) _repImages.push(a.image);
+                if (Array.isArray(a.images)) _repImages = _repImages.concat(a.images);
+                repRefreshImageUI();
                 document.getElementById('rep-category').value = a.category_en || a.category || '';
                 document.getElementById('rep-image').value = a.image || '';
                 document.getElementById('rep-author').value = a.author || '';
