@@ -9,6 +9,21 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script>
+        const CLOUDINARY_CONFIG = { cloudName: 'df2pc8kd0', uploadPreset: 'endless_unsigned' };
+        async function uploadToCloudinary(file) {
+            if (!file) return null;
+            var formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+            try {
+                var r = await fetch('https://api.cloudinary.com/v1_1/' + CLOUDINARY_CONFIG.cloudName + '/image/upload', { method: 'POST', body: formData });
+                var data = await r.json();
+                if (data.secure_url) return data.secure_url;
+            } catch (e) { console.error('Upload failed:', e); }
+            return null;
+        }
+    </script>
     <style>
         :root { --rep-primary: #e11d48; }
         .rep-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #13131f; border-bottom: 1px solid #1e293b; }
@@ -48,10 +63,30 @@
             <h3>📝 Publish New Article</h3>
             <form class="rep-form" id="rep-article-form">
                 <input type="hidden" id="rep-edit-id">
-                <label>Headline (Tamil) *</label>
-                <input type="text" id="rep-title-ta" placeholder="தலைப்பு" required>
-                <label>Headline (English)</label>
-                <input type="text" id="rep-title-en" placeholder="English headline (optional)">
+                <div class="lang-tabs" style="display:flex;gap:0.5rem;margin-bottom:0.75rem;border-bottom:2px solid #e5e7eb;padding-bottom:0.5rem;">
+                    <button type="button" class="rep-lang-tab active" data-lang="ta" onclick="repSwitchLang('ta')" style="padding:0.5rem 1rem;border:none;background:#e11d48;color:#fff;font-weight:700;border-radius:8px 8px 0 0;cursor:pointer;">தமிழ்</button>
+                    <button type="button" class="rep-lang-tab" data-lang="en" onclick="repSwitchLang('en')" style="padding:0.5rem 1rem;border:none;background:#f3f4f6;color:#374151;font-weight:700;border-radius:8px 8px 0 0;cursor:pointer;">English</button>
+                </div>
+
+                <!-- TAMIL FIELDS (default) -->
+                <div id="rep-fields-ta">
+                    <label>Headline (Tamil) *</label>
+                    <input type="text" id="rep-title-ta" placeholder="தலைப்பு" required>
+                    <label>Excerpt / Summary (Tamil)</label>
+                    <textarea id="rep-excerpt-ta" rows="2" placeholder="சுருக்கம்..."></textarea>
+                    <label>Full Content (Tamil) *</label>
+                    <textarea id="rep-content-ta" placeholder="முழு செய்தி..." required style="min-height:180px;"></textarea>
+                </div>
+
+                <!-- ENGLISH FIELDS (hidden) -->
+                <div id="rep-fields-en" style="display:none;">
+                    <label>Headline (English)</label>
+                    <input type="text" id="rep-title-en" placeholder="English headline (optional)">
+                    <label>Excerpt (English)</label>
+                    <textarea id="rep-excerpt-en" rows="2" placeholder="Summary..."></textarea>
+                    <label>Full Content (English)</label>
+                    <textarea id="rep-content-en" placeholder="English article..." style="min-height:180px;"></textarea>
+                </div>
                 <label>Excerpt / Summary *</label>
                 <textarea id="rep-excerpt" placeholder="Short summary..." required></textarea>
                 <label>Full Content *</label>
@@ -67,10 +102,21 @@
                     <option value="Health">Health</option>
                     <option value="Science">Science</option>
                 </select>
-                <label>Image URL (optional)</label>
-                <input type="url" id="rep-image" placeholder="https://...">
-                <label>Author Name *</label>
-                <input type="text" id="rep-author" placeholder="Reporter name" required>
+                <label>📸 News Image *</label>
+                <div style="border:2px dashed #d1d5db;border-radius:12px;padding:1.5rem;text-align:center;background:#f9fafb;cursor:pointer;margin-bottom:0.5rem;" id="rep-drop-zone" onclick="document.getElementById('rep-img-file').click()">
+                    <div id="rep-img-placeholder">
+                        <span style="font-size:2rem;">📷</span>
+                        <p style="font-weight:600;margin:0.5rem 0 0.25rem;color:#374151;">Click to upload photo</p>
+                        <small style="color:#9ca3af;">Auto-upload to Cloudinary!</small>
+                    </div>
+                    <img id="rep-img-preview" src="" alt="" style="max-width:100%;max-height:150px;border-radius:8px;display:none;margin:0 auto;">
+                </div>
+                <input type="file" id="rep-img-file" accept="image/*" style="display:none;" onchange="repUploadImage(this.files[0])">
+                <input type="hidden" id="rep-image">
+                <input type="text" id="rep-image-url" placeholder="...or paste image URL" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;margin-bottom:0.5rem;font-size:0.85rem;">
+                <label>👤 Author (auto-filled)</label>
+                <input type="text" id="rep-author" required readonly style="background:#f3f4f6;cursor:not-allowed;font-weight:600;">
+                <small style="color:#9ca3af;font-size:0.75rem;display:block;margin-bottom:0.5rem;">Auto — your registered reporter name</small>
                 <div style="margin-top:1rem;">
                     <button type="submit" class="rep-btn" id="rep-publish-btn">🚀 Publish Article</button>
                     <button type="button" class="rep-btn rep-btn-secondary" id="rep-cancel-edit" style="display:none;">Cancel Edit</button>
@@ -241,6 +287,45 @@
         };
 
         // Cancel edit
+        // 🌐 Language switch
+        let _repLang = 'ta';
+        function repSwitchLang(lang) {
+            _repLang = lang;
+            document.querySelectorAll('.rep-lang-tab').forEach(function(t) {
+                var isActive = t.dataset.lang === lang;
+                t.style.background = isActive ? '#e11d48' : '#f3f4f6';
+                t.style.color = isActive ? '#fff' : '#374151';
+            });
+            document.getElementById('rep-fields-ta').style.display = lang === 'ta' ? 'block' : 'none';
+            document.getElementById('rep-fields-en').style.display = lang === 'en' ? 'block' : 'none';
+        }
+
+        // 📸 Image upload
+        async function repUploadImage(file) {
+            if (!file) return;
+            alert('☁️ Uploading to Cloudinary...');
+            var url = await uploadToCloudinary(file);
+            if (url) {
+                document.getElementById('rep-image').value = url;
+                document.getElementById('rep-image-url').value = url;
+                document.getElementById('rep-img-placeholder').style.display = 'none';
+                var prev = document.getElementById('rep-img-preview');
+                prev.src = url;
+                prev.style.display = 'block';
+                alert('✅ Image uploaded!');
+            }
+        }
+        document.getElementById('rep-image-url').addEventListener('input', function() {
+            var url = this.value.trim();
+            if (url.indexOf('http') === 0) {
+                document.getElementById('rep-image').value = url;
+                document.getElementById('rep-img-placeholder').style.display = 'none';
+                var prev = document.getElementById('rep-img-preview');
+                prev.src = url;
+                prev.style.display = 'block';
+            }
+        });
+
         document.getElementById('rep-cancel-edit').addEventListener('click', () => {
             document.getElementById('rep-article-form').reset();
             document.getElementById('rep-edit-id').value = '';
