@@ -161,14 +161,27 @@
                 const repData = repDoc.data();
                 if (repData.blocked) throw new Error('Account blocked. Contact admin.');
 
-                // Login with synthetic email
                 const email = repData.email || `${username}@reporters.endlessnews.lk`;
-                await auth.signInWithEmailAndPassword(email, password);
 
-                // Save session
+                // 🛡️ CRITICAL: Use SECONDARY app — main admin session SAFE!
+                var secondaryApp = null;
+                try {
+                    secondaryApp = firebase.app('reporter-login');
+                } catch (e) {
+                    secondaryApp = firebase.initializeApp(firebase.app().options, 'reporter-login');
+                }
+                var secondaryAuth = secondaryApp.auth();
+
+                // Sign in on secondary app
+                await secondaryAuth.signInWithEmailAndPassword(email, password);
+
+                // Save session (with secondary auth token)
                 sessionStorage.setItem('reporter_session', JSON.stringify({
                     username, name: repData.name, loginTime: Date.now()
                 }));
+
+                // Cleanup secondary (keep token in sessionStorage for panel)
+                try { await secondaryAuth.signOut(); } catch(e2) {}
 
                 // Redirect to reporter panel
                 window.location.href = 'reporter-panel.html';
