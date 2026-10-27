@@ -1557,6 +1557,8 @@ async function openPosterModal(articleId) {
                 '<textarea id="pg-edit-title" rows="2" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;font-family:inherit;resize:vertical;margin-bottom:8px;box-sizing:border-box;"></textarea>' +
                 '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Tap word = <span style="color:#fb7185;">Pink</span> · Double-tap = <span style="color:#f59e0b;">BIG</span></label>' +
                 '<div id="pg-hl-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>' +
+                '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">🏷️ Category (type to override — e.g. இலங்கை, BREAKING, EXCLUSIVE)</label>' +
+                '<input type="text" id="pg-edit-category" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-bottom:8px;" placeholder="Leave empty = use article category">' +
                 '<label style="display:block;font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:4px;">Excerpt</label>' +
                 '<textarea id="pg-edit-excerpt" rows="3" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.85rem;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>' +
                 '<button type="button" id="pg-edit-reset" style="margin-top:8px;padding:6px 14px;background:#fee2e2;color:#991b1b;border:none;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">↺ Reset to original</button>' +
@@ -1604,6 +1606,8 @@ async function openPosterModal(articleId) {
             if (!t || !x || !_pgArticle) return;
             t.value = _pgOverrides.hasOwnProperty('title_' + lang) ? _pgOverrides['title_' + lang]
                 : (lang === 'en' ? (_pgArticle.title_en || _pgArticle.title || '') : (_pgArticle.title || _pgArticle.title_en || ''));
+            var catF = document.getElementById('pg-edit-category');
+            if (catF) catF.value = _pgOverrides['cat_custom'] || '';
             x.value = _pgOverrides.hasOwnProperty('excerpt_' + lang) ? _pgOverrides['excerpt_' + lang]
                 : (lang === 'en' ? (_pgArticle.excerpt_en || _pgArticle.excerpt || '') : (_pgArticle.excerpt || _pgArticle.excerpt_en || ''));
             pgRenderChips();
@@ -1672,6 +1676,8 @@ async function openPosterModal(articleId) {
             var lang = document.getElementById('pg-lang').value;
             _pgOverrides['title_' + lang] = pgEditTitle.value;
             _pgOverrides['excerpt_' + lang] = pgEditExcerpt.value;
+            var catI = document.getElementById('pg-edit-category');
+            if (catI) _pgOverrides['cat_custom'] = catI.value.trim();
             clearTimeout(_pgEditT);
             _pgEditT = setTimeout(function() { pgRenderPreview(); pgRenderChips(); }, 400);
         }
@@ -1790,8 +1796,8 @@ async function pgRenderPreview() {
         title_en: o.hasOwnProperty('title_en') ? o.title_en : _pgArticle.title_en,
         excerpt: o.hasOwnProperty('excerpt_ta') ? o.excerpt_ta : _pgArticle.excerpt,
         excerpt_en: o.hasOwnProperty('excerpt_en') ? o.excerpt_en : _pgArticle.excerpt_en,
-        category: _catOn ? _pgArticle.category : '',
-        category_en: _catOn ? _pgArticle.category_en : '',
+        category: _catOn ? (_pgOverrides['cat_custom'] || _pgArticle.category || '') : '',
+        category_en: _catOn ? (_pgOverrides['cat_custom'] || _pgArticle.category_en || '') : '',
         _hl: o['hl_' + lang] || [],
         _big: o['big_' + lang] || [],
         _fbig: o['fbig_' + lang] || [],
