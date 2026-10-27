@@ -366,8 +366,12 @@ function ensureCreatePosterUI() {
         '      <small style="color:#9ca3af;font-size:0.75rem;display:block;margin-top:4px;">💡 Or paste image URL: <input type="text" id="cp-img-url" placeholder="https://..." style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;font-size:0.85rem;"></small>' +
         '    </div>' +
         '    <div class="form-group">' +
-        '      <label>🏷️ Category (optional)</label>' +
-        '      <input type="text" id="cp-category" placeholder="e.g. இலங்கை / SRI LANKA">' +
+        '      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0.5rem;">' +
+        '        <input type="checkbox" id="cp-category-show" checked style="width:18px;height:18px;cursor:pointer;">' +
+        '        <span>🏷️ Show Category chip on poster</span>' +
+        '      </label>' +
+        '      <input type="text" id="cp-category" placeholder="e.g. இலங்கை / SRI LANKA (leave empty to hide)" style="margin-bottom:0;">' +
+        '      <small style="color:#9ca3af;font-size:0.75rem;display:block;margin-top:4px;">💡 Tick = category chip varum | Untick = chip varaathu (even if text irundhalum)</small>' +
         '      <label style="margin-top:0.75rem;">👤 Author (optional)</label>' +
         '      <input type="text" id="cp-author" placeholder="EndLess News">' +
         '      <label style="margin-top:0.75rem;">📅 Date (optional — default: today)</label>' +
@@ -513,14 +517,15 @@ function cpGeneratePoster() {
     if (!title_ta && !title_en) { showToast('Please enter a headline!', 'error'); return; }
 
     // Build article object → reuse existing poster generator!
+    var categoryShow = document.getElementById('cp-category-show').checked;
     var fakeArticle = {
         id: 'custom_' + Date.now(),
         title: title_ta || title_en,
         title_en: title_en,
         excerpt: exc_ta || exc_en,
         excerpt_en: exc_en,
-        category: category || 'NEWS',
-        category_en: category || 'NEWS',
+        category: (categoryShow && category) ? category : '',
+        category_en: (categoryShow && category) ? category : '',   // ⭐ Empty = no chip on poster!
         author: author,
         author_en: author,
         date: dateInput ? new Date(dateInput).toISOString() : new Date().toISOString(),
