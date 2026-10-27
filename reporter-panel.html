@@ -261,18 +261,32 @@
         async function loadMyArticles() {
             const list = document.getElementById('rep-articles-list');
             try {
-                const snapshot = await db.collection('news')
-                    .where('reporterId', '==', currentReporter.username)
-                    .orderBy('date', 'desc')
-                    .get();
+                // ⭐ Query: filter by reporterId (fallback if index missing)
+                let snapshot;
+                try {
+                    snapshot = await db.collection('news')
+                        .where('reporterId', '==', currentReporter.username)
+                        .get();
+                } catch (indexErr) {
+                    console.warn('Index missing, fetching all:', indexErr);
+                    // Fallback: fetch all + filter client-side
+                    const allSnap = await db.collection('news').get();
+                    const filtered = allSnap.docs.filter(d => d.data().reporterId === currentReporter.username);
+                    snapshot = { empty: filtered.length === 0, docs: filtered, forEach: (cb) => filtered.forEach(d => cb(d)) };
+                }
 
-                if (snapshot.empty) {
-                    list.innerHTML = '<p style="text-align:center;padding:2rem;">No articles yet. Publish your first news!</p>';
+                // Sort by date desc (client-side — no index needed)
+                const docs = [];
+                snapshot.forEach(doc => docs.push(doc));
+                docs.sort((a, b) => new Date(b.data().date || 0) - new Date(a.data().date || 0));
+
+                if (docs.length === 0) {
+                    list.innerHTML = '<p style="text-align:center;padding:2rem;color:#64748b;">No articles yet. Publish your first news! 📝</p>';
                     return;
                 }
 
                 let html = '<table class="rep-table"><thead><tr><th>Title</th><th>Category</th><th>Date</th><th>Status</th><th>Action</th></tr></thead><tbody>';
-                snapshot.forEach(doc => {
+                docs.forEach(doc => {
                     const a = doc.data();
                     const title = a.title_ta || a.title_en || 'Untitled';
                     const date = a.date ? new Date(a.date).toLocaleDateString('ta-IN') : '-';
@@ -288,7 +302,8 @@
                 html += '</tbody></table>';
                 list.innerHTML = html;
             } catch (e) {
-                list.innerHTML = '<p style="color:#f87171;">Error loading articles</p>';
+                console.error('Load error:', e);
+                list.innerHTML = '<div style="text-align:center;padding:2rem;color:#dc2626;"><p style="font-weight:700;">⚠️ Error loading articles</p><p style="font-size:0.85rem;color:#64748b;margin:0.5rem 0;">' + (e.message || e) + '</p><button onclick="loadMyArticles()" style="padding:8px 20px;background:#e11d48;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;">🔄 Retry</button></div>';
             }
         }
 
@@ -302,6 +317,7 @@
             try {
                 const editId = document.getElementById('rep-edit-id').value;
                 const articleData = {
+                    reporterId: currentReporter.username,   // ⭐ IMPORTANT: for "My Articles" filter!
                     title_ta: document.getElementById('rep-title-ta').value.trim(),
                     title_en: document.getElementById('rep-title-en').value.trim() || document.getElementById('rep-title-ta').value.trim(),
                     excerpt: document.getElementById('rep-excerpt-ta').value.trim(),
