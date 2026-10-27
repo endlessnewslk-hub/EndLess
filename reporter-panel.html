@@ -316,17 +316,29 @@
 
             try {
                 const editId = document.getElementById('rep-edit-id').value;
+                const title_ta_val = document.getElementById('rep-title-ta').value.trim();
+                const title_en_val = document.getElementById('rep-title-en').value.trim() || title_ta_val;
+                const excerpt_ta_val = document.getElementById('rep-excerpt-ta').value.trim();
+                const excerpt_en_val = document.getElementById('rep-excerpt-en').value.trim() || excerpt_ta_val;
+                const content_ta_val = document.getElementById('rep-content-ta').value.trim();
+                const content_en_val = document.getElementById('rep-content-en').value.trim() || content_ta_val;
+
                 const articleData = {
-                    reporterId: currentReporter.username,   // ⭐ IMPORTANT: for "My Articles" filter!
-                    title_ta: document.getElementById('rep-title-ta').value.trim(),
-                    title_en: document.getElementById('rep-title-en').value.trim() || document.getElementById('rep-title-ta').value.trim(),
-                    excerpt: document.getElementById('rep-excerpt-ta').value.trim(),
-                    excerpt_en: document.getElementById('rep-excerpt-en').value.trim() || document.getElementById('rep-excerpt-ta').value.trim(),
-                    content: document.getElementById('rep-content-ta').value.trim(),
-                    content_en: document.getElementById('rep-content-en').value.trim() || document.getElementById('rep-content-ta').value.trim(),
+                    reporterId: currentReporter.username,   // ⭐ For "My Articles" filter
+                    // ⭐⭐ CRITICAL: Main site compatibility — default fields (no suffix)
+                    title: title_ta_val,
+                    title_ta: title_ta_val,
+                    title_en: title_en_val,
+                    excerpt: excerpt_ta_val,
+                    excerpt_ta: excerpt_ta_val,
+                    excerpt_en: excerpt_en_val,
+                    content: content_ta_val,
+                    content_ta: content_ta_val,
+                    content_en: content_en_val,
                     category: document.getElementById('rep-category').value,
                     category_en: document.getElementById('rep-category').value,
                     author: document.getElementById('rep-author').value.trim(),
+                    author_ta: document.getElementById('rep-author').value.trim(),
                     author_en: document.getElementById('rep-author').value.trim(),
                     image: document.getElementById('rep-image').value.trim() || 'https://via.placeholder.com/800x400?text=EndLess+News',
                     images: _repImages.length > 1 ? _repImages.slice(1) : [],   // ⭐ Gallery (skip head)
