@@ -1926,6 +1926,7 @@ async function initData() {
     }
 
     ensureNewsletterUI(); // 📬 Newsletter admin tab
+    ensureCreatePosterUI(); // 🎨 Create Poster (Dashboard)
     iconifyAdmin(); // 🎨 SVG icons replace emojis
     var dashboard = document.getElementById('admin-dashboard');
     if (dashboard) dashboard.style.display = 'flex';
@@ -2204,7 +2205,7 @@ function showPageContinue(page) {
     if (pageTitle) pageTitle.textContent = page.charAt(0).toUpperCase() + page.slice(1);
     
     // CRITICAL FIX: Always render tables when showing page
-    if (page === 'settings') 
+    if (page === 'create-poster') ensureCreatePosterUI();  // 🎨 NEW
     if (page === 'dashboard') renderDashboard();
     if (page === 'analytics') renderAnalyticsPage();
     if (page === 'news') renderNewsTable();
