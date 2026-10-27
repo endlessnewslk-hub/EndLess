@@ -435,11 +435,24 @@
                 var div = document.createElement('div');
                 div.style.cssText = 'position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;border:3px solid ' + (isHead ? '#e11d48' : '#e2e8f0') + ';';
                 div.innerHTML = 
-                    '<img src="' + url + '" style="width:100%;height:100%;object-fit:cover;">' +
-                    (isHead ? '<span style="position:absolute;top:2px;left:2px;background:#e11d48;color:#fff;font-size:0.6rem;font-weight:800;padding:1px 6px;border-radius:4px;">HEAD</span>' : '') +
-                    '<button type="button" onclick="repRemoveImage(' + idx + ')" style="position:absolute;top:2px;right:2px;width:20px;height:20px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;font-size:12px;cursor:pointer;line-height:1;">×</button>';
+                    '<img src="' + url + '" style="width:100%;height:100%;object-fit:cover;cursor:pointer;" onclick="repSetHead(' + idx + ')" title="Click to make Head image">' +
+                    (isHead ? '<span style="position:absolute;top:2px;left:2px;background:#e11d48;color:#fff;font-size:0.6rem;font-weight:800;padding:1px 6px;border-radius:4px;">👑 👑 HEAD</span>' : '<span style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.6);color:#fff;font-size:0.55rem;font-weight:700;padding:1px 5px;border-radius:4px;opacity:0;transition:opacity 0.2s;" class="set-head-hint">👆 Set Head</span>') +
+                    '<button type="button" onclick="event.stopPropagation(); repRemoveImage(' + idx + ')" style="position:absolute;top:2px;right:2px;width:20px;height:20px;background:rgba(0,0,0,0.7);color:#fff;border:none;border-radius:50%;font-size:12px;cursor:pointer;line-height:1;" title="Remove">×</button>';
+                // Hover effect — show "Set Head" hint
+                div.addEventListener('mouseenter', function() { var h = div.querySelector('.set-head-hint'); if (h) h.style.opacity = '1'; });
+                div.addEventListener('mouseleave', function() { var h = div.querySelector('.set-head-hint'); if (h) h.style.opacity = '0'; });
                 gallery.appendChild(div);
             });
+        }
+
+        // 👑 Tap any photo → Make it HEAD image
+        function repSetHead(idx) {
+            if (idx === 0) return;  // Already head
+            var selected = _repImages[idx];
+            _repImages.splice(idx, 1);       // Remove from position
+            _repImages.unshift(selected);    // Add to front (index 0)
+            repRefreshImageUI();
+            alert('👑 Set as Head Image!');
         }
 
         function repRemoveImage(idx) {
