@@ -1771,35 +1771,6 @@ async function openPosterModal(articleId) {
         });
 
 
-            var hdCanvas;
-            try {
-                showToast('🖥️ Generating HD poster...', 'success');
-                hdCanvas = await generatePoster(eff, size, lang, mode, 'hd');
-            } catch (err) {
-                hdCanvas = _pgCanvas;   // fallback: current preview
-            }
-            if (isMobile && navigator.canShare) {
-                try {
-                    var blob = await new Promise(function(res) { hdCanvas.toBlob(res, 'image/png'); });
-                    if (blob) {
-                        var file = new File([blob], 'endless-news-poster-hd.png', { type: 'image/png' });
-                        if (navigator.canShare({ files: [file] })) {
-                            await navigator.share({ files: [file], title: 'EndLess News Poster', text: '' });
-                            return;
-                        }
-                    }
-                } catch (err) { if (err.name === 'AbortError') return; }
-            }
-            var a = document.createElement('a');
-            a.download = 'endless-news-poster-hd.png';
-            a.href = hdCanvas.toDataURL('image/png');
-            a.click();
-            var urls = {
-                whatsapp: 'https://wa.me/?text=' + encodeURIComponent('https://endlessnews.lk/?article=' + _pgArticle.id),
-                facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent('https://endlessnews.lk/?article=' + _pgArticle.id),
-                x: 'https://twitter.com/intent/tweet?url=' + encodeURIComponent('https://endlessnews.lk/?article=' + _pgArticle.id),
-                instagram: 'https://www.instagram.com/'
-            };
 
 
     }
@@ -2374,6 +2345,13 @@ async function trackAnalyticsEvent(type, articleId) {
         await dailyRef.update(dUpd);
     } catch (e) { /* silent — don't break UX */ }
 }
+// 🔧 Inline onclick-kku id-a safe-a kodukkum helper.
+// Firestore doc ids strings (eg. "aB3dEf9xQ7...") — quote illaama irundha onclick
+// "ReferenceError: aB3dEf9x is not defined" aagi button work aagaadhu.
+function jsArg(v) {
+    return '&#39;' + String(v).replace(/[^A-Za-z0-9_-]/g, '') + '&#39;';
+}
+
 function renderNewsTable() {
     dbg('>>> renderNewsTable called. adminNews.length =', adminNews.length);
     
@@ -2455,9 +2433,9 @@ function renderNewsTable() {
                 '<td>' + langs.join('') + '</td>' +
                 '<td><span class="badge ' + (n.status === 'published' ? 'badge-green' : 'badge-gray') + '">' + (n.status || 'draft') + '</span></td>' +
                 '<td><div style="display:flex;align-items:center;gap:8px;white-space:nowrap;">' +
-                '<button class="btn-icon btn-edit" style="' + btnEditStyle + '" onmouseover="' + btnEditHover + '" onmouseout="' + btnEditOut + '" onclick="editNews(' + n.id + ')" title="Edit">&#9999;&#65039;</button>' +
-                '<button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onclick="deleteNews(' + n.id + ')" title="Delete">&#128465;&#65039;</button>' +
-                '<button onclick="openPosterModal(' + n.id + ')" title="🎨 Social Poster" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;cursor:pointer;font-size:16px;">🎨</button>' +
+                '<button class="btn-icon btn-edit" style="' + btnEditStyle + '" onmouseover="' + btnEditHover + '" onmouseout="' + btnEditOut + '" onclick="editNews(' + jsArg(n.id) + ')" title="Edit">&#9999;&#65039;</button>' +
+                '<button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onclick="deleteNews(' + jsArg(n.id) + ')" title="Delete">&#128465;&#65039;</button>' +
+                '<button onclick="openPosterModal(' + jsArg(n.id) + ')" title="🎨 Social Poster" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:none;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;cursor:pointer;font-size:16px;">🎨</button>' +
                 '</div></td></tr>';
         }).join('');
     }
@@ -2497,9 +2475,9 @@ function renderNewsTable() {
                     '<span>' + dateStr + '</span><span>|</span>' +
                     '<span class="badge ' + (n.status === 'published' ? 'badge-green' : 'badge-gray') + '">' + (n.status || 'draft') + '</span></div>' +
                     '<div class="card-actions" style="display:flex;gap:0.5rem;">' +
-                    '<button style="' + btnEditStyle + 'width:44px;height:44px;" onmouseover="' + btnEditHover + '" onmouseout="' + btnEditOut + '" onclick="editNews(' + n.id + ')" title="Edit">&#9999;&#65039;</button>' +
-                    '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onclick="deleteNews(' + n.id + ')" title="Delete">&#128465;&#65039;</button>' +
-                    '<button onclick="openPosterModal(' + n.id + ')" title="🎨 Poster" style="width:44px;height:44px;border:none;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;cursor:pointer;font-size:18px;">🎨</button></div></div>';
+                    '<button style="' + btnEditStyle + 'width:44px;height:44px;" onmouseover="' + btnEditHover + '" onmouseout="' + btnEditOut + '" onclick="editNews(' + jsArg(n.id) + ')" title="Edit">&#9999;&#65039;</button>' +
+                    '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onclick="deleteNews(' + jsArg(n.id) + ')" title="Delete">&#128465;&#65039;</button>' +
+                    '<button onclick="openPosterModal(' + jsArg(n.id) + ')" title="🎨 Poster" style="width:44px;height:44px;border:none;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;cursor:pointer;font-size:18px;">🎨</button></div></div>';
             }).join('');
         }
     }
@@ -2540,8 +2518,8 @@ function renderAdsTable() {
                 '<td>' + escapeHtml(a.position || '') + '</td>' +
                 '<td><div class="duration-cell"><span class="duration-start">&#9654; ' + startStr + '</span><span class="duration-arrow">&rarr;</span><span class="duration-end">&#9632; ' + endStr + '</span></div></td>' +
                 '<td><span class="badge ' + status.className + '">' + status.label + '</span></td>' +
-                '<td><button class="btn-icon btn-edit" style="' + btnEditStyle + '" onclick="editAd(' + a.id + ')" title="Edit">&#9999;&#65039;</button>' +
-                '<button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onclick="deleteAd(' + a.id + ')" title="Delete">&#128465;&#65039;</button></td></tr>';
+                '<td><button class="btn-icon btn-edit" style="' + btnEditStyle + '" onclick="editAd(' + jsArg(a.id) + ')" title="Edit">&#9999;&#65039;</button>' +
+                '<button class="btn-icon btn-delete" style="' + btnDeleteStyle + '" onclick="deleteAd(' + jsArg(a.id) + ')" title="Delete">&#128465;&#65039;</button></td></tr>';
         }).join('');
     }
 
@@ -2566,8 +2544,8 @@ function renderAdsTable() {
                     '<span>' + startStr + ' &rarr; ' + endStr + '</span> | ' +
                     '<span class="badge ' + status.className + '">' + status.label + '</span></div>' +
                     '<div class="card-actions" style="display:flex;gap:0.5rem;">' +
-                    '<button style="' + btnEditStyle + 'width:44px;height:44px;" onclick="editAd(' + a.id + ')" title="Edit">&#9999;&#65039;</button>' +
-                    '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onclick="deleteAd(' + a.id + ')" title="Delete">&#128465;&#65039;</button></div></div>';
+                    '<button style="' + btnEditStyle + 'width:44px;height:44px;" onclick="editAd(' + jsArg(a.id) + ')" title="Edit">&#9999;&#65039;</button>' +
+                    '<button style="' + btnDeleteStyle + 'width:44px;height:44px;" onclick="deleteAd(' + jsArg(a.id) + ')" title="Delete">&#128465;&#65039;</button></div></div>';
             }).join('');
         }
     }
