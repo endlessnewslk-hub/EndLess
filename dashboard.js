@@ -1273,56 +1273,145 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         return lines;
     }
 
-    var baseHead = Math.round(W * (isWide ? 0.046 : 0.064));
-    var minHead = Math.max(20, Math.round(W * 0.022));
-    function calcLayout(sc) {
-        var hs = Math.max(minHead, Math.round(baseHead * sc)); var lh = Math.round(hs * 1.3);
-        ctx.font = '800 ' + hs + 'px ' + TAMIL_STACK;
-        ctx.textBaseline = 'top';
-        var hl = wrapColored(title, maxW);
-        var es = Math.max(15, Math.round(hs * 0.52)); var elh = Math.round(es * 1.48);
-        ctx.font = '400 ' + es + 'px ' + TAMIL_STACK;
-        var el = excerpt ? fullWrap(excerpt, maxW) : [];
-        var need = hl.length * lh + (el.length ? gap + el.length * elh : 0);
-        return { hs: hs, lh: lh, hl: hl, es: es, elh: elh, el: el, need: need };
-    }
+    // ═══ LAYOUT — measured fit: headline & excerpt never overlap, text block fills the poster ═══
+    var bigSet = (article._big || []).map(pgNormWord);
+    var fbigSet = (article._fbig || []).map(pgNormWord);
+    var titleToks = String(title || '').split(/\s+/).filter(Boolean).map(function (w, i) {
+        var nw = pgNormWord(w);
+        var isBig = bigSet.indexOf(nw) !== -1 || fbigSet.indexOf(nw) !== -1;
+        return {
+            t: w,
+            f: (i === 0 && isBig) ? 1.4 : (isBig ? 1.25 : 1),
+            pink: hlSet.indexOf(nw) !== -1 || fbigSet.indexOf(nw) !== -1
+        };
+    });
+    var excerptText = excerpt ? String(excerpt) : '';
+    var frameM = Math.round(W * 0.018);
+    var TOK_LH = 1.3;
 
-    // 💬 CTA pill space reserve (BOTH modes)
-    var ctaReserve = Math.round(W * 0.018) * 1.95 + Math.round(H * 0.018) + Math.round(H * 0.026);
-
-    var imgH = Math.round(H * (isWide ? 0.48 : (isStory ? 0.42 : 0.45)));
-    var minImgH = Math.round(H * 0.20);
-    var y, avail, L;
-    function reflow() {
-        y = imgH + Math.round(H * 0.045) + Math.round(W * 0.020 * 1.8) + Math.max(6, Math.round(H * 0.007)) + Math.round(H * 0.02);
-        avail = barY - y - gap - ctaReserve;
-        if (mode === 'headline') {
-            var lo = 0.05, hi = 4.0, best = null;
-            for (var it = 0; it < 14; it++) {
-                var mid = (lo + hi) / 2;
-                var t = calcLayout(mid);
-                if (t.need <= avail) { best = t; lo = mid; } else { hi = mid; }
+    function setHeadFont(px) { ctx.font = '800 ' + px + 'px ' + TAMIL_STACK; }
+    function wrapHead(hs, maxWidth) {
+        setHeadFont(hs);
+        var spW = ctx.measureText(' ').width;
+        var lines = [], cur = [], curW = 0;
+        titleToks.forEach(function (tk) {
+            var fs = Math.round(hs * tk.f);
+            setHeadFont(fs);
+            var tw = ctx.measureText(tk.t).width;
+            var add = cur.length ? spW : 0;
+            if (cur.length && curW + add + tw > maxWidth) {
+                lines.push(cur); cur = []; curW = 0; add = 0;
             }
-            L = best || calcLayout(lo);
-        } else {
-            var sc = 1; L = calcLayout(sc);
-            while (L.need > avail && L.hs > minHead) { sc *= 0.93; L = calcLayout(sc); }
-        }
+            curW += add + tw;
+            cur.push({ t: tk.t, fs: fs, pink: tk.pink });
+        });
+        if (cur.length) lines.push(cur);
+        // each line is as tall as its biggest word → big words can never overlap the next line
+        lines.forEach(function (ln) {
+            var mf = 0;
+            ln.forEach(function (tk) { if (tk.fs > mf) mf = tk.fs; });
+            ln.h = Math.round(mf * TOK_LH);
+        });
+        return lines;
     }
-    reflow();
-    if (L.need > avail && imgH > minImgH) {
-        imgH = Math.max(minImgH, imgH - (L.need - avail) - Math.round(H * 0.01));
-        reflow();
+    function headH(lines) { return lines.reduce(function (s, ln) { return s + ln.h; }, 0); }
+    function esOf(hs) { return Math.max(15, Math.min(Math.round(hs * 0.5), Math.round(W * 0.032))); }
+    function wrapEx(text, es, maxWidth) {
+        ctx.font = '400 ' + es + 'px ' + TAMIL_STACK;
+        var ws = String(text || '').split(/\s+/).filter(Boolean), out = [], line = '';
+        ws.forEach(function (w) {
+            var test = line ? line + ' ' + w : w;
+            if (line && ctx.measureText(test).width > maxWidth) { out.push(line); line = w; }
+            else line = test;
+        });
+        if (line) out.push(line);
+        return out;
+    }
+    function clipEx(lines, n, es, maxWidth) {
+        if (lines.length <= n) return lines;
+        var out = lines.slice(0, n);
+        if (!out.length) return out;
+        ctx.font = '400 ' + es + 'px ' + TAMIL_STACK;
+        var ws = out[out.length - 1].split(' ');
+        while (ws.length > 1 && ctx.measureText(ws.join(' ') + '…').width > maxWidth) ws.pop();
+        out[out.length - 1] = ws.join(' ') + '…';
+        return out;
     }
 
-    // 🔄 Verify: measure & draw same font
-    (function () {
-        ctx.font = '800 ' + L.hs + 'px ' + TAMIL_STACK;
-        var recheck = wrapColored(title, maxW);
-        if (recheck.length !== L.hl.length) reflow();
-    })();
+    // Space from the bottom of the text block to the CTA pill (pill is drawn above the brand bar)
+    var pillEst = Math.round(Math.max(15, Math.round(W * 0.018)) * 1.95);
+    var bottomLimit = barY - Math.round(H * 0.018) - pillEst - Math.round(H * 0.022);
+    // Vertical offset from the image bottom to the headline top (date line + accent bar)
+    var dateBlockH = Math.round(W * 0.020 * 1.3);
+    var accH = Math.max(6, Math.round(H * 0.007));
+    var K = Math.round(H * 0.045) + dateBlockH + Math.round(H * 0.014) + accH + Math.round(H * 0.024);
+
+    var maxHead = mode === 'headline' ? Math.round(W * 0.16) : Math.round(W * (isWide ? 0.07 : 0.095));
+    var prefHead = Math.round(W * (isWide ? 0.042 : 0.045));  // keep the headline at least this big
+    var minHead = Math.max(20, Math.round(W * 0.024));
+    var imgDefault = Math.round(H * (isWide ? 0.5 : (isStory ? 0.42 : 0.46)));
+    var minImgH = Math.round(H * (isWide ? 0.3 : 0.2));   // wide cards keep a readable photo strip
+    var maxImgH = Math.round(H * 0.6);
+    var MIN_EX_LINES = 2;
+
+    function layoutAt(imgHh) {
+        var top = imgHh + K;
+        var avail = bottomLimit - top;
+        function needFor(hs, minEx) {
+            var hl = wrapHead(hs, maxW);
+            var hH = headH(hl);
+            var es = esOf(hs), elh = Math.round(es * 1.5);
+            var gapHE = Math.max(Math.round(H * 0.02), Math.round(es * 0.8));
+            var ex = excerptText ? wrapEx(excerptText, es, maxW) : [];
+            var h = hH + (ex.length ? gapHE + Math.min(ex.length, minEx) * elh : 0);
+            return { hl: hl, hH: hH, es: es, elh: elh, gapHE: gapHE, ex: ex, h: h };
+        }
+        // largest headline that still leaves room for the excerpt's first lines
+        var lo = minHead, hi = maxHead;           // integer search → same sizes that get drawn
+        while (lo < hi) {
+            var mid = Math.ceil((lo + hi) / 2);
+            if (needFor(mid, MIN_EX_LINES).h <= avail) lo = mid; else hi = mid - 1;
+        }
+        var hs = lo;
+        var N = needFor(hs, MIN_EX_LINES);
+        var hl = N.hl, hH = N.hH;
+        if (hH > avail && hl.length > 1) {       // safety: never draw into the CTA
+            var cl = hl.slice();
+            while (cl.length > 1 && headH(cl) > avail) cl.pop();
+            var lastTok = cl[cl.length - 1][cl[cl.length - 1].length - 1];
+            lastTok.t += '…';
+            hl = cl; hH = headH(cl);
+        }
+        var el = [];
+        if (N.ex.length) {
+            var nl = Math.floor((avail - hH - N.gapHE) / N.elh);
+            if (nl >= 1) el = clipEx(N.ex, nl, N.es, maxW);
+        }
+        var total = hH + (el.length ? N.gapHE + el.length * N.elh : 0);
+        return { imgH: imgHh, top: top, avail: avail, hs: hs, hl: hl, hH: hH,
+                 es: N.es, elh: N.elh, gapHE: N.gapHE, el: el, exN: N.ex.length, total: total };
+    }
+
+    var imgH = imgDefault;
+    var L = layoutAt(imgH);
+    // 1) long text → shrink the photo (down to minImgH) so the headline keeps a good size
+    for (var s1 = 0; s1 < 25 && imgH > minImgH &&
+            (L.hs < prefHead || L.el.length < Math.min(MIN_EX_LINES, L.exN)); s1++) {
+        imgH = Math.max(minImgH, imgH - Math.round(H * 0.012));
+        L = layoutAt(imgH);
+    }
+    // 2) short text → grow the photo so the text block ends right above the CTA (poster fully filled)
+    if (L.el.length === L.exN) {
+        var left = L.avail - L.total;
+        if (left > 0) { imgH = Math.min(maxImgH, Math.round(imgH + left)); L = layoutAt(imgH); }
+    }
 
     // ═══ DRAW ═══
+    function bgAtY(y) {   // matches the background gradient #13131f → #0a0a0f
+        var t = Math.max(0, Math.min(1, y / H));
+        var r = Math.round(19 + (10 - 19) * t), g = Math.round(19 + (10 - 19) * t), b = Math.round(31 + (15 - 31) * t);
+        return 'rgb(' + r + ',' + g + ',' + b + ')';
+    }
     var bg = ctx.createLinearGradient(0, 0, 0, H);
     bg.addColorStop(0, '#13131f'); bg.addColorStop(1, '#0a0a0f');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
@@ -1336,15 +1425,10 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         ctx.drawImage(img, (W - iw) / 2, (imgH - ih) / 2, iw, ih);
         ctx.restore();
 
-        // ✨ MODERN IMAGE FRAME — margin + gradient border + soft shadow
-        var m = Math.round(W * 0.018);   // ⭐ margin/gap around image
+        // ✨ Image frame — gradient border + inner white line
         var bW = Math.max(3, Math.round(W * 0.003));
-        var bR = Math.round(W * 0.02);   // rounded corner
-        var fx = m, fy = m, fw = W - m * 2, fh = imgH - m * 2;
-
-        // Clean margin gap only (no inner glow)
-
-        // ⭐ Gradient border line (modern pink → subtle)
+        var bR = Math.round(W * 0.02);
+        var fx = frameM, fy = frameM, fw = W - frameM * 2, fh = imgH - frameM * 2;
         var grad = ctx.createLinearGradient(fx, fy, fx + fw, fy + fh);
         grad.addColorStop(0, 'rgba(225,29,72,0.7)');
         grad.addColorStop(0.5, 'rgba(251,113,133,0.4)');
@@ -1353,66 +1437,63 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
         ctx.strokeStyle = grad;
         ctx.lineWidth = bW;
         ctx.lineCap = 'round';
-        pgRoundRect(ctx, fx - bW/2, fy - bW/2, fw + bW, fh + bW, bR);
+        pgRoundRect(ctx, fx - bW / 2, fy - bW / 2, fw + bW, fh + bW, bR);
         ctx.stroke();
         ctx.restore();
-
-        // Inner subtle white line (crisp definition)
         ctx.strokeStyle = 'rgba(255,255,255,0.2)';
         ctx.lineWidth = Math.max(1, Math.round(W * 0.0008));
         pgRoundRect(ctx, fx + 1, fy + 1, fw - 2, fh - 2, bR - 1);
         ctx.stroke();
     } catch (e) {}
 
+    // Fade the photo into the background. The end colour matches the background exactly,
+    // so there is no dark band / seam under the photo.
     var fadeH = Math.round(H * 0.2);
-    var fade = ctx.createLinearGradient(0, imgH - fadeH, 0, imgH + Math.round(H * 0.04));
+    var fade = ctx.createLinearGradient(0, imgH - fadeH, 0, imgH);
     fade.addColorStop(0, 'rgba(10,10,15,0)');
-    fade.addColorStop(1, 'rgba(10,10,15,1)');
-    ctx.fillStyle = fade; ctx.fillRect(0, imgH - fadeH, W, fadeH + Math.round(H * 0.05));
+    fade.addColorStop(1, bgAtY(imgH));
+    ctx.fillStyle = fade; ctx.fillRect(0, imgH - fadeH, W, fadeH);
 
     if (cat) {
         ctx.font = '700 ' + Math.round(W * 0.021) + 'px ' + TAMIL_STACK;
         var cw = ctx.measureText(String(cat).toUpperCase()).width + Math.round(W * 0.05);
         var chH = Math.round(H * 0.045);
-        pgRoundRect(ctx, mX, Math.round(H * 0.038), cw, chH, chH / 2);
+        var chY = frameM + Math.round(H * 0.03);          // sits inside the image frame
+        pgRoundRect(ctx, mX, chY, cw, chH, chH / 2);
         ctx.fillStyle = '#e11d48'; ctx.fill();
         ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-        ctx.fillText(String(cat).toUpperCase(), mX + Math.round(W * 0.025), Math.round(H * 0.038) + chH / 2 + 2);
+        ctx.fillText(String(cat).toUpperCase(), mX + Math.round(W * 0.025), chY + chH / 2 + 2);
     }
 
+    var dateY = imgH + Math.round(H * 0.045);
     ctx.font = '600 ' + Math.round(W * 0.020) + 'px ' + TAMIL_STACK;
     ctx.fillStyle = '#94a3b8'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
-    ctx.fillText(dateStr, mX, imgH + Math.round(H * 0.045));
+    ctx.fillText(dateStr, mX, dateY);
 
-    var accH = Math.max(6, Math.round(H * 0.007));
+    var accY = dateY + dateBlockH + Math.round(H * 0.014);
     ctx.fillStyle = '#e11d48';
-    ctx.fillRect(mX, y - Math.round(H * 0.02) - accH, Math.round(W * 0.12), accH);
+    ctx.fillRect(mX, accY, Math.round(W * 0.12), accH);
 
-    // HEADLINE (per-word pink highlights)
-    ctx.font = '800 ' + L.hs + 'px ' + TAMIL_STACK;
-    ctx.textBaseline = 'top';
-    var spaceW = ctx.measureText(' ').width;
-    var bigSet = (article._big || []).map(pgNormWord);
-    var fbigSet = (article._fbig || []).map(pgNormWord);
-    L.hl.forEach(function (tokens, i) {
+    // HEADLINE — per-word pink highlights, big words, each line sized to its biggest word
+    ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+    var spaceAtHs; setHeadFont(L.hs); spaceAtHs = ctx.measureText(' ').width;
+    var hy = L.top;
+    L.hl.forEach(function (ln) {
         var wx = mX;
-        tokens.forEach(function (tok) {
-            var nw = pgNormWord(tok.t);
-            var isPink = tok.hl || fbigSet.indexOf(nw) !== -1;
-            var isBig = bigSet.indexOf(nw) !== -1 || fbigSet.indexOf(nw) !== -1;
-            var firstBig = (i === 0 && tokens.indexOf(tok) === 0);
-            var fsize = (firstBig && isBig) ? Math.round(L.hs * 1.4) : (isBig ? Math.round(L.hs * 1.25) : L.hs);
-            ctx.font = '800 ' + fsize + 'px ' + TAMIL_STACK;
-            ctx.fillStyle = isPink ? '#fb7185' : '#ffffff';
-            ctx.fillText(tok.t, wx, y + i * L.lh);
-            wx += ctx.measureText(tok.t).width + spaceW;
+        ln.forEach(function (tk) {
+            setHeadFont(tk.fs);
+            ctx.fillStyle = tk.pink ? '#fb7185' : '#ffffff';
+            ctx.fillText(tk.t, wx, hy);
+            wx += ctx.measureText(tk.t).width + spaceAtHs;
         });
-        ctx.font = '800 ' + L.hs + 'px ' + TAMIL_STACK;
+        hy += ln.h;
     });
-    var ey = y + L.hl.length * L.lh + (L.el.length ? gap : 0);
+
+    // EXCERPT — always starts below the headline with a real gap
     if (L.el.length) {
+        var ey = L.top + L.hH + L.gapHE;
         ctx.font = '400 ' + L.es + 'px ' + TAMIL_STACK;
-        ctx.fillStyle = '#b6bdc9';
+        ctx.fillStyle = '#b6bdc9'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
         L.el.forEach(function (ln, i) { ctx.fillText(ln, mX, ey + i * L.elh); });
     }
 
@@ -1479,14 +1560,35 @@ async function generatePoster(article, sizeKey, lang, mode, quality) {
     ctx.fillText('E', logoX + logoS / 2, logoY + logoS / 2 + logoS * 0.04);
     var textX = logoX + logoS + Math.round(W * 0.022);
     ctx.textAlign = 'left';
-    ctx.font = '800 ' + Math.round(barH * 0.32) + 'px ' + BRAND_STACK;
+    // Brand text (End Less News + URL) — measured so it never runs into the FOLLOW US row
+    var socIco = Math.round(barH * 0.36);
+    var socIcoGap = Math.round(socIco * 0.42);
+    var socLabelGap = Math.round(socIco * 0.6);
+    var socLblSize = Math.max(11, Math.round(barH * 0.19));
+    ctx.font = '700 ' + socLblSize + 'px "Inter", Arial';
+    var socLblW = ctx.measureText('FOLLOW US').width;
+    var socRowW = socIco * 4 + socIcoGap * 3;
+    var socX = barX + barW - Math.round(W * 0.022) - (socLblW + socLabelGap + socRowW);
+    var brandMaxW = socX - textX - Math.round(W * 0.03);
+    var brandFs = Math.round(barH * 0.32), urlFs = Math.round(barH * 0.22);
+    ctx.font = '800 ' + brandFs + 'px ' + BRAND_STACK;
+    var brandNatW = ctx.measureText('End').width + ctx.measureText('Less News').width;
+    ctx.font = '600 ' + urlFs + 'px "Arimo", Arial';
+    var urlNatW = ctx.measureText('endlessnews.lk').width;
+    var brandNat = Math.max(brandNatW, urlNatW);
+    if (brandMaxW > 0 && brandNat > brandMaxW) {
+        var bsc = brandMaxW / brandNat;
+        brandFs = Math.max(10, Math.floor(brandFs * bsc));
+        urlFs = Math.max(9, Math.floor(urlFs * bsc));
+    }
+    ctx.font = '800 ' + brandFs + 'px ' + BRAND_STACK;
     ctx.textBaseline = 'middle';
     var endW = ctx.measureText('End').width;
     ctx.fillStyle = '#f1f5f9';
     ctx.fillText('End', textX, barY + barH * 0.38);
     ctx.fillStyle = '#fb7185';
     ctx.fillText('Less News', textX + endW, barY + barH * 0.38);
-    ctx.font = '600 ' + Math.round(barH * 0.22) + 'px "Arimo", Arial';
+    ctx.font = '600 ' + urlFs + 'px "Arimo", Arial';
     ctx.fillStyle = '#fb7185';
     ctx.fillText('endlessnews.lk', textX, barY + barH * 0.72);
 
