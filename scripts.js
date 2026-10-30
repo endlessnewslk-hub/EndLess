@@ -196,19 +196,23 @@ function wireNewsletterBox() {
         '.hero-main:hover img{transform:scale(1.08);}',
         /* 🏷️ Hide static HTML ad labels — adCard prints its own translated label */
         '.ad-slot-label{display:none!important;}',
-        /* 📘 PREMIUM FB FOLLOW BANNER — curved, gradient, floating animation */
-        '.fb-banner{position:relative;margin:1.5rem 0;border-radius:22px;overflow:hidden;background:linear-gradient(135deg,rgba(24,119,242,0.92) 0%,rgba(14,95,202,0.85) 100%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.25);box-shadow:0 10px 36px rgba(24,119,242,0.4),inset 0 1px 0 rgba(255,255,255,0.3);display:flex;align-items:center;gap:16px;padding:20px;color:#fff;cursor:pointer;transition:transform .25s ease,box-shadow .25s ease;}',
+        /* 📘 FB FOLLOW BANNER — size follows its OWN sidebar width (container query) + fluid text, so Tamil & English fit every screen */
+        '.fb-slot{container-type:inline-size;container-name:fbslot;width:100%;margin:1.25rem 0;}',
+        '.fb-banner{position:relative;overflow:hidden;box-sizing:border-box;width:100%;border-radius:22px;background:linear-gradient(135deg,rgba(24,119,242,0.92) 0%,rgba(14,95,202,0.85) 100%);border:1px solid rgba(255,255,255,0.25);box-shadow:0 10px 36px rgba(24,119,242,0.4),inset 0 1px 0 rgba(255,255,255,0.3);display:flex;align-items:center;gap:14px;padding:16px 18px;color:#fff;cursor:pointer;transition:transform .25s ease,box-shadow .25s ease;}',
         '.fb-banner:hover{transform:translateY(-3px);box-shadow:0 14px 40px rgba(24,119,242,0.45);}',
         '.fb-banner::before{content:"";position:absolute;inset:0;background:url(\'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="white" opacity="0.06"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.09 24 18.1 24 12.07"/></svg>\') no-repeat right -20px center;background-size:120px;pointer-events:none;}',
-        '.fb-banner .fb-icon{width:48px;height:48px;background:rgba(255,255,255,0.2);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;backdrop-filter:blur(4px);}',
-        '.fb-banner .fb-icon svg{width:26px;height:26px;fill:#fff;}',
-        '.fb-banner .fb-text{flex:1;min-width:0;}',
-        '.fb-banner .fb-title{font-size:1.05rem;font-weight:800;line-height:1.3;margin-bottom:2px;}',
-        '.fb-banner .fb-sub{font-size:0.8rem;opacity:0.9;line-height:1.35;}',
-        '.fb-banner .fb-btn{background:#fff;color:#1877F2;font-weight:800;font-size:0.82rem;padding:10px 18px;border-radius:999px;border:none;cursor:pointer;flex-shrink:0;box-shadow:0 3px 10px rgba(0,0,0,0.2);transition:all .2s;white-space:nowrap;}',
+        '.fb-banner .fb-icon{width:44px;height:44px;width:clamp(36px,11cqi,48px);height:clamp(36px,11cqi,48px);background:rgba(255,255,255,0.2);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}',
+        '.fb-banner .fb-icon svg{width:50%;height:50%;fill:#fff;}',
+        '.fb-banner .fb-text{flex:1 1 auto;min-width:0;}',
+        '.fb-banner .fb-title{font-size:1rem;font-size:clamp(0.92rem,4.8cqi,1.12rem);font-weight:800;line-height:1.3;margin-bottom:3px;overflow-wrap:anywhere;}',
+        '.fb-banner .fb-sub{font-size:0.8rem;font-size:clamp(0.74rem,3.7cqi,0.9rem);opacity:0.9;line-height:1.4;overflow-wrap:anywhere;}',
+        '.fb-banner:lang(ta) .fb-title{line-height:1.55;}',
+        '.fb-banner:lang(ta) .fb-sub{line-height:1.5;}',
+        '.fb-banner .fb-btn{background:#fff;color:#1877F2;font-weight:800;font-size:0.82rem;font-size:clamp(0.76rem,3.5cqi,0.9rem);padding:10px 18px;border-radius:999px;border:none;cursor:pointer;flex-shrink:0;box-shadow:0 3px 10px rgba(0,0,0,0.2);transition:all .2s;white-space:nowrap;font-family:inherit;}',
         '.fb-banner .fb-btn:hover{background:#f0f7ff;transform:scale(1.03);}',
         '.fb-banner .fb-btn:active{transform:scale(0.98);}',
-        '@media(max-width:640px){.fb-banner{flex-direction:row;padding:14px 16px;gap:12px;}.fb-banner .fb-icon{width:40px;height:40px;}.fb-banner .fb-btn{padding:8px 14px;font-size:0.75rem;}.fb-banner::before{background-size:90px;}}',
+        '@container fbslot (max-width:420px){.fb-banner{flex-wrap:wrap;row-gap:12px;}.fb-banner .fb-text{flex:1 1 calc(100% - 58px);}.fb-banner .fb-btn{flex:1 1 100%;text-align:center;}.fb-banner::before{background-size:90px;}}',
+        '@media(max-width:420px){.fb-banner{flex-wrap:wrap;row-gap:12px;}.fb-banner .fb-text{flex:1 1 calc(100% - 58px);}.fb-banner .fb-btn{flex:1 1 100%;text-align:center;}}',
         /* 🔗 RELATED ARTICLES — clean card grid (premium look) */
         '.rel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}',
         '.rel-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:transform .25s,box-shadow .25s;}',
@@ -359,6 +363,7 @@ function wireNewsletterBox() {
     }, 8000);
 })();
 
+
 // 🚨 EMERGENCY ERROR BANNER — any JS crash shows ON THE PAGE itself
 // (remote debugging without console). Remove after site is stable.
 window.addEventListener('error', function(e) {
@@ -392,7 +397,7 @@ const TRANSLATIONS = {
         footer_desc: "உலகம் முழுவதும் சுயாதீன பத்திரிகையாளர். தினமும் மில்லியன் கணக்கான வாசகர்களால் நம்பப்படுகிறது.",
         footer_sections: "பிரிவுகள்", footer_company: "நிறுவனம்",
         about_us: "எங்களைப் பற்றி", careers: "வேலைவாய்ப்பு", ethics: "பொருளாதார ஒழுக்கம்",
-        contact: "தொடர்பு", advertise: "விளம்பரம்", follow_us: "எங்களை பின்தொடர்",
+        contact: "தொடர்பு", advertise: "விளம்பரம்", follow_us: "எங்களை பின்தொடர்", fb_title: "எங்களை Facebook-ல் பின்தொடருங்கள்", fb_sub: "அன்றாட முக்கிய செய்திகள் உடனுக்குடன்!", fb_btn: "பின்தொடர் →",
         rights: "அனைத்து உரிமைகளும் பாதுகாக்கப்பட்டவை", privacy: "தனியுரிமைக் கொள்கை", terms: "விதிமுறைகள்",
         all_stories: "அனைத்து கதைகள்", read_more: "மேலும் படிக்க", by_author: "எழுதியவர்",
         published_on: "வெளியிடப்பட்டது", breaking_news: "உடனடி செய்திகள்",
@@ -415,7 +420,7 @@ const TRANSLATIONS = {
         footer_desc: "Independent journalism from around the world. Trusted by millions of readers daily.",
         footer_sections: "Sections", footer_company: "Company",
         about_us: "About Us", careers: "Careers", ethics: "Code of Ethics",
-        contact: "Contact", advertise: "Advertise", follow_us: "Follow Us",
+        contact: "Contact", advertise: "Advertise", follow_us: "Follow Us", fb_title: "Follow Us on Facebook", fb_sub: "Daily breaking news in your feed!", fb_btn: "Follow →",
         rights: "All rights reserved", privacy: "Privacy Policy", terms: "Terms of Service",
         all_stories: "All Stories", read_more: "Read More", by_author: "By",
         published_on: "Published on", breaking_news: "Breaking News",
@@ -714,6 +719,7 @@ function setLanguage(lang) {
     renderCategories();
     renderAds();
     renderTicker();
+    renderFBBanner();   // 📘 FB banner — current language-la maatha
 }
 
 function showLoading() {
@@ -938,30 +944,6 @@ function renderTrending() {
         return;
     }
 
-    // 📘 PREMIUM FB FOLLOW BANNER — sidebar-la trending-ku keezha inject
-    (function injectFBBanner() {
-        var list = document.getElementById('trending-list');
-        if (!list) return;
-        if (document.getElementById('fb-follow-banner')) return;
-        var banner = document.createElement('div');
-        banner.id = 'fb-follow-banner';
-        banner.className = 'fb-banner';
-        banner.innerHTML =
-            '<div class="fb-icon"><svg viewBox="0 0 24 24"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.09 24 18.1 24 12.07"/></svg></div>' +
-            '<div class="fb-text">' +
-            '<div class="fb-title">' + (currentLang === 'ta' ? 'எங்களை Facebook-ல் பின்தொடருங்கள்' : 'Follow Us on Facebook') + '</div>' +
-            '<div class="fb-sub">' + (currentLang === 'ta' ? 'அன்றாட முக்கிய செய்திகள் உடனுக்குடன் உங்கள் feed-ல்!' : 'Get daily breaking news in your feed!') + '</div>' +
-            '</div>' +
-            '<button class="fb-btn" onclick="window.open(\'https://www.facebook.com/profile.php?id=61595124984699\',\'_blank\')">' +
-            (currentLang === 'ta' ? 'பின்தொடர்' : 'Follow') + ' →</button>';
-        // Click anywhere on banner = open FB
-        banner.addEventListener('click', function(e) {
-            if (!e.target.closest('.fb-btn')) {
-                window.open('https://www.facebook.com/profile.php?id=61595124984699', '_blank');
-            }
-        });
-        list.parentNode.appendChild(banner);
-    })();
 
     list.innerHTML = trending.map((item, i) => `
         <div class="trending-item" onclick="openArticle('${item.id}')">
@@ -2746,46 +2728,56 @@ function wireFooterLinks() {
 
 setTimeout(function() { if (window._hideSplash) window._hideSplash(); }, 6000);
 
-// 📘 PREMIUM FB BANNER — own section in sidebar, gap ooda, glassy look
-(function injectFBBanner() {
-    function place() {
-        var sidebar = document.querySelector('.sidebar');
-        if (!sidebar || document.getElementById('fb-follow-banner')) return;
-        var wrap = document.createElement('div');
-        wrap.id = 'fb-follow-banner';
-        wrap.className = 'fb-banner';
-        wrap.style.marginTop = '1.5rem';
-        wrap.innerHTML =
-            '<div class="fb-icon"><svg viewBox="0 0 24 24"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.09 24 18.1 24 12.07"/></svg></div>' +
-            '<div class="fb-text">' +
-            '<div class="fb-title">' + (typeof currentLang !== 'undefined' && currentLang === 'ta' ? 'எங்களை Facebook-ல் பின்தொடருங்கள்' : 'Follow Us on Facebook') + '</div>' +
-            '<div class="fb-sub">' + (typeof currentLang !== 'undefined' && currentLang === 'ta' ? 'அன்றாட முக்கிய செய்திகள் உடனுக்குடன்!' : 'Daily breaking news in your feed!') + '</div>' +
-            '</div>' +
-            '<button class="fb-btn" onclick="window.open(\'https://www.facebook.com/profile.php?id=61595124984699\',\'_blank\')">Follow →</button>';
-        wrap.addEventListener('click', function(e) {
-            if (!e.target.closest('.fb-btn')) window.open('https://www.facebook.com/profile.php?id=61595124984699', '_blank');
+// 📘 FACEBOOK FOLLOW BANNER — ONE banner, text ALWAYS in the current language.
+// setLanguage() calls this again, so Tamil ⇄ English updates the banner straight away.
+var FB_BANNER_URL = 'https://www.facebook.com/profile.php?id=61595124984699';
+function renderFBBanner() {
+    var sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return;
+    var lang = (typeof currentLang !== 'undefined' && currentLang === 'en') ? 'en' : 'ta';
+    var t = TRANSLATIONS[lang] || TRANSLATIONS.ta;
+    var slot = document.getElementById('fb-follow-banner');
+    if (!slot) {
+        slot = document.createElement('div');
+        slot.id = 'fb-follow-banner';
+        slot.className = 'fb-slot';
+        slot.innerHTML =
+            '<div class="fb-banner">' +
+            '<div class="fb-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.09 24 18.1 24 12.07"/></svg></div>' +
+            '<div class="fb-text"><div class="fb-title" data-key="fb_title"></div><div class="fb-sub" data-key="fb_sub"></div></div>' +
+            '<button type="button" class="fb-btn" data-key="fb_btn"></button>' +
+            '</div>';
+        slot.querySelector('.fb-banner').addEventListener('click', function () {
+            window.open(FB_BANNER_URL, '_blank', 'noopener');
         });
-        // TRENDING & CATEGORIES NADULA (sidebar middle — best visibility!)
-        var trendingBox = null, categoriesBox = null;
-        sidebar.querySelectorAll('.sidebar-box').forEach(function(bx) {
-            var h = bx.querySelector('h3');
-            if (!h) return;
-            var t = (h.textContent || '').trim();
-            if (t.indexOf('Trending') !== -1 || t.indexOf('பிரபலமானவை') !== -1) trendingBox = bx;
-            if (t.indexOf('Categories') !== -1 || t.indexOf('பிரிவுகள்') !== -1) categoriesBox = bx;
-        });
-        if (trendingBox && categoriesBox && categoriesBox.parentNode === sidebar) {
-            sidebar.insertBefore(wrap, categoriesBox);
-        } else if (trendingBox && trendingBox.parentNode === sidebar) {
-            sidebar.insertBefore(wrap, trendingBox.nextSibling);
-        } else {
-            sidebar.insertBefore(wrap, sidebar.firstChild);
-        }
     }
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', place);
-    else place();
-})();
+    var card = slot.querySelector('.fb-banner');
+    card.lang = lang;                       // lets CSS use Tamil-specific line heights
+    slot.querySelector('.fb-title').textContent = t.fb_title;
+    slot.querySelector('.fb-sub').textContent = t.fb_sub;
+    slot.querySelector('.fb-btn').textContent = t.fb_btn;
+    card.setAttribute('aria-label', t.fb_title);
 
+    // Place it once: between Trending and Categories (same spot as before)
+    if (slot.parentNode === sidebar) return;
+    var trendingBox = null, categoriesBox = null;
+    sidebar.querySelectorAll('.sidebar-box').forEach(function (bx) {
+        var h = bx.querySelector('h3');
+        if (!h) return;
+        var tx = (h.textContent || '').trim();
+        if (tx.indexOf('Trending') !== -1 || tx.indexOf('பிரபலமானவை') !== -1) trendingBox = bx;
+        if (tx.indexOf('Categories') !== -1 || tx.indexOf('பிரிவுகள்') !== -1) categoriesBox = bx;
+    });
+    if (trendingBox && categoriesBox && categoriesBox.parentNode === sidebar) {
+        sidebar.insertBefore(slot, categoriesBox);
+    } else if (trendingBox && trendingBox.parentNode === sidebar) {
+        sidebar.insertBefore(slot, trendingBox.nextSibling);
+    } else {
+        sidebar.insertBefore(slot, sidebar.firstChild);
+    }
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderFBBanner);
+else renderFBBanner();
 
 addEventListener('DOMContentLoaded', async () => {
     // 🚀 PHASE 0.5 — Defer non-critical heavy engines until browser is IDLE.
