@@ -4157,3 +4157,78 @@ document.addEventListener('DOMContentLoaded', function() {
         if (currentPage === 'news') renderNewsTable();
     });
 });
+
+
+// 📋 CONTENT PASTE — Word / web-la irundhu copy panna paragraph gap + line break appadiye varum.
+// Plain text paste → browser default (already exact). Rich (HTML) paste → text-aa paragraph gap-oda convert.
+function htmlToSpacedText(html) {
+    var box = document.createElement('div');
+    box.innerHTML = html;
+    Array.prototype.slice.call(box.querySelectorAll('script,style,meta,link,title,head')).forEach(function (n) {
+        if (n.parentNode) n.parentNode.removeChild(n);
+    });
+    var BLOCK = { P:1,DIV:1,H1:1,H2:1,H3:1,H4:1,H5:1,H6:1,LI:1,UL:1,OL:1,BLOCKQUOTE:1,PRE:1,TABLE:1,TR:1,TD:1,TH:1,
+                  TBODY:1,THEAD:1,TFOOT:1,SECTION:1,ARTICLE:1,HEADER:1,FOOTER:1,CENTER:1 };
+    var items = [], cur = '';
+    function clean(s) {
+        return s.replace(/\r/g, '').split('\n').map(function (l) {
+            return l.replace(/[\s\u200b\u200c\u200d\ufeff]+/g, ' ').trim();
+        }).join('\n').replace(/^\n+|\n+$/g, '');
+    }
+    function flush() { var t = clean(cur); if (t) items.push(t); cur = ''; }
+    function walkBlock(el) {
+        flush();
+        var before = items.length;
+        Array.prototype.forEach.call(el.childNodes, walk);
+        var t = clean(cur); cur = '';
+        if (t) items.push(t);
+        // <p>&nbsp;</p> or <p><br></p> = an empty paragraph the writer put there on purpose → gap
+        else if (items.length === before && (el.querySelector('br') || /\u00a0/.test(el.textContent || ''))) items.push('');
+    }
+    // A <span style="display:block"> is a paragraph too (news sites do this) — Chrome copies the computed display into style=""
+    function isBlockEl(n) {
+        if (BLOCK[n.tagName]) return true;
+        var st = (n.getAttribute && n.getAttribute('style')) || '';
+        return /(^|;)\s*display\s*:\s*(block|flex|grid|list-item|table|table-row|table-cell)\b/i.test(st);
+    }
+    function walk(node) {
+        if (node.nodeType === 3) { cur += node.nodeValue.replace(/\s*\n\s*/g, ' '); return; }   // HTML text newline = space
+        if (node.nodeType !== 1) return;
+        if (node.tagName === 'BR') { cur += '\n'; return; }
+        if (isBlockEl(node)) { walkBlock(node); return; }
+        Array.prototype.forEach.call(node.childNodes, walk);
+    }
+    Array.prototype.forEach.call(box.childNodes, walk);
+    flush();
+
+    var out = '', gaps = 0;
+    items.forEach(function (t) {
+        if (!t) { gaps++; return; }
+        if (out) out += '\n'.repeat(2 + gaps);   // 1 blank line = normal paragraph gap, +1 per empty paragraph
+        out += t;
+        gaps = 0;
+    });
+    return out;
+}
+
+(function wireContentPaste() {
+    function init() {
+        ['news-content-ta', 'news-content-en'].forEach(function (id) {
+            var ta = document.getElementById(id);
+            if (!ta || ta._richPasteWired) return;
+            ta._richPasteWired = true;
+            ta.addEventListener('paste', function (e) {
+                var cd = e.clipboardData || window.clipboardData;
+                var html = cd && cd.getData ? cd.getData('text/html') : '';
+                if (!html || !/<[a-z]/i.test(html)) return;      // plain text → browser default paste
+                var txt = htmlToSpacedText(html);
+                if (!txt) return;
+                e.preventDefault();
+                ta.setRangeText(txt, ta.selectionStart, ta.selectionEnd, 'end');
+                ta.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+        });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+})();
