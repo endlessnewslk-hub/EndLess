@@ -4212,6 +4212,14 @@ function htmlToSpacedText(html) {
 }
 
 (function wireContentPaste() {
+    // Text box-la insert panni, caret-a sariyaa vaikkum
+    function insertAt(ta, start, end, txt) {
+        ta.setRangeText(txt, start, end, 'end');
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    function fromHtml(html) {
+        return (html && /<[a-z]/i.test(html)) ? htmlToSpacedText(html) : '';
+    }
     function init() {
         ['news-content-ta', 'news-content-en'].forEach(function (id) {
             var ta = document.getElementById(id);
@@ -4219,13 +4227,44 @@ function htmlToSpacedText(html) {
             ta._richPasteWired = true;
             ta.addEventListener('paste', function (e) {
                 var cd = e.clipboardData || window.clipboardData;
-                var html = cd && cd.getData ? cd.getData('text/html') : '';
-                if (!html || !/<[a-z]/i.test(html)) return;      // plain text → browser default paste
-                var txt = htmlToSpacedText(html);
-                if (!txt) return;
+                var html = cd && cd.getData ? (cd.getData('text/html') || '') : '';
+                var plain = cd && cd.getData ? (cd.getData('text/plain') || '') : '';
+                var start = ta.selectionStart, end = ta.selectionEnd;
+
+                // 1) Desktop / most browsers: HTML is right in the paste event
+                var txt = fromHtml(html);
+                if (txt) {
+                    e.preventDefault();
+                    insertAt(ta, start, end, txt);
+                    showToast('Paragraph gaps copy aagiduchu ✅', 'success');
+                    return;
+                }
+
+                // 2) Some phones give only plain text in this event → ask the clipboard API for the rich version
                 e.preventDefault();
-                ta.setRangeText(txt, ta.selectionStart, ta.selectionEnd, 'end');
-                ta.dispatchEvent(new Event('input', { bubbles: true }));
+                var useFallback = function () {
+                    insertAt(ta, start, end, plain);
+                    showToast('Plain text paste — source-la paragraph gap clipboard-la illa', 'info');
+                };
+                if (!(navigator.clipboard && navigator.clipboard.read)) { useFallback(); return; }
+                navigator.clipboard.read().then(function (items) {
+                    var richTxt = '';
+                    var jobs = [];
+                    items.forEach(function (it) {
+                        if (it.types.indexOf('text/html') !== -1) {
+                            jobs.push(it.getType('text/html').then(function (b) { return b.text(); }));
+                        }
+                    });
+                    return Promise.all(jobs).then(function (htmls) {
+                        htmls.forEach(function (h) { if (!richTxt) richTxt = fromHtml(h); });
+                        if (richTxt) {
+                            insertAt(ta, start, end, richTxt);
+                            showToast('Paragraph gaps copy aagiduchu ✅', 'success');
+                        } else {
+                            useFallback();
+                        }
+                    });
+                }).catch(useFallback);
             });
         });
     }
