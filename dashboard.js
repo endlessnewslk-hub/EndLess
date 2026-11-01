@@ -4212,6 +4212,14 @@ function htmlToSpacedText(html) {
 }
 
 (function wireContentPaste() {
+    // 🔍 Diagnostic: admin URL-la ?debugpaste=1 irundha, paste pannum pothu clipboard details alert-la kaattum
+    // Mobile-la automatic-aa on (report kaatta); desktop-la ?debugpaste=1 irundha mattum
+    var DEBUG = /[?&]debugpaste(=|&|$)/.test(location.search) || ('ontouchstart' in window && window.innerWidth < 900);
+    function esc(s) { return String(s == null ? '' : s).replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t').slice(0, 220); }
+    function report(info) {
+        if (!DEBUG) return;
+        alert('PASTE DEBUG\n' + Object.keys(info).map(function (k) { return k + ': ' + info[k]; }).join('\n'));
+    }
     // Text box-la insert panni, caret-a sariyaa vaikkum
     function insertAt(ta, start, end, txt) {
         ta.setRangeText(txt, start, end, 'end');
@@ -4230,41 +4238,61 @@ function htmlToSpacedText(html) {
                 var html = cd && cd.getData ? (cd.getData('text/html') || '') : '';
                 var plain = cd && cd.getData ? (cd.getData('text/plain') || '') : '';
                 var start = ta.selectionStart, end = ta.selectionEnd;
+                var base = {
+                    'event types': cd && cd.types ? Array.prototype.join.call(cd.types, ', ') : 'n/a',
+                    'event html length': html.length,
+                    'event plain (escaped)': esc(plain)
+                };
 
-                // 1) Desktop / most browsers: HTML is right in the paste event
+                // 1) HTML is right in the paste event (desktop browsers)
                 var txt = fromHtml(html);
                 if (txt) {
                     e.preventDefault();
                     insertAt(ta, start, end, txt);
+                    base['path'] = 'event HTML → converted';
+                    base['result (escaped)'] = esc(txt);
+                    report(base);
                     showToast('Paragraph gaps copy aagiduchu ✅', 'success');
                     return;
                 }
 
-                // 2) Some phones give only plain text in this event → ask the clipboard API for the rich version
+                // 2) Phone gave only plain text here → ask the clipboard API for the rich version
                 e.preventDefault();
-                var useFallback = function () {
+                var useFallback = function (why) {
                     insertAt(ta, start, end, plain);
+                    base['path'] = 'plain text inserted as-is (' + why + ')';
+                    base['result (escaped)'] = esc(plain);
+                    report(base);
                     showToast('Plain text paste — source-la paragraph gap clipboard-la illa', 'info');
                 };
-                if (!(navigator.clipboard && navigator.clipboard.read)) { useFallback(); return; }
+                if (!(navigator.clipboard && navigator.clipboard.read)) { useFallback('no clipboard API'); return; }
                 navigator.clipboard.read().then(function (items) {
-                    var richTxt = '';
                     var jobs = [];
                     items.forEach(function (it) {
                         if (it.types.indexOf('text/html') !== -1) {
                             jobs.push(it.getType('text/html').then(function (b) { return b.text(); }));
                         }
                     });
+                    base['clipboard types'] = items.map(function (it) { return it.types.join('+'); }).join(' | ') || 'none';
                     return Promise.all(jobs).then(function (htmls) {
+                        var richTxt = '';
                         htmls.forEach(function (h) { if (!richTxt) richTxt = fromHtml(h); });
+                        base['clipboard html length'] = htmls.length ? htmls[0].length : 0;
+                        base['clipboard html (escaped)'] = htmls.length ? esc(htmls[0]) : 'none';
                         if (richTxt) {
                             insertAt(ta, start, end, richTxt);
+                            base['path'] = 'clipboard HTML → converted';
+                            base['result (escaped)'] = esc(richTxt);
+                            report(base);
                             showToast('Paragraph gaps copy aagiduchu ✅', 'success');
                         } else {
-                            useFallback();
+                            useFallback('clipboard had no usable HTML');
                         }
                     });
-                }).catch(useFallback);
+                }).catch(function (err) {
+                    base['clipboard read error'] = String(err && err.message || err).slice(0, 200);
+                    useFallback('clipboard read failed');
+                });
             });
         });
     }
