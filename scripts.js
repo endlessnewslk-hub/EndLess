@@ -1073,33 +1073,81 @@ function pickAdImg(a) {
     return (window.innerWidth < 768 && a.mobileImage) ? a.mobileImage : a.image;
 }
 
-// 📊 REAL ANALYTICS v4 — + COUNTRY & SOURCE tracking (FB Insights level!)
+// 📊 ANALYTICS v5 — accurate & synced (Firestore REST, public writes)
+//  • A doc is always CREATED before it is incremented (increment transform needs an existing doc)
+//  • totals + today + article are written in ONE commit → they can never disagree
+//  • Only valid Firestore field transforms (increment) — no stringValue inside a transform
+//  • Day key = Sri Lanka date (UTC+05:30) — same as the admin panel
+//  • Country & traffic source counted once per browser session
 (function() {
-    var BASE = 'https://firestore.googleapis.com/v1/projects/endless-news/databases/(default)/documents';
+    var PROJECT = 'projects/endless-news/databases/(default)/documents';
+    var BASE = 'https://firestore.googleapis.com/v1/' + PROJECT;
+    var API_KEY = 'AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
+    var KEY = '?key=' + API_KEY;
+    var created = {};   // docs already confirmed to exist (this page)
 
-    // 🌍 Country — once per session (sessionStorage flag)
+    function pad2(n) { return (n < 10 ? '0' : '') + n; }
+    // Sri Lanka = fixed UTC+05:30 (no DST) → exact day key
+    function slDayKey(offsetDays) {
+        var d = new Date(Date.now() + (offsetDays || 0) * 86400000 + 5.5 * 3600000);
+        return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate());
+    }
+    function inc(path, n) { return { fieldPath: path, increment: { integerValue: n } }; }
+    function transformWrite(name, fieldTransforms) {
+        return { transform: { document: PROJECT + '/analytics/' + name, fieldTransforms: fieldTransforms } };
+    }
+    function commit(writes) {
+        return fetch(BASE + ':commit' + KEY, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ writes: writes })
+        });
+    }
+
+    // Doc exist aagudha nu check; illa-na start fields-oda create pannum (409 = already there → OK)
+    function ensureDoc(name, fields) {
+        if (created[name]) return Promise.resolve(true);
+        return fetch(BASE + '/analytics/' + name + KEY)
+            .then(function(r) {
+                if (r.ok) return true;
+                return fetch(BASE + '/analytics?documentId=' + encodeURIComponent(name) + '&key=' + API_KEY, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fields: fields })
+                }).then(function(cr) { return cr.ok || cr.status === 409; });
+            })
+            .then(function(ok) { if (ok) created[name] = 1; return ok; })
+            .catch(function() { return false; });
+    }
+
+    // 🌍 Country — ipwho.is first, fallback ipapi.co
+    function lookupCountry() {
+        var providers = [
+            function() { return fetch('https://ipwho.is/').then(function(r) { return r.json(); })
+                .then(function(j) { return (j && j.success && j.country_code) ? j.country_code : ''; }); },
+            function() { return fetch('https://ipapi.co/json/').then(function(r) { return r.json(); })
+                .then(function(j) { return (j && j.country_code) ? j.country_code : ''; }); }
+        ];
+        return providers.reduce(function(p, fn) {
+            return p.then(function(cc) { return cc || fn().catch(function() { return ''; }); });
+        }, Promise.resolve(''));
+    }
     function trackCountry() {
         try {
             if (sessionStorage.getItem('endless_country_tracked')) return;
-            fetch('https://ipwho.is/').then(function(r) { return r.json(); }).then(function(ip) {
-                if (!ip || !ip.success || !ip.country_code) return;
-                sessionStorage.setItem('endless_country_tracked', '1');
-                var cc = ip.country_code.toUpperCase();
-                var name = ip.country || cc;
-                var commitUrl = BASE + ':commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
-                var doc = 'projects/endless-news/databases/(default)/documents/analytics/countries';
-                fetch(commitUrl, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ writes: [{ transform: { document: doc, fieldTransforms: [
-                        { fieldPath: 'counts.' + cc, increment: { integerValue: 1 } },
-                        { fieldPath: 'names.' + cc, stringValue: String(name).substring(0, 40) }
-                    ] } }] })
-                }).catch(function() {});
-            }).catch(function() {});
+            lookupCountry().then(function(raw) {
+                var cc = String(raw || '').toUpperCase();
+                if (!/^[A-Z]{2}$/.test(cc)) return;
+                ensureDoc('countries', { counts: { mapValue: { fields: {} } } }).then(function(ok) {
+                    if (!ok) return;
+                    commit([transformWrite('countries', [inc('counts.' + cc, 1)])]).then(function(r) {
+                        if (r.ok) sessionStorage.setItem('endless_country_tracked', '1');
+                    }).catch(function() {});
+                });
+            });
         } catch (e) {}
     }
 
-    // 🔗 Traffic Source — document.referrer hostname-la irundhu
+    // 🔗 Traffic source — referrer hostname-la irundhu
     function getSource() {
         try {
             var ref = document.referrer || '';
@@ -1119,91 +1167,44 @@ function pickAdImg(a) {
     }
     function trackSource(src) {
         try {
-            var commitUrl = BASE + ':commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
-            var doc = 'projects/endless-news/databases/(default)/documents/analytics/sources';
-            fetch(commitUrl, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ writes: [{ transform: { document: doc, fieldTransforms: [
-                    { fieldPath: 'counts.' + src, increment: { integerValue: 1 } }
-                ] } }] })
-            }).catch(function() {});
+            if (sessionStorage.getItem('endless_source_tracked')) return;
+            ensureDoc('sources', { counts: { mapValue: { fields: {} } } }).then(function(ok) {
+                if (!ok) return;
+                commit([transformWrite('sources', [inc('counts.' + src, 1)])]).then(function(r) {
+                    if (r.ok) sessionStorage.setItem('endless_source_tracked', '1');
+                }).catch(function() {});
+            });
         } catch (e) {}
     }
-    var KEY = '?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
-    var created = {}; // session cache — doc already created
 
-    function docPath(name) { return BASE + '/analytics/' + name; }
-
-    function ensureDoc(name) {
-        if (created[name]) return Promise.resolve(true);
-        return fetch(docPath(name) + KEY)
-            .then(function(r) {
-                if (r.ok) { created[name] = 1; return true; }
-                // Create with zero values first (increment needs existing doc)
-                return fetch(BASE + '/analytics?documentId=' + name + KEY, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fields: {
-                        views: { integerValue: 0 },
-                        shares: { integerValue: 0 },
-                        mobile: { integerValue: 0 },
-                        desktop: { integerValue: 0 }
-                    } })
-                }).then(function(cr) {
-                    created[name] = 1;
-                    return true;
-                });
-            }).catch(function() { return false; });
-    }
-
-    function commit(writes) {
-        return fetch(BASE + ':commit' + KEY, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ writes: writes })
-        });
-    }
-
-    // 🚀 Kick off country + source (once per session)
+    // 🚀 once per session
     try { trackCountry(); trackSource(getSource()); } catch (e) {}
 
-    // ❤️ Track likes per article (Top Articles analytics-ku)
+    // ❤️ article-wise likes (compat)
     window.analyticsLike = function(articleId) {
         try {
-            var commitUrl = BASE + ':commit?key=AIzaSyDXcTKDUxqcwJ5g0spGM4PlDqKfKQX7nYA';
-            var doc = 'projects/endless-news/databases/(default)/documents/analytics/articles_' + encodeURIComponent(String(articleId));
-            fetch(commitUrl, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ writes: [{ transform: { document: doc, fieldTransforms: [
-                    { fieldPath: 'likes', increment: { integerValue: 1 } }
-                ] } }] })
-            }).catch(function() {});
+            var name = 'articles_' + encodeURIComponent(String(articleId));
+            ensureDoc(name, { views: { integerValue: 0 }, shares: { integerValue: 0 }, mobile: { integerValue: 0 }, desktop: { integerValue: 0 } })
+                .then(function(ok) { if (ok) commit([transformWrite(name, [inc('likes', 1)])]).catch(function() {}); });
         } catch (e) {}
     };
 
+    // 📊 Article view / share → totals + today + article, ONE atomic commit
     window.analyticsTrack = function(type, articleId) {
         try {
-            var today = new Date().toISOString().slice(0, 10);
+            var today = slDayKey(0);
             var isMobile = window.innerWidth < 768;
             var v = type === 'view' ? 1 : 0, sh = type === 'share' ? 1 : 0;
-            var devField = isMobile ? 'mobile' : 'desktop';
-
-            var docs = ['totals', 'daily_' + today];
-            if (articleId) docs.push('articles_' + String(articleId));
-
-            docs.forEach(function(name) {
-                ensureDoc(name).then(function() {
-                    var fields = [
-                        { fieldPath: 'views', increment: { integerValue: v } },
-                        { fieldPath: 'shares', increment: { integerValue: sh } },
-                        { fieldPath: devField, increment: { integerValue: 1 } }
-                    ];
-                    if (name.indexOf('daily_') === 0) {
-                        fields.push({ fieldPath: 'date', stringValue: today });
-                    }
-                    commit([{ transform: { document: 'projects/endless-news/databases/(default)/documents/analytics/' + name, fieldTransforms: fields } }])
-                        .catch(function() {});
-                });
+            var names = ['totals', 'daily_' + today];
+            if (articleId) names.push('articles_' + encodeURIComponent(String(articleId)));
+            var zero = { integerValue: 0 };
+            var fields = { views: zero, shares: zero, mobile: zero, desktop: zero };
+            Promise.all(names.map(function(n) { return ensureDoc(n, fields); })).then(function() {
+                commit(names.map(function(n) {
+                    var ft = [inc('views', v), inc('shares', sh)];
+                    if (type === 'view') ft.push(inc(isMobile ? 'mobile' : 'desktop', 1));   // device split = real views only
+                    return transformWrite(n, ft);
+                })).catch(function() {});
             });
         } catch (e) {}
     };
@@ -1938,9 +1939,18 @@ function openArticle(id) {
     // 3) Auto-linkify URLs / phones / emails (text nodes only, safe on HTML)
     var isHtmlContent = /<[a-z][\s\S]*>/i.test(processedContent);
     if (processedContent && !isHtmlContent) {
-        const paras = processedContent.split(/\n\s*\n/).map(p => p.trim()).filter(p => p);
-        processedContent = (paras.length ? paras : [processedContent.trim()])
-            .map(p => '<p>' + p.replace(/\n/g, '<br>').replace(/\r/g, '') + '</p>').join('');
+        // 📐 Blank line = paragraph gap · EXTRA blank lines = extra spacer (admin-la irundha gap maari)
+        var _lines = processedContent.replace(/\r/g, '').split('\n');
+        var _html = '', _para = [], _blank = 0;
+        var _close = function () { if (_para.length) { _html += '<p>' + _para.join('<br>') + '</p>'; _para = []; } };
+        _lines.forEach(function (ln) {
+            if (ln.trim() === '') { _close(); _blank++; return; }
+            if (_blank > 1 && _html) { for (var _k = 1; _k < _blank; _k++) _html += '<p class="gap" aria-hidden="true">&nbsp;</p>'; }
+            _blank = 0;
+            _para.push(ln.trim());
+        });
+        _close();
+        processedContent = _html;
     }
     if (processedContent) {
         var tmpL = document.createElement('div');

@@ -5,6 +5,8 @@ function renderAnalyticsPage() {
     // 🎨 Full rebuild once — FB Insights style layout
     if (!document.getElementById('an-fb-root')) {
         page.innerHTML =
+        '<div id="an-fb-root">' +
+        '<div id="an-updated" style="text-align:right;font-size:0.8rem;color:#94a3b8;margin:0 0 0.75rem;">Loading\u2026</div>' +
         '<div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">' +
             '<div class="stat-card"><div class="stat-icon">' + IC.eye + '</div><div class="stat-info"><h3 id="an-views">—</h3><p>Total Views</p></div></div>' +
             '<div class="stat-card"><div class="stat-icon">' + IC.heart + '</div><div class="stat-info"><h3 id="an-likes">—</h3><p>Total Likes</p></div></div>' +
@@ -22,47 +24,74 @@ function renderAnalyticsPage() {
             '<div class="panel"><h3>🌍 Visitor Countries</h3><div id="an-countries-list" style="max-height:230px;overflow-y:auto;"><p style="color:#9ca3af;text-align:center;padding:1.5rem;">Loading…</p></div></div>' +
         '</div>' +
         '<div class="panel" id="top-articles-panel"><h3>🔥 Top Articles</h3><div class="table-scroll"><table class="data-table compact"><thead><tr><th>#</th><th>Article</th><th>Views</th><th>Likes</th></tr></thead><tbody id="top-articles-body"><tr><td colspan="4" style="text-align:center;color:#9ca3af;">Loading…</td></tr></tbody></table></div></div>' +
+        '</div>' +
         '<style>@media(max-width:900px){.an-grid-1,.an-grid-2{grid-template-columns:1fr!important;}}</style>';
     }
 
-    if (!db) { document.getElementById('an-views').textContent = 'N/A'; return; }
+    if (!db) { var nav = document.getElementById('an-views'); if (nav) nav.textContent = 'N/A'; return; }
+    // 🔄 Auto-refresh every 30s while this page is open → website numbers reach the admin without reloading
+    if (!window._anTimer) {
+        window._anTimer = setInterval(function() {
+            var pg = document.getElementById('page-analytics');
+            if (pg && pg.offsetParent !== null) loadAnalyticsData();
+        }, 30000);
+    }
+    loadAnalyticsData();
+}
 
-    // 📊 Totals
-    db.collection('analytics').doc('totals').get().then(function(doc) {
-        var t = doc.exists ? doc.data() : {};
-        var views = t.views || 0, shares = t.shares || 0;
-        var mob = t.mobile || 0, desk = t.desktop || 0;
-        document.getElementById('an-views').textContent = (views || 0).toLocaleString();
-        document.getElementById('an-shares').textContent = (shares || 0).toLocaleString();
-        var totD = mob + desk;
-        document.getElementById('an-mobile').textContent = totD > 0 ? Math.round(mob / totD * 100) + '%' : '—';
-        var engage = views > 0 ? Math.min(100, Math.round((shares + (t.likes || 0)) / views * 100)) : 0;
-        document.getElementById('an-engage').textContent = engage + '%';
+// 📊 ANALYTICS DATA — same Sri Lanka day keys + doc names as the website (scripts.js analytics block)
+function slDayKey(offsetDays) {
+    var d = new Date(Date.now() + (offsetDays || 0) * 86400000 + 5.5 * 3600000);   // Sri Lanka = UTC+05:30
+    var p = function(n) { return (n < 10 ? '0' : '') + n; };
+    return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate());
+}
+function countryName(cc) {
+    try { return (new Intl.DisplayNames(['en'], { type: 'region' })).of(cc) || cc; } catch (e) { return cc; }
+}
+function loadAnalyticsData() {
+    if (!db) return;
+    var setT = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+    var safe = function(p) { return p.catch(function() { return null; }); };
+    var A = db.collection('analytics');
+    var days = [];
+    for (var i = 6; i >= 0; i--) days.push(slDayKey(-i));
+    var stamp = function() {
+        setT('an-updated', 'Updated ' + new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Colombo', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' (Sri Lanka time) · auto-refresh 30s');
+    };
+
+    // 1) Totals + likes → cards, devices, engagement
+    Promise.all([safe(A.doc('totals').get()), safe(db.collection('likes').get())]).then(function(r) {
+        var doc = r[0], lk = r[1];
+        var t = (doc && doc.exists) ? doc.data() : {};
+        var totalLikes = 0;
+        if (lk && lk.docs) lk.docs.forEach(function(d) {
+            var f = d.data();
+            ['like', 'love', 'haha', 'wow', 'sad', 'angry'].forEach(function(k) { totalLikes += parseInt(f[k]) || 0; });
+        });
+        var views = t.views || 0, shares = t.shares || 0, mob = t.mobile || 0, desk = t.desktop || 0, totD = mob + desk;
+        setT('an-views', views.toLocaleString());
+        setT('an-shares', shares.toLocaleString());
+        setT('an-likes', totalLikes.toLocaleString());
+        setT('an-mobile', totD > 0 ? Math.round(mob / totD * 100) + '%' : '\u2014');
+        setT('an-engage', views > 0 ? Math.min(100, Math.round((shares + totalLikes) / views * 100)) + '%' : '0%');
+        var dctx = document.getElementById('an-devices');
+        if (dctx && typeof Chart !== 'undefined') {
+            if (window._anDevChart) window._anDevChart.destroy();
+            window._anDevChart = new Chart(dctx, {
+                type: 'doughnut',
+                data: { labels: ['Mobile', 'Desktop'], datasets: [{ data: [mob, desk], backgroundColor: ['#ef4444', '#3b82f6'], borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { color: '#64748b', font: { size: 11 } } } } }
+            });
+        }
+        stamp();
     });
 
-    // ❤️ Total likes (sum of all likes docs)
-    db.collection('likes').get().then(function(snap) {
-        var total = 0;
-        snap.docs.forEach(function(d) {
-            var f = d.data();
-            ['like','love','haha','wow','sad','angry'].forEach(function(k) { total += parseInt(f[k]) || 0; });
-        });
-        document.getElementById('an-likes').textContent = (total || 0).toLocaleString();
-    }).catch(function() {});
-
-    // 📈 7-day views chart
-    var today = new Date(), labels = [], keys = [];
-    for (var i = 6; i >= 0; i--) {
-        var dt = new Date(today); dt.setDate(dt.getDate() - i);
-        keys.push(dt.toISOString().slice(0, 10));
-        labels.push(dt.toLocaleDateString('en-GB', { weekday: 'short' }));
-    }
-    Promise.all(keys.map(function(k) {
-        return db.collection('analytics').doc('daily_' + k).get().catch(function() { return null; });
-    })).then(function(docs) {
+    // 2) 7-day views chart (Sri Lanka days)
+    Promise.all(days.map(function(k) { return safe(A.doc('daily_' + k).get()); })).then(function(docs) {
+        var labels = days.map(function(k) { return new Date(k + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' }); });
         var data = docs.map(function(x) { return (x && x.exists) ? (x.data().views || 0) : 0; });
         var ctx = document.getElementById('analytics-chart');
-        if (!ctx) return;
+        if (!ctx || typeof Chart === 'undefined') return;
         if (analyticsChart) analyticsChart.destroy();
         analyticsChart = new Chart(ctx, {
             type: 'line',
@@ -71,68 +100,55 @@ function renderAnalyticsPage() {
         });
     });
 
-    // 📱 Devices doughnut
-    db.collection('analytics').doc('totals').get().then(function(doc) {
-        var t = doc.exists ? doc.data() : {};
-        var ctx = document.getElementById('an-devices');
-        if (!ctx) return;
-        if (window._anDevChart) window._anDevChart.destroy();
-        window._anDevChart = new Chart(ctx, {
+    // 3) Traffic sources
+    safe(A.doc('sources').get()).then(function(doc) {
+        var counts = (doc && doc.exists && doc.data().counts) || {};
+        var ctx = document.getElementById('an-sources');
+        if (!ctx || typeof Chart === 'undefined') return;
+        if (window._anSrcChart) window._anSrcChart.destroy();
+        var keys2 = Object.keys(counts).filter(function(k) { return counts[k] > 0; });
+        var colors = { facebook: '#1877F2', whatsapp: '#25D366', google: '#4285F4', direct: '#94a3b8', x: '#111827', instagram: '#E1306C', telegram: '#229ED9', bing: '#0c8484', youtube: '#FF0000', internal: '#f59e0b', other: '#cbd5e1' };
+        window._anSrcChart = new Chart(ctx, {
             type: 'doughnut',
-            data: { labels: ['Mobile', 'Desktop'], datasets: [{ data: [t.mobile || 0, t.desktop || 0], backgroundColor: ['#ef4444', '#3b82f6'], borderWidth: 0 }] },
-            options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { color: '#64748b', font: { size: 11 } } } } }
+            data: { labels: keys2.map(function(k) { return k.charAt(0).toUpperCase() + k.slice(1); }), datasets: [{ data: keys2.map(function(k) { return counts[k]; }), backgroundColor: keys2.map(function(k) { return colors[k] || '#cbd5e1'; }), borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { color: '#64748b', font: { size: 10 }, boxWidth: 12 } } } }
         });
     });
 
-    // 🔗 Sources doughnut + 🌍 Countries table (parallel)
-    db.collection('analytics').doc('sources').get().then(function(doc) {
-        var counts = (doc.exists && doc.data().counts) || {};
-        var ctx = document.getElementById('an-sources');
-        if (ctx) {
-            if (window._anSrcChart) window._anSrcChart.destroy();
-            var keys2 = Object.keys(counts);
-            var colors = { facebook: '#1877F2', whatsapp: '#25D366', google: '#4285F4', direct: '#94a3b8', x: '#111827', instagram: '#E1306C', telegram: '#229ED9', bing: '#0c8484', youtube: '#FF0000', internal: '#f59e0b', other: '#cbd5e1' };
-            window._anSrcChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: { labels: keys2.map(function(k) { return k.charAt(0).toUpperCase() + k.slice(1); }), datasets: [{ data: keys2.map(function(k) { return counts[k]; }), backgroundColor: keys2.map(function(k) { return colors[k] || '#cbd5e1'; }), borderWidth: 0 }] },
-                options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { color: '#64748b', font: { size: 10 }, boxWidth: 12 } } } }
-            });
-        }
-    }).catch(function() {});
-
-    // 🌍 Countries
-    db.collection('analytics').doc('countries').get().then(function(doc) {
-        var counts = (doc.exists && doc.data().counts) || {};
-        var names = (doc.exists && doc.data().names) || {};
-        var COUNTRY_NAMES = { LK: 'Sri Lanka', IN: 'India', US: 'USA', GB: 'United Kingdom', AE: 'UAE', SA: 'Saudi Arabia', CA: 'Canada', AU: 'Australia', MY: 'Malaysia', SG: 'Singapore', QA: 'Qatar', KW: 'Kuwait', FR: 'France', DE: 'Germany', IT: 'Italy', JP: 'Japan', KR: 'South Korea', CN: 'China', PK: 'Pakistan', BD: 'Bangladesh', NP: 'Nepal', ID: 'Indonesia', TH: 'Thailand', TR: 'Turkey', RU: 'Russia', BR: 'Brazil', NL: 'Netherlands', SE: 'Sweden', NO: 'Norway', IE: 'Ireland', ZA: 'South Africa', EG: 'Egypt', IL: 'Israel', HK: 'Hong Kong', TW: 'Taiwan', NZ: 'New Zealand' };
-        var entries = Object.keys(counts).map(function(cc) {
-            return { cc: cc, count: counts[cc], name: names[cc] || COUNTRY_NAMES[cc] || cc };
-        }).sort(function(a, b) { return b.count - a.count; });
-        document.getElementById('an-countries').textContent = entries.length || 0;
-        var max = entries.length ? entries[0].count : 1;
+    // 4) Visitor countries — ALL countries, with count + share (sessions)
+    safe(A.doc('countries').get()).then(function(doc) {
+        var counts = (doc && doc.exists && doc.data().counts) || {};
+        var entries = Object.keys(counts).filter(function(cc) { return /^[A-Z]{2}$/.test(cc) && counts[cc] > 0; })
+            .map(function(cc) { return { cc: cc, count: counts[cc], name: countryName(cc) }; })
+            .sort(function(a, b) { return b.count - a.count; });
+        var total = entries.reduce(function(s, e) { return s + e.count; }, 0);
+        setT('an-countries', String(entries.length));
         var el = document.getElementById('an-countries-list');
         if (!el) return;
-        el.innerHTML = entries.length ? entries.slice(0, 12).map(function(e) {
+        if (!entries.length) {
+            el.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:1.5rem;">No data yet \u2014 visitors vandha countries inga kaatum!</p>';
+            return;
+        }
+        var max = entries[0].count;
+        el.innerHTML = entries.map(function(e) {
+            var pct = total ? (Math.round(e.count / total * 1000) / 10) : 0;
             return '<div style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid #f1f5f9;">' +
                 '<img src="https://flagcdn.com/w40/' + e.cc.toLowerCase() + '.png" alt="' + e.cc + '" style="width:26px;height:18px;object-fit:cover;border-radius:3px;flex-shrink:0;" onerror="this.style.display=\'none\'">' +
                 '<span style="flex:1;font-size:0.85rem;font-weight:600;color:#374151;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + e.name + '</span>' +
-                '<div style="width:34%;height:8px;background:#f1f5f9;border-radius:99px;overflow:hidden;flex-shrink:0;"><div style="height:100%;width:' + Math.round(e.count / max * 100) + '%;background:linear-gradient(90deg,#ef4444,#f97316);border-radius:99px;"></div></div>' +
-                '<span style="font-size:0.85rem;font-weight:800;color:#111827;width:44px;text-align:right;flex-shrink:0;">' + e.count.toLocaleString() + '</span></div>';
-        }).join('') : '<p style="color:#9ca3af;text-align:center;padding:1.5rem;">No data yet — visitors vandha countries inga kaatum!</p>';
-    }).catch(function() {});
+                '<div style="width:30%;height:8px;background:#f1f5f9;border-radius:99px;overflow:hidden;flex-shrink:0;"><div style="height:100%;width:' + Math.round(e.count / max * 100) + '%;background:linear-gradient(90deg,#ef4444,#f97316);border-radius:99px;"></div></div>' +
+                '<span style="font-size:0.85rem;font-weight:800;color:#111827;min-width:86px;text-align:right;flex-shrink:0;">' + e.count.toLocaleString() + ' <small style="color:#94a3b8;font-weight:600;">(' + pct + '%)</small></span></div>';
+        }).join('');
+    });
 
-    // 🔥 Top articles — views (analytics) + likes (LIKES COLLECTION — past + present!)
-    Promise.all([
-        db.collection('analytics').get(),
-        db.collection('likes').get()
-    ]).then(function(results) {
+    // 5) Top articles — views (articles_ docs) + likes (likes collection)
+    Promise.all([safe(A.get()), safe(db.collection('likes').get())]).then(function(results) {
         var viewsMap = {}, likesMap = {};
-        results[0].docs.forEach(function(doc) {
+        if (results[0]) results[0].docs.forEach(function(doc) {
             if (doc.id.indexOf('articles_') === 0) viewsMap[doc.id.replace('articles_', '')] = doc.data().views || 0;
         });
-        results[1].docs.forEach(function(doc) {
+        if (results[1]) results[1].docs.forEach(function(doc) {
             var f = doc.data(), t = 0;
-            ['like','love','haha','wow','sad','angry'].forEach(function(k) { t += parseInt(f[k]) || 0; });
+            ['like', 'love', 'haha', 'wow', 'sad', 'angry'].forEach(function(k) { t += parseInt(f[k]) || 0; });
             likesMap[doc.id] = t;
         });
         var allIds = Object.keys(viewsMap);
@@ -146,9 +162,9 @@ function renderAnalyticsPage() {
         tb.innerHTML = arts.length ? arts.slice(0, 8).map(function(a, i) {
             var n = lookup[a.id];
             var title = n ? String(n.title_en || n.title).replace(/</g, '&lt;').substring(0, 50) : 'Article #' + a.id;
-            return '<tr><td>' + (i + 1) + '</td><td><strong>' + title + '</strong></td><td>' + (a.views || 0).toLocaleString() + '</td><td>' + (a.likes || 0) + '</td></tr>';
-        }).join('') : '<tr><td colspan="4" style="text-align:center;color:#9ca3af;">No article data yet — articles view/like panna inga varum!</td></tr>';
-    }).catch(function() {});
+            return '<tr><td>' + (i + 1) + '</td><td><strong>' + title + '</strong></td><td>' + (a.views || 0).toLocaleString() + '</td><td>' + (a.likes || 0).toLocaleString() + '</td></tr>';
+        }).join('') : '<tr><td colspan="4" style="text-align:center;color:#9ca3af;">No article data yet \u2014 articles view/like panna inga varum!</td></tr>';
+    });
 }
 // ═══════════════════════════════════════════════════════════════
 // 🔥 HOTFIX v2: Strict auth guard — expired sessions block cloud saves
