@@ -4228,6 +4228,20 @@ function htmlToSpacedText(html) {
     function fromHtml(html) {
         return (html && /<[a-z]/i.test(html)) ? htmlToSpacedText(html) : '';
     }
+    // Phone-la plain text copy-la (Gemini, apps) ovvoru line = oru paragraph/bullet.
+    // Line-kku naduvula blank line podurom; line-ku ullaa text maaradhu.
+    function isPhone() { return ('ontouchstart' in window) && window.innerWidth < 900; }
+    function plainToParagraphs(s) {
+        var lines = String(s || '').replace(/\r/g, '').split('\n').map(function (l) { return l.trim(); });
+        var out = '', blank = 0;
+        lines.forEach(function (l) {
+            if (!l) { blank++; return; }
+            if (out) out += '\n'.repeat(Math.max(blank, 1) + 1);
+            out += l;
+            blank = 0;
+        });
+        return out;
+    }
     function init() {
         ['news-content-ta', 'news-content-en'].forEach(function (id) {
             var ta = document.getElementById(id);
@@ -4259,11 +4273,12 @@ function htmlToSpacedText(html) {
                 // 2) Phone gave only plain text here → ask the clipboard API for the rich version
                 e.preventDefault();
                 var useFallback = function (why) {
-                    insertAt(ta, start, end, plain);
-                    base['path'] = 'plain text inserted as-is (' + why + ')';
-                    base['result (escaped)'] = esc(plain);
+                    var txt = isPhone() ? plainToParagraphs(plain) : plain;
+                    insertAt(ta, start, end, txt);
+                    base['path'] = (isPhone() ? 'phone: each line = paragraph' : 'plain text as-is') + ' (' + why + ')';
+                    base['result (escaped)'] = esc(txt);
                     report(base);
-                    showToast('Plain text paste — source-la paragraph gap clipboard-la illa', 'info');
+                    showToast(isPhone() ? 'Paragraph gaps added (phone plain text) ✅' : 'Plain text paste', 'info');
                 };
                 if (!(navigator.clipboard && navigator.clipboard.read)) { useFallback('no clipboard API'); return; }
                 navigator.clipboard.read().then(function (items) {
