@@ -123,6 +123,9 @@
                 <button class="nav-item" data-page="news">
                     <span>📝</span> Manage News
                 </button>
+                <button class="nav-item" data-page="messages">
+                    <span>📨</span> Messages <span data-mb-badge="admin" class="mb-nav-badge" style="display:none;"></span>
+                </button>
                 <button class="nav-item" data-page="ads">
                     <span>📢</span> Manage Ads
                 </button>
@@ -209,6 +212,9 @@
                 </div>
             </div>
 
+            <div id="page-messages" class="page-content hidden" style="height:calc(100vh - 170px);min-height:560px;">
+                <div id="mb-admin-root" style="height:100%;"></div>
+            </div>
             <div id="page-analytics" class="page-content hidden">
                 <div class="stats-grid">
                     <div class="stat-card">
@@ -355,6 +361,9 @@
                 <button class="nav-item-mobile" data-page="news">
                     <i class="fas fa-newspaper"></i>
                     <span>News</span>
+                </button>
+                <button class="nav-item-mobile" data-page="messages">
+                    <span>📨</span> Mail <span data-mb-badge="admin" class="mb-nav-badge" style="display:none;"></span>
                 </button>
                 <button class="nav-item-mobile" data-page="ads">
                     <i class="fas fa-bullhorn"></i>
@@ -600,6 +609,8 @@
 
     <script src="guard.js"></script>
     <script src="dashboard.js"></script>
+    <script src="mailbox.js"></script>
+    <script>if (window.MailBox) MailBox.initAdmin();</script>
 
     <script>
 if ('serviceWorker' in navigator) {
