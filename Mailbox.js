@@ -22,6 +22,10 @@
     };
     var rootEl = null, liveStarted = false, lastUnread = null;
 
+    // Status line (overlay top-la kaattum) — edhu thappu nu udane theriyum
+    var lastStatus = '';
+    function setStatus(msg) { lastStatus = msg; var el = document.getElementById('mb-status'); if (el) el.textContent = msg; }
+
     /* ───────── helpers ───────── */
     function fdb() { return firebase.firestore(); }
     function FV() { return firebase.firestore.FieldValue; }
@@ -144,11 +148,15 @@
                 Object.keys(setsByField[field]).forEach(function (id) { if (!seen[id]) delete docs[id]; });
                 setsByField[field] = seen;
                 onData();
-            }, function (err) { console.warn('staff_mail listen failed:', err && err.message); });
+            }, function (err) {
+                console.warn('staff_mail listen failed:', err);
+                setStatus('⚠️ Firestore error: ' + (err && err.message ? err.message : err) + ' — rules publish aagiyaa check pannunga');
+            });
             listeners.push(unsub);
         }
         listen('to');
         listen('from');
+        setStatus('✅ Connected as ' + ME.name);
     }
     function onData() {
         var unread = unreadCount();
@@ -508,15 +516,18 @@
             injectStyle();
             startListeners();
         },
+        isReporterReady: function () { return !!(ME && ME.role === 'rep'); },
         /* Reporter panel: Profile menu → Messages (full-screen Gmail-like overlay) */
         openReporter: function () {
             if (!ME || ME.role !== 'rep') { toast('⚠️ Login aagalai — refresh pannunga'); return; }
+            if (!liveStarted) setStatus('⏳ Connecting…');
             var ov = document.getElementById('mb-overlay');
             if (!ov) {
                 ov = document.createElement('div');
                 ov.id = 'mb-overlay';
                 ov.className = 'mb-overlay';
                 ov.innerHTML = '<div class="mb-overlay-box"><div class="mb-overlay-top"><span>📨 Messages — Admin</span>' +
+                    '<span id="mb-status" style="font-size:.78rem;color:#64748b;font-weight:600;margin-left:8px;">' + esc(lastStatus) + '</span>' +
                     '<span style="flex:1"></span><button class="mb-btn" id="mb-close">✕ Close</button></div>' +
                     '<div id="mb-rep-root" style="flex:1;min-height:0;display:flex;"></div></div>';
                 document.body.appendChild(ov);
